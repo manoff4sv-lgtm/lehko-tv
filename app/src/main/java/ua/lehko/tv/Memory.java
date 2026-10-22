@@ -20,8 +20,8 @@ final class Memory {
     /** Automatic cleaning at most this often. */
     static final long AUTO_EVERY_MS = 3 * 60_000L;
     static final long MB = 1024 * 1024;
-    /** "Low": under a fifth of all memory, or under 200 MB. */
-    static final long LOW_MB = 200;
+    /** "Low": under a fifth of all memory, or under 500 MB (Eugene's choice for 1 GB TVs: clean early). */
+    static final long LOW_MB = 500;
 
     static ActivityManager.MemoryInfo info(Context c) {
         ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();

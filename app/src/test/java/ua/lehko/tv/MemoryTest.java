@@ -40,9 +40,9 @@ public class MemoryTest {
 
     @Test public void lowMemory() {
         long mb = Memory.MB;
-        assertTrue(Memory.low(150 * mb, 2000 * mb)); // under 200 MB
-        assertTrue(Memory.low(190 * mb, 1000 * mb)); // under a fifth
-        assertFalse(Memory.low(250 * mb, 1000 * mb));
-        assertTrue(Memory.low(300 * mb, 2000 * mb)); // a fifth of 2 GB is 400 MB
+        assertTrue(Memory.low(450 * mb, 1000 * mb)); // under 500 MB
+        assertFalse(Memory.low(520 * mb, 1000 * mb));
+        assertTrue(Memory.low(700 * mb, 4000 * mb)); // a fifth of 4 GB is 800 MB
+        assertFalse(Memory.low(900 * mb, 4000 * mb));
     }
 }

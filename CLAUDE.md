@@ -46,7 +46,7 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   every 10 min (change = (last - open) / open). Own compact JSON cache; one line under the date, hidden when off or
   empty or too old. `Net.HttpError` carries the status code.
 - `Memory`: free memory, own PSS; `clean()` = `HomeMode.killAll` (`am kill-all`, may show the debugging prompt) else
-  `killBackgroundProcesses` per app; `maybeAutoClean()` on Home resume when memory is low (< 20% or < 200 MB, at most
+  `killBackgroundProcesses` per app; `maybeAutoClean()` on Home resume when memory is low (< 20% or < 500 MB, at most
   every 3 min, never prompts). `HomeMode.enable` stores the stock launcher's PSS (`K_LAUNCHER_PSS`, from
   `dumpsys meminfo`). `App.onTrimMemory`: UI_HIDDEN trims the picture cache to ~3 MB (the favorites' tiles hold those
   bitmaps anyway), RUNNING_LOW and up empties it.
@@ -104,8 +104,8 @@ tags from cloud sessions is blocked by the git proxy; releases are made on GitHu
 
 Deviations from the plan below: no USDT/UAH (the line wouldn't fit beside the weather); `forecast_days=2`; on
 UI_HIDDEN the picture cache is trimmed rather than emptied (emptying would reload every banner on each return home).
-The fireplace look was checked only in an AWT re-drawing of `FireView`, not on a device. Auto clean keeps the planned
-thresholds (< 20% or < 200 MB), which a 1 GB TV may hit on most returns home: watch for apps restarting too often.
+The fireplace look was checked only in an AWT re-drawing of `FireView`, not on a device. Auto clean: Eugene raised the
+threshold to 500 MB (2026-10-22), so on a 1 GB TV it runs on nearly every return home (at most every 3 min).
 Review fixes: no clipPath per frame (arch mask in the grid), picture cache keeps favorites except at BACKGROUND+,
 favorites row rebuilt on resume only when the list changed, fire paused without window focus (Android 8-10 dreams).
 
