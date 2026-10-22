@@ -13,6 +13,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.UserHandle;
 import android.provider.Settings;
+import android.text.TextUtils;
 import android.text.format.DateFormat;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -38,7 +39,8 @@ public final class HomeActivity extends Activity {
     private LinearLayout favoritesRow, quickRow, outageCard, outageDays, tomorrowBox, weatherHours;
     private HorizontalScrollView favoritesScroll;
     private ImageView weatherIcon;
-    private TextView weatherTemp, weatherText, weatherExtra, weatherSun, outageStatus, outageGroup, notice;
+    private TextView weatherTemp, weatherText, weatherExtra, weatherSun, outageStatus, outageGroup, notice, focusName,
+            favoritesLabel;
     /** The next hours under the current weather. */
     private static final int HOURS = 5;
     private final TextView[] hourTime = new TextView[HOURS], hourTemp = new TextView[HOURS];
@@ -89,6 +91,7 @@ public final class HomeActivity extends Activity {
     private final Runnable hideNotice = new Runnable() {
         @Override public void run() {
             notice.setVisibility(View.GONE);
+            favoritesLabel.setVisibility(View.VISIBLE);
         }
     };
 
@@ -148,6 +151,8 @@ public final class HomeActivity extends Activity {
         todayBar = findViewById(R.id.outage_today);
         tomorrowBar = findViewById(R.id.outage_tomorrow);
         notice = findViewById(R.id.notice);
+        focusName = findViewById(R.id.focus_name);
+        favoritesLabel = findViewById(R.id.favorites_label);
 
         bgTop = getColor(R.color.bg_top);
         bgBottom = getColor(R.color.bg_bottom);
@@ -213,6 +218,8 @@ public final class HomeActivity extends Activity {
         if (n != null) {
             notice.setText(n);
             notice.setVisibility(View.VISIBLE);
+            // The notice takes the section title's place, so the shortcuts row still fits on screen.
+            favoritesLabel.setVisibility(View.GONE);
             App.MAIN.removeCallbacks(hideNotice);
             App.MAIN.postDelayed(hideNotice, 20_000);
         }
@@ -321,7 +328,7 @@ public final class HomeActivity extends Activity {
                         @Override public void run() {
                             if (!a.pkg.equals(t.key)) return;
                             t.show(pic, banner[0], a.label);
-                            if (t.isFocused()) ambient(t);
+                            if (t.isFocused()) focusChanged(t);
                         }
                     });
                 }
@@ -339,6 +346,19 @@ public final class HomeActivity extends Activity {
 
     private void focusChanged(View focused) {
         ambient(focused);
+        CharSequence name = focused instanceof Tile && focused.getParent() == favoritesRow
+                ? focused.getContentDescription() : null;
+        showFocusName(name == null ? "" : name);
+    }
+
+    /** The name under the favorites row; a new name fades in quickly. */
+    private void showFocusName(CharSequence name) {
+        if (TextUtils.equals(name, focusName.getText())) return;
+        focusName.animate().cancel();
+        focusName.setText(name);
+        if (name.length() == 0) return;
+        focusName.setAlpha(0f);
+        focusName.animate().alpha(1f).setDuration(160).start();
     }
 
     /** The package of a favorite's tile, or null for anything else (shortcuts, "All apps"). */
