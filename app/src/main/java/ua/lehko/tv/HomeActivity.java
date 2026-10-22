@@ -49,8 +49,10 @@ public final class HomeActivity extends Activity {
     private TextView weatherTemp, weatherText, weatherSun, powerTitle, powerDetail, notice, focusName, ratesLine;
     /** The rates line's two versions: short, and full while the details are open. */
     private CharSequence ratesShort, ratesLong;
-    /** The favorite that had focus last, so Down from the details goes back to it. */
-    private View lastFavorite;
+    /** The key of the favorite that had focus last, so Down from the details goes back to it (even after a rebuild). */
+    private Object lastFavorite;
+    /** A favorite's menu while it is open (Home closes it). */
+    private AlertDialog menu;
     private DialView dial;
     /** The next hours under the current weather. */
     private static final int HOURS = 5;
@@ -236,6 +238,7 @@ public final class HomeActivity extends Activity {
             App.MAIN.removeCallbacks(hideNotice);
             App.MAIN.removeCallbacks(ticker);
             App.MAIN.removeCallbacks(idle);
+            if (menu != null) menu.dismiss();
             ambientFade.cancel();
             getWindow().getDecorView().getViewTreeObserver().removeOnGlobalFocusChangeListener(focusWatch);
         }
@@ -311,17 +314,40 @@ public final class HomeActivity extends Activity {
         super.onPause();
     }
 
-    /** Home pressed while already home: back to the first favorite. */
+    /** Home pressed while already home: a clean home screen, at the first favorite. */
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        // Started as the TV's home from now on (onBackPressed tells the home from the preview by this).
+        if (intent.hasCategory(Intent.CATEGORY_HOME)) setIntent(intent);
         if (safe) return;
+        if (menu != null) menu.dismiss();
+        toFirstFavorite();
+    }
+
+    @Override public void onBackPressed() {
+        // Back closes the details, like Down.
+        if (!safe && info.hasFocus() && backToFavorite()) return;
+        // "Try the Lehko home screen" from Lehko settings (not the TV's home): Back goes back there.
+        if (!getIntent().hasCategory(Intent.CATEGORY_HOME)) {
+            finish();
+            return;
+        }
+        // The home screen has nowhere to go back to.
+        if (!safe) toFirstFavorite();
+    }
+
+    private void toFirstFavorite() {
         favoritesScroll.smoothScrollTo(0, 0);
         if (favoritesRow.getChildCount() > 0) favoritesRow.getChildAt(0).requestFocus();
     }
 
-    @Override public void onBackPressed() {
-        // The home screen has nowhere to go back to.
-        onNewIntent(getIntent());
+    /** Focus back to the favorite the details were opened from, or the first one if it is gone. */
+    private boolean backToFavorite() {
+        View back = favoritesRow.getChildCount() > 0 ? favoritesRow.getChildAt(0) : null;
+        for (int i = 0; i < favoritesRow.getChildCount(); i++) {
+            if (((Tile) favoritesRow.getChildAt(i)).key.equals(lastFavorite)) back = favoritesRow.getChildAt(i);
+        }
+        return back != null && back.requestFocus();
     }
 
     // MARK: - Apps
@@ -359,6 +385,8 @@ public final class HomeActivity extends Activity {
         View focused = getCurrentFocus();
         boolean hadFocus = focused != null && focused.getParent() == favoritesRow;
         Object focusedKey = hadFocus ? ((Tile) focused).key : null;
+        // If the focused app is gone (removed from the favorites), focus stays at its place in the row.
+        int focusedIndex = hadFocus ? favoritesRow.indexOfChild(focused) : -1;
         if (focusPkgAfterRebuild != null) {
             focusedKey = focusPkgAfterRebuild;
             hadFocus = true;
@@ -389,8 +417,12 @@ public final class HomeActivity extends Activity {
             }
         });
         addWithGap(favoritesRow, add);
+        // Back from All apps through this tile: focus stays on it, with a newly added app right beside it.
+        if (add.key.equals(focusedKey)) toFocus = add;
         if (toFocus != null) {
             toFocus.requestFocus();
+        } else if (focusedIndex >= 0) {
+            favoritesRow.getChildAt(Math.min(focusedIndex, favoritesRow.getChildCount() - 1)).requestFocus();
         } else if (getCurrentFocus() == null || hadFocus || !focusedOnce) {
             // On a cold start the buttons exist first; the first favorite is where people expect to be.
             favoritesRow.getChildAt(0).requestFocus();
@@ -436,7 +468,7 @@ public final class HomeActivity extends Activity {
 
     private void focusChanged(View focused) {
         ambient(focused);
-        if (focused.getParent() == favoritesRow) lastFavorite = focused;
+        if (focused.getParent() == favoritesRow) lastFavorite = ((Tile) focused).key;
         boolean named = focused.getParent() == favoritesRow || focused.getParent() == quickRow;
         CharSequence name = named ? focused.getContentDescription() : null;
         showFocusName(name == null ? "" : name);
@@ -490,11 +522,11 @@ public final class HomeActivity extends Activity {
 
     @Override public boolean onKeyDown(int keyCode, KeyEvent event) {
         View current = getCurrentFocus();
-        // Down from the details: back to the favorite we came from, not the one nearest the panel's middle.
-        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && current == info) {
-            View back = lastFavorite != null && lastFavorite.getParent() == favoritesRow ? lastFavorite
-                    : favoritesRow.getChildCount() > 0 ? favoritesRow.getChildAt(0) : null;
-            if (back != null && back.requestFocus()) return true;
+        if (current == info) {
+            // Down from the details: back to the favorite we came from, not the one nearest the panel's middle.
+            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && backToFavorite()) return true;
+            // Nothing is beside the panel: Left and Right stay put instead of jumping to some tile below.
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) return true;
         }
         // Right at the end of a row stays there (the wide details panel above would otherwise catch it).
         if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && current != null && (current.getParent() == quickRow
@@ -528,7 +560,7 @@ public final class HomeActivity extends Activity {
         actions.add(R.string.uninstall);
         CharSequence[] labels = new CharSequence[actions.size()];
         for (int i = 0; i < labels.length; i++) labels[i] = getString(actions.get(i));
-        new AlertDialog.Builder(this)
+        menu = new AlertDialog.Builder(this)
                 .setTitle(a.label)
                 .setItems(labels, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
