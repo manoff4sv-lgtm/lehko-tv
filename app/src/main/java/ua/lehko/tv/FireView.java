@@ -17,15 +17,20 @@ import android.view.View;
 import java.util.Random;
 
 /**
- * A fireplace. The brick firebox is drawn once into a half-size RGB_565 bitmap (about 1 MB at 1080p); every frame
- * draws that, the {@link Fire} grid scaled into the arch with a filtering paint, three logs in front and a flickering
- * ember glow. About 30 frames a second while on screen, nothing at all otherwise.
+ * A fireplace, close up: the arched opening fills the screen. The bricks, the firebox and the hearth are drawn once
+ * into a half-size RGB_565 bitmap (about 1 MB at 1080p); every frame draws that, the {@link Fire} grid scaled into
+ * the firebox with a filtering paint, three logs in front and a flickering ember glow. About 30 frames a second while
+ * on screen, nothing at all otherwise.
  */
 final class FireView extends View {
     private static final long FRAME_MS = 30;
     private static final int[] BRICKS = {0xFF4F2419, 0xFF5A2A1C, 0xFF46201A, 0xFF63301F, 0xFF542619, 0xFF3F1D16};
     /** Soot-dark bricks inside the firebox, drawn see-through over its dark back wall. */
     private static final int[] SOOT = {0x24603020, 0x1C502818, 0x14703828};
+    /** The opening (fractions of the view): its sides, where the arch starts, the arch's top, the hearth. */
+    private static final float LEFT = 0.03f, RIGHT = 0.97f, SIDE_TOP = 0.42f, ARCH_TOP = 0.04f, HEARTH = 0.93f;
+    /** Where the firebox's back wall stands: the side walls and the floor run back to it. */
+    private static final float BACK_L = 0.17f, BACK_R = 0.83f, BACK_TOP = 0.08f, BACK_FLOOR = 0.80f;
 
     private final Fire fire = new Fire(System.nanoTime());
     private final Bitmap frame = Bitmap.createBitmap(Fire.W, Fire.H, Bitmap.Config.ARGB_8888);
@@ -114,7 +119,7 @@ final class FireView extends View {
             box = null;
         }
         boxFailed = false;
-        float left = w * 0.285f, right = w * 0.715f, sideTop = h * 0.50f, archTop = h * 0.37f, bottom = h * 0.875f;
+        float left = w * LEFT, right = w * RIGHT, sideTop = h * SIDE_TOP, archTop = h * ARCH_TOP, bottom = h * HEARTH;
         arch.reset();
         arch.moveTo(left, bottom);
         arch.lineTo(left, sideTop);
@@ -122,7 +127,8 @@ final class FireView extends View {
         arch.arcTo(r, 180, 180, false);
         arch.lineTo(right, bottom);
         arch.close();
-        fireRect.set(left, archTop + (bottom - archTop) * 0.04f, right, bottom);
+        // The flames rise from the logs to about a third of the screen's height; the clock floats above them.
+        fireRect.set(w * 0.10f, h * 0.24f, w * 0.90f, h * 0.90f);
         // Which grid cells fall outside the arch's round top.
         float cx = (left + right) / 2, rx = (right - left) / 2, ry = sideTop - archTop;
         float cellW = fireRect.width() / Fire.W, cellH = fireRect.height() / Fire.H;
@@ -138,12 +144,12 @@ final class FireView extends View {
             }
         }
         outside = java.util.Arrays.copyOf(cells, n);
-        logs[0] = new float[]{w * 0.462f, h * 0.850f, w * 0.27f, h * 0.050f, -5};
-        logs[1] = new float[]{w * 0.540f, h * 0.855f, w * 0.26f, h * 0.048f, 6};
-        logs[2] = new float[]{w * 0.502f, h * 0.814f, w * 0.21f, h * 0.044f, -2};
+        logs[0] = new float[]{w * 0.40f, h * 0.862f, w * 0.40f, h * 0.082f, -4};
+        logs[1] = new float[]{w * 0.60f, h * 0.866f, w * 0.40f, h * 0.078f, 5};
+        logs[2] = new float[]{w * 0.50f, h * 0.800f, w * 0.33f, h * 0.072f, -2};
         glowX = w * 0.5f;
-        glowY = h * 0.84f;
-        glowR = Math.max(1, w * 0.36f);
+        glowY = h * 0.87f;
+        glowR = Math.max(1, w * 0.55f);
         glow.setShader(new RadialGradient(glowX, glowY, glowR, new int[]{0x70FF8A2A, 0x2EFF6A18, 0x00FF5010},
                 new float[]{0f, 0.45f, 1f}, Shader.TileMode.CLAMP));
     }
@@ -195,7 +201,7 @@ final class FireView extends View {
         c.restore();
     }
 
-    /** The room, the brick surround, the arch, mantel and hearth: drawn once, at half size. */
+    /** The brick surround, the arch, the firebox (back wall, side walls, floor) and the hearth: once, at half size. */
     private void buildBox(int w, int h) {
         try {
             box = Bitmap.createBitmap(Math.max(1, w / 2), Math.max(1, h / 2), Bitmap.Config.RGB_565);
@@ -210,46 +216,75 @@ final class FireView extends View {
         Random rnd = new Random(1); // the same bricks every time
         float line = Math.max(2, h * 0.004f);
 
-        p.setShader(new LinearGradient(0, 0, 0, h, 0xFF0D0907, 0xFF060404, Shader.TileMode.CLAMP));
+        // The surround: big bricks to the screen's edges, darker the farther they are from the fire.
+        c.drawColor(0xFF1E1410);
+        bricks(c, p, rnd, 0, 0, w, h, w * 0.10f, h * 0.09f, line * 1.5f, BRICKS);
+        p.setShader(new LinearGradient(0, 0, 0, h, new int[]{0xC8000000, 0x70000000, 0x18000000},
+                new float[]{0f, 0.55f, 1f}, Shader.TileMode.CLAMP));
         c.drawRect(0, 0, w, h, p);
         p.setShader(null);
-
-        float sx0 = w * 0.17f, sx1 = w * 0.83f, sy0 = h * 0.25f, sy1 = h * 0.875f;
-        p.setColor(0xFF1E1410);
-        c.drawRect(sx0, sy0, sx1, sy1, p);
-        bricks(c, p, rnd, sx0, sy0, sx1, sy1, w * 0.058f, h * 0.045f, line * 1.2f, BRICKS);
-
         p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(h * 0.04f);
-        p.setColor(0xFF34170F);
+        p.setStrokeWidth(h * 0.035f);
+        p.setColor(0xFF2A130C);
         c.drawPath(arch, p);
         p.setStyle(Paint.Style.FILL);
 
         c.save();
         c.clipPath(arch);
-        p.setShader(new LinearGradient(0, h * 0.37f, 0, h * 0.875f, 0xFF040303, 0xFF1E0D07, Shader.TileMode.CLAMP));
+        // The back wall, lit from below, with soot-dark bricks.
+        p.setShader(new LinearGradient(0, 0, 0, h * BACK_FLOOR, new int[]{0xFF040303, 0xFF120806, 0xFF2A1208},
+                new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP));
         c.drawRect(0, 0, w, h, p);
         p.setShader(null);
-        bricks(c, p, rnd, w * 0.285f, h * 0.37f, w * 0.715f, h * 0.875f, w * 0.05f, h * 0.04f, line, SOOT);
+        bricks(c, p, rnd, w * BACK_L, 0, w * BACK_R, h * BACK_FLOOR, w * 0.085f, h * 0.075f, line, SOOT);
+        // The side walls, turning towards us: darker, with their courses running back to the wall.
+        for (int side = 0; side < 2; side++) {
+            float edge = w * (side == 0 ? LEFT : RIGHT), back = w * (side == 0 ? BACK_L : BACK_R);
+            Path wall = new Path();
+            wall.moveTo(edge, 0);
+            wall.lineTo(back, h * BACK_TOP);
+            wall.lineTo(back, h * BACK_FLOOR);
+            wall.lineTo(edge, h * HEARTH);
+            wall.close();
+            p.setShader(new LinearGradient(edge, 0, back, 0, 0xFF060404, 0xFF1A0C07, Shader.TileMode.CLAMP));
+            c.drawPath(wall, p);
+            p.setShader(null);
+            p.setColor(0xFF050303);
+            p.setStrokeWidth(line);
+            for (int k = 1; k < 12; k++) {
+                float t = k / 12f;
+                c.drawLine(edge, h * HEARTH * t, back, h * (BACK_TOP + (BACK_FLOOR - BACK_TOP) * t), p);
+            }
+        }
+        // The floor: ash and a few embers around the logs.
+        Path floor = new Path();
+        floor.moveTo(w * LEFT, h * HEARTH);
+        floor.lineTo(w * BACK_L, h * BACK_FLOOR);
+        floor.lineTo(w * BACK_R, h * BACK_FLOOR);
+        floor.lineTo(w * RIGHT, h * HEARTH);
+        floor.close();
+        p.setShader(new LinearGradient(0, h * BACK_FLOOR, 0, h * HEARTH, 0xFF140B07, 0xFF2A1A12, Shader.TileMode.CLAMP));
+        c.drawPath(floor, p);
+        p.setShader(null);
+        for (int i = 0; i < 46; i++) {
+            float ex = w * (0.22f + rnd.nextFloat() * 0.56f), ey = h * (0.83f + rnd.nextFloat() * 0.09f);
+            float er = h * (0.003f + rnd.nextFloat() * 0.006f);
+            p.setColor(rnd.nextBoolean() ? 0xB0FF6A1A : 0x90C8320A);
+            c.drawOval(ex - er * 1.6f, ey - er, ex + er * 1.6f, ey + er, p);
+        }
+        // Still firelight on the walls (the flickering glow is drawn over it every frame).
+        p.setShader(new RadialGradient(w * 0.5f, h * 0.85f, w * 0.6f, new int[]{0x58FF6A20, 0x20FF5010, 0x00000000},
+                new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP));
+        c.drawRect(0, 0, w, h, p);
+        p.setShader(null);
         c.restore();
 
-        p.setShader(new LinearGradient(0, h * 0.205f, 0, h * 0.25f, 0xFF3B2718, 0xFF1F140D, Shader.TileMode.CLAMP));
-        c.drawRect(w * 0.12f, h * 0.205f, w * 0.88f, h * 0.25f, p);
+        // The hearth stone along the bottom.
+        p.setShader(new LinearGradient(0, h * HEARTH, 0, h, 0xFF3A2F28, 0xFF1C1713, Shader.TileMode.CLAMP));
+        c.drawRect(0, h * HEARTH, w, h, p);
         p.setShader(null);
-        p.setColor(0xFF4C3422);
-        c.drawRect(w * 0.12f, h * 0.205f, w * 0.88f, h * 0.205f + line, p);
-
-        p.setShader(new LinearGradient(0, h * 0.875f, 0, h * 0.95f, 0xFF2E2621, 0xFF171310, Shader.TileMode.CLAMP));
-        c.drawRect(w * 0.13f, h * 0.875f, w * 0.87f, h * 0.95f, p);
-        p.setShader(null);
-        p.setColor(0xFF3D332C);
-        c.drawRect(w * 0.13f, h * 0.875f, w * 0.87f, h * 0.875f + line, p);
-
-        // The room falls into darkness away from the fire.
-        p.setShader(new RadialGradient(w * 0.5f, h * 0.72f, w * 0.62f, new int[]{0x00000000, 0x00000000, 0xB0000000},
-                new float[]{0f, 0.35f, 1f}, Shader.TileMode.CLAMP));
-        c.drawRect(0, 0, w, h, p);
-        p.setShader(null);
+        p.setColor(0xFF4A3D33);
+        c.drawRect(0, h * HEARTH, w, h * HEARTH + line, p);
     }
 
     private static void bricks(Canvas c, Paint p, Random rnd, float x0, float y0, float x1, float y1, float bw, float bh,

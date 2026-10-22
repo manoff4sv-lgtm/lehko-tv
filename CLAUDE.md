@@ -24,8 +24,10 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   weather line, compact rates) whose `details` (hours, city/max/min/sun, full rates, tomorrow's `OutageBar` without
   labels) show only while it has focus (Up from favorites), favorites row (`Tile`s 184x104, focus = white ring in
   `ring_pad` room + tint-coloured shadow on API 28+), focused name line (favorites and buttons), round `IconButton`
-  shortcuts (HDMI inputs + Live TV via `Inputs`, All apps, TV settings, Memory, Lehko settings), one-time notice.
-  Ticker every minute; weather refresh 30 min; outages 10 min.
+  shortcuts (HDMI inputs + Live TV via `Inputs`, All apps, TV settings, Memory, Lehko settings), one-time notice
+  (goes by itself; a key press puts it away once it has been readable; memory result 6 s). Both rows are `ScrollRow`s
+  running edge to edge: the fading edge length is only the scroll margin, no fade layer is drawn (on the TV the faded,
+  unclipped row ends looked "melted"). Round buttons are opaque. Ticker every minute; weather 30 min; outages 10 min.
 - `AllAppsActivity` GridView of tiles; long-press/Menu: open, add/remove favorite, info, uninstall.
 - `Apps` app list (LEANBACK_LAUNCHER first, then LAUNCHER), default favorites, banner/icon LruCache.
 - `Weather` Open-Meteo forecast + geocoding search; cached JSON so it shows offline (outages!). Default city
@@ -62,8 +64,9 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   has a spoken description (`Outages.runs`, `OutageText.describe`); with a spoken-feedback service on, the header and
   outage card are focusable; live regions on notices/status cards; Settings has section headers; FireView stands
   still when animator duration scale is 0. Rates arrows and error text use `rate_up`/`rate_down`/`error_text`.
-- Fireplace: `Fire` (pure Doom-fire automaton, 160x90, tested), `FireView` (firebox drawn once into a half-size
-  RGB_565 bitmap, fire scaled into the arch with a filtering paint, logs, flickering glow; ~30 fps via
+- Fireplace: `Fire` (pure Doom-fire automaton, 160x90, tested), `FireView` (a close-up: the arched opening fills the
+  screen, bricks to the edges; surround, firebox walls, floor and hearth drawn once into a half-size RGB_565 bitmap,
+  fire scaled into the firebox with a filtering paint, logs, flickering glow; ~30 fps via
   `postOnAnimation` only while visible), `FireScene` (shared: drifting dim clock + outage line, slow pixel shift,
   optional `Crackle` brown noise + pops on an AudioTrack), `FireplaceActivity` (HomeActivity's idle timer, reset in
   `onUserInteraction`; any non-volume key goes back; no keep-screen-on), `FireDream`. Screensaver choice:
@@ -105,8 +108,8 @@ v0.9 is feature-complete and reviewed: home screen, weather, outages, on-device 
 unneeded-apps screen, uk/en/ru, CI with signed builds (incl. HomeModeTest against `tools/fake_adbd.py --tv`, a
 simulated Google TV). v0.10 (2026-10-22) added the ambient background, hourly weather and sun times, the focused app
 name, the rates line, memory cleaning and measurement, the fireplace, a design/accessibility pass and the dial
-redesign of the home screen; 71 tests now. Nothing has been run on a
-real TV yet. UI strings live in `tools/strings/strings.py`
+redesign of the home screen; 69 tests now. First run on Eugene's TV (2026-10-22) found three things, fixed: the memory
+notice didn't go away, the faded ends of the scrolling rows looked bad, the fireplace filled only part of the screen. UI strings live in `tools/strings/strings.py`
 (edit there, then `python3 tools/strings/strings.py app/src/main/res`).
 
 **Do not** publish GitHub releases, change repository settings or rewrite git history without Eugene's OK. Pushing

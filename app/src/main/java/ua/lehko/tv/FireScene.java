@@ -15,7 +15,7 @@ import java.util.Random;
 
 /**
  * The fireplace screen, shared by {@link FireplaceActivity} and {@link FireDream}: the fire, a dim clock with the
- * outage status above the mantel, and the optional crackle. The clock and the whole scene drift slowly, so nothing
+ * outage status in the dark top of the firebox, and the optional crackle. The clock and the whole scene drift slowly, so nothing
  * stays on the same pixels for long.
  */
 final class FireScene {
@@ -87,8 +87,9 @@ final class FireScene {
             updateOutage();
             int w = root.getWidth(), h = root.getHeight();
             if (w > 0 && box.getWidth() > 0) {
-                float x = w * 0.06f + random.nextFloat() * Math.max(0, w * 0.88f - box.getWidth());
-                float y = h * 0.025f + random.nextFloat() * Math.max(0, h * 0.175f - box.getHeight());
+                // Under the arch, above the flames.
+                float x = w * 0.27f + random.nextFloat() * Math.max(0, w * 0.46f - box.getWidth());
+                float y = h * 0.09f + random.nextFloat() * Math.max(0, h * 0.19f - box.getHeight());
                 float fx = random.nextInt(2 * shift + 1) - shift, fy = random.nextInt(2 * shift + 1) - shift;
                 if (!placed) {
                     placed = true;

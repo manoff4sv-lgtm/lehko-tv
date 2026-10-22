@@ -11,6 +11,7 @@ import android.content.pm.LauncherApps;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.os.UserHandle;
 import android.provider.Settings;
 import android.text.SpannableString;
@@ -24,7 +25,6 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
-import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextClock;
@@ -44,7 +44,7 @@ public final class HomeActivity extends Activity {
 
     private LinearLayout favoritesRow, quickRow, weatherHours, info;
     private View details, tomorrowBox;
-    private HorizontalScrollView favoritesScroll;
+    private ScrollRow favoritesScroll;
     private ImageView weatherIcon;
     private TextView weatherTemp, weatherText, weatherSun, powerTitle, powerDetail, notice, focusName, ratesLine;
     /** The rates line's two versions: short, and full while the details are open. */
@@ -120,10 +120,13 @@ public final class HomeActivity extends Activity {
 
     private final Runnable hideNotice = new Runnable() {
         @Override public void run() {
+            App.MAIN.removeCallbacks(this);
             notice.setVisibility(View.GONE);
             focusName.setVisibility(View.VISIBLE);
         }
     };
+    /** Until when (uptime) a key press leaves the notice up: it has to be readable first. */
+    private long noticeKeepUntil;
 
     private final LauncherApps.Callback packages = new LauncherApps.Callback() {
         @Override public void onPackageRemoved(String pkg, UserHandle user) {
@@ -263,7 +266,10 @@ public final class HomeActivity extends Activity {
 
     @Override public void onUserInteraction() {
         super.onUserInteraction();
-        if (!safe) scheduleIdle();
+        if (safe) return;
+        scheduleIdle();
+        // A key press after the notice has been read puts it away (it also goes by itself).
+        if (notice.getVisibility() == View.VISIBLE && SystemClock.uptimeMillis() >= noticeKeepUntil) hideNotice.run();
     }
 
     /** Back from a menu (whose keys don't reach onUserInteraction): the idle time starts again. */
@@ -278,13 +284,20 @@ public final class HomeActivity extends Activity {
         if (resumed && minutes > 0) App.MAIN.postDelayed(idle, minutes * 60_000L);
     }
 
+    /** Results of background checks: up to 20 seconds, a key press puts it away after 4. */
     private void showNotice(String text) {
+        showNotice(text, 20_000, 4_000);
+    }
+
+    /** Shows {@code text} for {@code ms}; a key press puts it away once it has been up for {@code readMs}. */
+    private void showNotice(String text, long ms, long readMs) {
         notice.setText(text);
         notice.setVisibility(View.VISIBLE);
         // The notice borrows the name line's room, so the buttons stay inside the screen's safe area.
         focusName.setVisibility(View.GONE);
+        noticeKeepUntil = SystemClock.uptimeMillis() + readMs;
         App.MAIN.removeCallbacks(hideNotice);
-        App.MAIN.postDelayed(hideNotice, 20_000);
+        App.MAIN.postDelayed(hideNotice, ms);
     }
 
     @Override protected void onPause() {
@@ -635,7 +648,7 @@ public final class HomeActivity extends Activity {
     private void cleanMemory() {
         if (cleaning) return;
         cleaning = true;
-        showNotice(getString(R.string.memory_cleaning));
+        showNotice(getString(R.string.memory_cleaning), 90_000, 90_000);
         final Context app = getApplicationContext();
         final HomeMode.Progress progress = new HomeMode.Progress() {
             @Override public void step(String text) {}
@@ -643,7 +656,7 @@ public final class HomeActivity extends Activity {
             @Override public void approval() {
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
-                        if (!isDestroyed()) showNotice(getString(R.string.adb_waiting));
+                        if (!isDestroyed()) showNotice(getString(R.string.adb_waiting), 90_000, 90_000);
                     }
                 });
             }
@@ -662,7 +675,7 @@ public final class HomeActivity extends Activity {
                     @Override public void run() {
                         cleaning = false;
                         if (isDestroyed()) return;
-                        showNotice(result);
+                        showNotice(result, 6_000, 1_500);
                         updateMemoryTile();
                     }
                 });

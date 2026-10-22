@@ -229,19 +229,23 @@
         android:textSize="14sp"
         android:visibility="gone" />
 
-    <HorizontalScrollView
+    <!--
+      The rows run from screen edge to screen edge (the safe area's 48dp pulled back in as padding), so a tile that
+      scrolls away just leaves the screen. The "fading edge" is only the room kept beside the focused tile (see
+      ScrollRow). Tiles keep 7dp for their focus ring: 41dp + 7dp = 48dp.
+    -->
+    <ua.lehko.tv.ScrollRow
         android:id="@+id/favorites_scroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="-19dp"
-        android:layout_marginEnd="-19dp"
+        android:layout_marginStart="@dimen/safe_h_out"
+        android:layout_marginEnd="@dimen/safe_h_out"
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:fadingEdgeLength="24dp"
+        android:fadingEdgeLength="41dp"
         android:requiresFadingEdge="horizontal"
         android:scrollbars="none">
 
-        <!-- Tiles keep 7dp for their focus ring on each side: 12dp of padding + 7dp = the 19dp pulled into the margin. -->
         <LinearLayout
             android:id="@+id/favorites"
             android:layout_width="wrap_content"
@@ -249,11 +253,11 @@
             android:clipChildren="false"
             android:clipToPadding="false"
             android:orientation="horizontal"
-            android:paddingStart="12dp"
+            android:paddingStart="41dp"
             android:paddingTop="6dp"
-            android:paddingEnd="12dp"
+            android:paddingEnd="41dp"
             android:paddingBottom="6dp" />
-    </HorizontalScrollView>
+    </ua.lehko.tv.ScrollRow>
 
     <!-- The focused favorite's or button's name (banners and icons don't always show it). -->
     <TextView
@@ -266,14 +270,16 @@
         android:textColor="@color/text_primary"
         android:textSize="16sp" />
 
-    <HorizontalScrollView
+    <ua.lehko.tv.ScrollRow
         android:id="@+id/quick_scroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="-12dp"
-        android:layout_marginEnd="-12dp"
+        android:layout_marginStart="@dimen/safe_h_out"
+        android:layout_marginEnd="@dimen/safe_h_out"
         android:clipChildren="false"
         android:clipToPadding="false"
+        android:fadingEdgeLength="48dp"
+        android:requiresFadingEdge="horizontal"
         android:scrollbars="none">
 
         <LinearLayout
@@ -283,9 +289,9 @@
             android:clipChildren="false"
             android:clipToPadding="false"
             android:orientation="horizontal"
-            android:paddingStart="12dp"
+            android:paddingStart="@dimen/safe_h"
             android:paddingTop="8dp"
-            android:paddingEnd="12dp"
+            android:paddingEnd="@dimen/safe_h"
             android:paddingBottom="4dp" />
-    </HorizontalScrollView>
+    </ua.lehko.tv.ScrollRow>
 </LinearLayout>
