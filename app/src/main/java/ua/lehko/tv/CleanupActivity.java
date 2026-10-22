@@ -6,6 +6,9 @@ import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.media.tv.TvContract;
+import android.media.tv.TvInputInfo;
+import android.media.tv.TvInputManager;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -122,14 +125,21 @@ public final class CleanupActivity extends Activity {
         pkgs.addAll(SUGGESTED.keySet());
         Set<String> ours = HomeMode.disabled(c);
         pkgs.addAll(ours);
-        // Managed by the home screen switch, not here.
+        // Managed by the home screen switch, not here: the home Lehko puts back, and the one in use now (while Lehko
+        // is off nothing is written down, and a home without "launcher" in its name isn't protected).
         String originalHome = HomeMode.packageOf(Prefs.of(c).getString(HomeMode.K_HOME, ""));
         pkgs.remove(originalHome);
+        ResolveInfo home = pm.resolveActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME),
+                PackageManager.MATCH_DEFAULT_ONLY);
+        if (home != null && home.activityInfo != null) pkgs.remove(home.activityInfo.packageName);
         pkgs.remove(HomeMode.SETUP);
         if (HomeMode.ATV_HOME_PKG.equals(originalHome)) pkgs.remove(HomeMode.ATV_RECOMMENDATIONS);
         pkgs.remove(c.getPackageName());
-        // Things the TV needs right now: the keyboard, accessibility services, the screensaver, the Live TV app.
-        pkgs.removeAll(inUse(c));
+        // Things the TV needs right now: the keyboard, accessibility services, the screensaver, the Live TV and HDMI
+        // apps. An app that is off isn't in use whatever the settings say, and it has to stay here to be turned back on.
+        Set<String> used = inUse(c);
+        used.removeAll(disabledNow);
+        pkgs.removeAll(used);
 
         List<Row> out = new ArrayList<>();
         for (String pkg : pkgs) {
@@ -162,26 +172,53 @@ public final class CleanupActivity extends Activity {
         return out;
     }
 
-    /** Packages of the current keyboard, accessibility services, screensaver and Live TV app. */
+    /** Packages of the current keyboard, accessibility services, screensaver, Live TV app and HDMI player. */
     private static Set<String> inUse(Context c) {
         Set<String> out = new HashSet<>();
         android.content.ContentResolver cr = c.getContentResolver();
+        List<String> values = new ArrayList<>();
         for (String key : new String[]{android.provider.Settings.Secure.DEFAULT_INPUT_METHOD,
                 android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, "screensaver_components"}) {
             try {
-                String v = android.provider.Settings.Secure.getString(cr, key);
-                if (v == null) continue;
-                for (String part : v.split("[:,]")) {
-                    String pkg = HomeMode.packageOf(part.trim());
-                    if (pkg != null && !pkg.isEmpty()) out.add(pkg);
-                }
+                values.add(android.provider.Settings.Secure.getString(cr, key));
             } catch (RuntimeException ignored) {
                 // Some settings can't be read by apps on some versions.
             }
         }
-        ResolveInfo tv = c.getPackageManager().resolveActivity(new Intent(Intent.ACTION_VIEW,
-                android.media.tv.TvContract.Channels.CONTENT_URI), 0);
-        if (tv != null && tv.activityInfo != null) out.add(tv.activityInfo.packageName);
+        // While Lehko's screensaver is set, keep the TV's own one: choosing it again puts it back as it was.
+        values.add(Prefs.of(c).getString(HomeMode.K_SAVER, null));
+        for (String v : values) {
+            if (v == null) continue;
+            for (String part : v.split("[:,]")) {
+                String pkg = HomeMode.packageOf(part.trim());
+                if (pkg != null && !pkg.isEmpty()) out.add(pkg);
+            }
+        }
+        // Every app that shows channels or plays an HDMI input (what the input buttons on Home open), not just the
+        // default: with two of them and no default, resolveActivity names only the system chooser.
+        List<Intent> views = new ArrayList<>();
+        views.add(new Intent(Intent.ACTION_VIEW).setDataAndType(TvContract.Channels.CONTENT_URI,
+                TvContract.Channels.CONTENT_TYPE));
+        TvInputManager tim = (TvInputManager) c.getSystemService(Context.TV_INPUT_SERVICE);
+        try {
+            if (tim != null) {
+                for (TvInputInfo info : tim.getTvInputList()) {
+                    // Only HDMI and the like: channel apps (Pluto TV...) have input services too and may go.
+                    if (!info.isPassthroughInput()) continue;
+                    if (info.getServiceInfo() != null) out.add(info.getServiceInfo().packageName);
+                    views.add(new Intent(Intent.ACTION_VIEW).setDataAndType(
+                            TvContract.buildChannelUriForPassthroughInput(info.getId()),
+                            TvContract.Channels.CONTENT_ITEM_TYPE));
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // A broken input service shouldn't keep the list from loading.
+        }
+        for (Intent view : views) {
+            for (ResolveInfo ri : c.getPackageManager().queryIntentActivities(view, 0)) {
+                if (ri.activityInfo != null) out.add(ri.activityInfo.packageName);
+            }
+        }
         return out;
     }
 
