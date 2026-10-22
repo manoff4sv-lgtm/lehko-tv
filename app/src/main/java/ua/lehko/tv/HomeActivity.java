@@ -1063,11 +1063,22 @@ public final class HomeActivity extends Activity {
                 Apps.start(HomeActivity.this, new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             }
         });
+        // When the switch back fails, the text sends people to Lehko settings: its "Home screen" row turns Lehko off
+        // and says what went wrong. Nothing else leads there from here (the TV's own home is off or not home).
+        android.widget.Button lehko = new android.widget.Button(this);
+        lehko.setText(R.string.settings_title);
+        lehko.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Apps.start(HomeActivity.this, new Intent(HomeActivity.this, SettingsActivity.class));
+            }
+        });
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = pad / 2;
         box.addView(retry, lp);
         box.addView(settings, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        box.addView(lehko, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         box.setBackgroundColor(0xFF0B0D11);
         setContentView(box);
