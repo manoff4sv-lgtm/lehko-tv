@@ -8,6 +8,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
@@ -92,7 +93,7 @@ final class Weather {
             if (p == null) return null;
             String json = Net.get(url(p[0], p[1]));
             Data d = parse(json);
-            if (!java.util.Arrays.equals(p, place(c))) continue;
+            if (!Arrays.equals(p, place(c))) continue;
             Prefs.of(c).edit().putString(CACHE, json).putLong(CACHE_TIME, System.currentTimeMillis()).apply();
             return d;
         }
