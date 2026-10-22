@@ -24,6 +24,10 @@ ANSWERS = {
     "pm list packages -d": "package:com.example.off\n",
 }
 LOG = []
+# Extra canned answers from a JSON file (command -> output), for script tests: FAKE_ADBD_ANSWERS=answers.json
+if os.environ.get("FAKE_ADBD_ANSWERS"):
+    import json
+    ANSWERS.update(json.load(open(os.environ["FAKE_ADBD_ANSWERS"])))
 
 
 def parse_pubkey(blob: bytes):
@@ -91,7 +95,7 @@ class Conn:
                 LOG.append("auth: key approved (" + data.split(b" ", 1)[1].rstrip(b"\0").decode() + ")")
                 time.sleep(0.5)
                 break
-        self.send(CNXN, 0x01000001, 256 * 1024, b"device::ro.product.name=fake;ro.product.model=FakeTV;features=shell_v2\0")
+        self.send(CNXN, 0x01000001, 256 * 1024, b"device::ro.product.name=fake;ro.product.model=FakeTV;features=cmd\0")
         while True:
             try:
                 cmd, a0, a1, data = self.read()
