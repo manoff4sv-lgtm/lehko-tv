@@ -247,8 +247,9 @@ final class Apps {
     }
 
     static void remember(Entry a, Drawable d, boolean banner) {
-        PICTURES.put(a.pkg, d);
+        // The flag first: whoever finds the picture (from another thread too) must also find whether it's a banner.
         BANNER.put(a.pkg, banner);
+        PICTURES.put(a.pkg, d);
     }
 
     /**
