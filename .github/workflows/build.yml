@@ -1,5 +1,6 @@
-# Builds and tests Lehko on every push and pull request. A tag like v1.2.3 also publishes a GitHub Release with
-# Lehko.apk, so the latest APK is always at .../releases/latest/download/Lehko.apk
+# Builds and tests Lehko on every push and pull request. A tag like v1.2.3 or v1.2.3-beta.1 also publishes a GitHub
+# Release with Lehko.apk, so the latest APK is always at .../releases/latest/download/Lehko.apk (README, install scripts).
+# That link skips pre-releases, so betas are published as normal releases.
 name: Build
 
 on:
@@ -64,8 +65,9 @@ jobs:
           # The release may already exist (made in GitHub's "Draft a new release" page): then just attach the APK.
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" Lehko.apk --clobber
+            if [ "$(gh release view "$GITHUB_REF_NAME" --json isPrerelease -q .isPrerelease)" = "true" ]; then
+              echo "::warning::$GITHUB_REF_NAME is marked pre-release, so .../releases/latest/download/Lehko.apk won't serve it."
+            fi
           else
-            PRE=""
-            case "$GITHUB_REF_NAME" in *-*) PRE="--prerelease" ;; esac
-            gh release create "$GITHUB_REF_NAME" Lehko.apk --title "Lehko ${GITHUB_REF_NAME#v}" --generate-notes $PRE
+            gh release create "$GITHUB_REF_NAME" Lehko.apk --title "Lehko ${GITHUB_REF_NAME#v}" --generate-notes
           fi
