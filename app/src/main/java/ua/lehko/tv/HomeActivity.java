@@ -360,8 +360,11 @@ public final class HomeActivity extends Activity {
 
     private void scheduleIdle() {
         App.MAIN.removeCallbacks(idle);
-        int minutes = FireScene.idleMinutes(this);
-        if (resumed && minutes > 0) App.MAIN.postDelayed(idle, minutes * 60_000L);
+        long delay = FireScene.idleMinutes(this) * 60_000L;
+        // The TV's screensaver (or sleep) timer counts from the same key press. When it is no longer than ours it wins:
+        // the fireplace would never show, or only flash before the screensaver covers it.
+        int tv = Settings.System.getInt(getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT, -1);
+        if (resumed && delay > 0 && (tv <= 0 || tv > delay)) App.MAIN.postDelayed(idle, delay);
     }
 
     /** Results of background checks: up to 20 seconds, a key press puts it away after 4. */
