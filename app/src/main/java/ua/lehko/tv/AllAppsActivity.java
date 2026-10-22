@@ -201,7 +201,8 @@ public final class AllAppsActivity extends Activity {
                     }
                 });
             }
-            t.setContentDescription(a.label + (Apps.isFavorite(AllAppsActivity.this, a.pkg) ? " ★" : ""));
+            t.setContentDescription(Apps.isFavorite(AllAppsActivity.this, a.pkg)
+                    ? a.label + ", " + getString(R.string.in_favorites) : a.label);
             return t;
         }
     }

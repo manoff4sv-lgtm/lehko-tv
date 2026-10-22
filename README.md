@@ -41,6 +41,10 @@
 - **Заставка** на вибір: стандартна, годинник Lehko (темний, повільно переміщується) або камін Lehko.
 - **Безпечно**: стандартний лаунчер лише вимикається, не видаляється. Кнопка «Повернути» поверне все як було.
   Якщо екран Lehko тричі впаде за 5 хвилин, телевізор сам повернеться до стандартного екрана.
+- **Доступність.** Текст контрастний за WCAG AA навіть на кольоровому фоні, фокус завжди обведений білою рамкою,
+  графік відключень читається без розрізнення червоного й зеленого (світло є: тонка лінія, нема: суцільний блок,
+  можливо: контур). З TalkBack пультом можна дійти до погоди й графіка, а сповіщення озвучуються. Якщо в
+  налаштуваннях телевізора вимкнено анімації, камін стоїть нерухомо.
 - Українська, англійська і російська мови (як у системі телевізора).
 
 ## Встановлення
@@ -154,6 +158,11 @@ closes cached background apps (through the TV's debugging, or Android's own way 
 automatic cleaning when memory runs low; and a fireplace (bricks, logs, a "Doom fire", a dim clock and the outage
 status, optional quiet crackle) after 5 idle minutes on the home screen, also available as a screensaver. The
 fireplace doesn't keep the screen on.
+
+Accessibility: text passes WCAG AA contrast even on the tinted background, focus always has a white outline, the
+outage bar reads without telling red from green (on: thin line, off: solid block, possible: outline), with TalkBack
+the weather and the schedule can be reached and are read out (notices too), and with animations turned off in the
+TV's settings the fireplace stands still.
 
 **Install:** turn on developer options and USB debugging on the TV, install
 [Lehko.apk](https://github.com/manoff4sv-lgtm/lehko-tv/releases/latest/download/Lehko.apk) (with the Downloader app,

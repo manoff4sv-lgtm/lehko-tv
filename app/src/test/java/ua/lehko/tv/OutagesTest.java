@@ -1,5 +1,6 @@
 package ua.lehko.tv;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -156,6 +157,23 @@ public class OutagesTest {
         // Clocks go back on 2026-10-25: that day is 25 hours long.
         assertEquals(25 * 3600, Outages.epoch("2026-10-26") - Outages.epoch("2026-10-25"));
         assertEquals("2026-10-25", Outages.dateOf(Outages.epoch("2026-10-25")));
+    }
+
+    /** The runs a screen reader reads out for a day's bar. */
+    @Test public void runsOfADay() {
+        byte[] s = new byte[48]; // all ON
+        for (int i = 16; i < 24; i++) s[i] = Outages.OFF; // 08:00 to 12:00
+        s[40] = Outages.MAYBE; // 20:00 to 20:30
+        s[47] = Outages.OFF; // 23:30 to midnight
+        List<int[]> off = Outages.runs(s, Outages.OFF);
+        assertEquals(2, off.size());
+        assertArrayEquals(new int[]{480, 720}, off.get(0));
+        assertArrayEquals(new int[]{1410, 1440}, off.get(1));
+        assertEquals(1, Outages.runs(s, Outages.MAYBE).size());
+        assertTrue(Outages.runs(new byte[48], Outages.OFF).isEmpty());
+        assertEquals("08:00", OutageText.hhmm(480));
+        assertEquals("23:30", OutageText.hhmm(1410));
+        assertEquals("24:00", OutageText.hhmm(1440));
     }
 
     @Test public void groupsSortNumerically() {

@@ -39,7 +39,7 @@ import java.util.Locale;
 public final class HomeActivity extends Activity {
     private static final long OUTAGE_MAX_AGE_MS = 10 * 60_000L;
 
-    private LinearLayout favoritesRow, quickRow, outageCard, outageDays, tomorrowBox, weatherHours;
+    private LinearLayout favoritesRow, quickRow, outageCard, outageDays, tomorrowBox, weatherHours, header;
     private HorizontalScrollView favoritesScroll;
     private ImageView weatherIcon;
     private TextView weatherTemp, weatherText, weatherExtra, weatherSun, outageStatus, outageGroup, notice, focusName,
@@ -163,6 +163,7 @@ public final class HomeActivity extends Activity {
         weatherText = findViewById(R.id.weather_text);
         weatherExtra = findViewById(R.id.weather_extra);
         weatherHours = findViewById(R.id.weather_hours);
+        header = findViewById(R.id.header);
         weatherSun = findViewById(R.id.weather_sun);
         buildHours();
         outageCard = findViewById(R.id.outage);
@@ -247,6 +248,23 @@ public final class HomeActivity extends Activity {
         updateMemoryTile();
         Memory.maybeAutoClean(this);
         scheduleIdle();
+        // With a screen reader the weather and the outage card can be reached with the remote and read aloud;
+        // otherwise they stay out of the way of the D-pad.
+        boolean reader = screenReader();
+        header.setFocusable(reader);
+        outageCard.setFocusable(reader);
+    }
+
+    private boolean screenReader() {
+        android.view.accessibility.AccessibilityManager am =
+                (android.view.accessibility.AccessibilityManager) getSystemService(ACCESSIBILITY_SERVICE);
+        if (am == null || !am.isEnabled()) return false;
+        try {
+            return !am.getEnabledAccessibilityServiceList(
+                    android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_SPOKEN).isEmpty();
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     @Override public void onUserInteraction() {
@@ -414,6 +432,8 @@ public final class HomeActivity extends Activity {
         showFocusName(name == null ? "" : name);
     }
 
+    private static final android.view.animation.Interpolator ENTER = new android.view.animation.DecelerateInterpolator();
+
     /** The name under the favorites row; a new name fades in quickly. */
     private void showFocusName(CharSequence name) {
         if (TextUtils.equals(name, focusName.getText())) return;
@@ -421,7 +441,7 @@ public final class HomeActivity extends Activity {
         focusName.setText(name);
         if (name.length() == 0) return;
         focusName.setAlpha(0f);
-        focusName.animate().alpha(1f).setDuration(160).start();
+        focusName.animate().alpha(1f).setDuration(160).setInterpolator(ENTER).start();
     }
 
     /** The package of a favorite's tile, or null for anything else (shortcuts, "All apps"). */
@@ -566,7 +586,10 @@ public final class HomeActivity extends Activity {
                 cleanMemory();
             }
         });
-        shortcut("lehko", R.drawable.ic_lehko, getString(R.string.lehko_settings)).setOnClickListener(new View.OnClickListener() {
+        updateMemoryTile();
+        Tile settings = shortcut("lehko", R.drawable.ic_lehko, getString(R.string.lehko_settings));
+        settings.setContentDescription(getString(R.string.settings_title));
+        settings.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 Apps.start(HomeActivity.this, new Intent(HomeActivity.this, SettingsActivity.class));
             }
@@ -593,7 +616,11 @@ public final class HomeActivity extends Activity {
     }
 
     private void updateMemoryTile() {
-        if (memoryTile != null) memoryTile.label(memoryLabel());
+        if (memoryTile == null) return;
+        String label = memoryLabel();
+        memoryTile.label(label);
+        // The label alone ("412 MB free") doesn't say what the tile does.
+        memoryTile.setContentDescription(getString(R.string.memory) + ", " + label);
     }
 
     /** The memory tile: closes background apps (asking for debugging if needed) and says how much that freed. */
@@ -796,7 +823,7 @@ public final class HomeActivity extends Activity {
             return;
         }
         SpannableString s = new SpannableString(line);
-        int up = getColor(R.color.power_on), down = getColor(R.color.power_off);
+        int up = getColor(R.color.rate_up), down = getColor(R.color.rate_down);
         for (int i = 0; i < line.length(); i++) {
             char ch = line.charAt(i);
             if (ch != '▲' && ch != '▼') continue;
@@ -859,8 +886,12 @@ public final class HomeActivity extends Activity {
         if (show) {
             Calendar k = Calendar.getInstance(Outages.KYIV);
             todayBar.set(today.slots, k.get(Calendar.HOUR_OF_DAY) * 60 + k.get(Calendar.MINUTE));
+            todayBar.setContentDescription(OutageText.describe(this, today.slots));
             tomorrowBox.setVisibility(tomorrow != null ? View.VISIBLE : View.INVISIBLE);
-            if (tomorrow != null) tomorrowBar.set(tomorrow.slots, -1);
+            if (tomorrow != null) {
+                tomorrowBar.set(tomorrow.slots, -1);
+                tomorrowBar.setContentDescription(OutageText.describe(this, tomorrow.slots));
+            }
         }
     }
 

@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- List rows: focus gets the same white outline as tiles (a lighter background alone is too faint from the sofa). -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape>
             <solid android:color="@color/surface_focus" />
+            <stroke android:width="2dp" android:color="@color/stroke_focus" />
             <corners android:radius="8dp" />
         </shape>
     </item>
     <item android:state_selected="true">
         <shape>
             <solid android:color="@color/surface_focus" />
+            <stroke android:width="2dp" android:color="@color/stroke_focus" />
             <corners android:radius="8dp" />
         </shape>
     </item>

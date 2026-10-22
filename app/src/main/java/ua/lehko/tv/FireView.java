@@ -1,5 +1,6 @@
 package ua.lehko.tv;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -100,7 +101,8 @@ final class FireView extends View {
 
     private void update() {
         removeCallbacks(frameTick);
-        if (visible && attached && !paused) postOnAnimation(frameTick);
+        // "Remove animations" in the TV's accessibility settings: a still fire (the frame from the warm-up).
+        if (visible && attached && !paused && ValueAnimator.areAnimatorsEnabled()) postOnAnimation(frameTick);
     }
 
     // MARK: - Layout

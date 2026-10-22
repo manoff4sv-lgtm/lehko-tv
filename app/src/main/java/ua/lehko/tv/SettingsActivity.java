@@ -31,6 +31,8 @@ import java.util.Locale;
 public final class SettingsActivity extends Activity {
     private static final int HOME = 1, PREVIEW = 2, CITY = 3, OUTAGES = 4, SAVER = 5, CLEANUP = 6, ABOUT = 7,
             RATES = 8, CRYPTO = 9, MEMORY = 10, AUTO_CLEAN = 11, FIRE_IDLE = 12, FIRE_SOUND = 13;
+    /** A section title in the list: {HEADER, string id}. Not focusable, the remote skips it. */
+    private static final int HEADER = 100;
 
     private ListView list;
     private TextView status;
@@ -46,7 +48,7 @@ public final class SettingsActivity extends Activity {
         list.setAdapter(adapter);
         list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                if (!busy) click(rows.get(position)[0]);
+                if (!busy && rows.get(position)[0] != HEADER) click(rows.get(position)[0]);
             }
         });
     }
@@ -62,16 +64,20 @@ public final class SettingsActivity extends Activity {
         rows.clear();
         rows.add(new int[]{HOME});
         if (!HomeMode.isOn(this)) rows.add(new int[]{PREVIEW});
+        rows.add(new int[]{HEADER, R.string.section_show});
         rows.add(new int[]{CITY});
         rows.add(new int[]{OUTAGES});
         rows.add(new int[]{RATES});
         rows.add(new int[]{CRYPTO});
+        rows.add(new int[]{HEADER, R.string.section_rest});
         rows.add(new int[]{SAVER});
         rows.add(new int[]{FIRE_IDLE});
         rows.add(new int[]{FIRE_SOUND});
+        rows.add(new int[]{HEADER, R.string.section_memory});
         rows.add(new int[]{CLEANUP});
         rows.add(new int[]{MEMORY});
         rows.add(new int[]{AUTO_CLEAN});
+        rows.add(new int[]{HEADER, 0});
         rows.add(new int[]{ABOUT});
         adapter.notifyDataSetChanged();
     }
@@ -652,7 +658,7 @@ public final class SettingsActivity extends Activity {
 
     private void showStatus(String text, boolean error) {
         status.setText(text);
-        status.setTextColor(getColor(error ? R.color.power_off : R.color.text_primary));
+        status.setTextColor(getColor(error ? R.color.error_text : R.color.text_primary));
         status.setVisibility(View.VISIBLE);
     }
 
@@ -733,6 +739,19 @@ public final class SettingsActivity extends Activity {
         });
     }
 
+    /** A small section title (or, with no text, a gap) that groups the rows below it. */
+    private View header(int text, View convertView) {
+        TextView t = convertView instanceof TextView ? (TextView) convertView : new TextView(this);
+        float dp = getResources().getDisplayMetrics().density;
+        t.setPadding(Math.round(16 * dp), Math.round((text == 0 ? 2 : 16) * dp), Math.round(16 * dp), Math.round(2 * dp));
+        t.setTextSize(13);
+        t.setTextColor(getColor(R.color.text_dim));
+        t.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+        t.setText(text == 0 ? "" : getString(text));
+        if (android.os.Build.VERSION.SDK_INT >= 28) t.setAccessibilityHeading(text != 0);
+        return t;
+    }
+
     private final class RowAdapter extends BaseAdapter {
         @Override public int getCount() {
             return rows.size();
@@ -746,7 +765,24 @@ public final class SettingsActivity extends Activity {
             return rows.get(position)[0];
         }
 
+        @Override public int getViewTypeCount() {
+            return 2;
+        }
+
+        @Override public int getItemViewType(int position) {
+            return rows.get(position)[0] == HEADER ? 1 : 0;
+        }
+
+        @Override public boolean areAllItemsEnabled() {
+            return false;
+        }
+
+        @Override public boolean isEnabled(int position) {
+            return rows.get(position)[0] != HEADER;
+        }
+
         @Override public View getView(int position, View convertView, ViewGroup parent) {
+            if (rows.get(position)[0] == HEADER) return header(rows.get(position)[1], convertView);
             View v = convertView != null ? convertView
                     : LayoutInflater.from(SettingsActivity.this).inflate(R.layout.settings_row, parent, false);
             int row = rows.get(position)[0];

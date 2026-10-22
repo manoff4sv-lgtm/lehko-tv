@@ -28,18 +28,31 @@ public class AmbientTest {
         int t = Ambient.tone(0xFF808080, false);
         assertEquals((t >> 16) & 0xFF, t & 0xFF);
         assertEquals((t >> 8) & 0xFF, t & 0xFF);
-        assertEquals(66, t & 0xFF);
+        // Value 0.26 would be 66, but that grey is brighter than the luminance cap allows.
+        assertTrue(Ambient.luminance(t) <= Ambient.MAX_LUMINANCE);
+        assertTrue((t & 0xFF) >= 48);
     }
 
     @Test public void alwaysDarkAndCalm() {
         Random r = new Random(7);
         for (int i = 0; i < 2000; i++) {
             int c = 0xFF000000 | r.nextInt(0x1000000);
-            float[] hsv = Ambient.hsv(Ambient.tone(c, false));
-            assertTrue(hsv[2] >= 0.215f && hsv[2] <= 0.305f);
+            int t = Ambient.tone(c, false);
+            float[] hsv = Ambient.hsv(t);
+            assertTrue(hsv[2] >= 0.19f && hsv[2] <= 0.305f);
             assertTrue(hsv[1] <= 0.62f);
+            assertTrue("text stays readable on it", Ambient.luminance(t) <= Ambient.MAX_LUMINANCE + 0.002);
             float[] night = Ambient.hsv(Ambient.tone(c, true));
             assertTrue(night[2] <= 0.215f);
+        }
+    }
+
+    /** text_secondary (#A7AFBA) on the brightest tint any colour can give: at least WCAG AA. */
+    @Test public void textOnTheTintPassesAa() {
+        double text = Ambient.luminance(0xA7AFBA);
+        for (int h = 0; h < 360; h += 5) {
+            double bg = Ambient.luminance(Ambient.tone(Ambient.rgb(h, 1, 1), false));
+            assertTrue("hue " + h, (text + 0.05) / (bg + 0.05) >= 4.5);
         }
     }
 

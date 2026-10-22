@@ -33,6 +33,29 @@ final class OutageText {
         }
     }
 
+    /** A day's bar for screen readers: "no power 08:00 to 12:00, 16:00 to 20:00; possibly no power 20:00 to 22:00". */
+    static String describe(Context c, byte[] slots) {
+        StringBuilder b = new StringBuilder();
+        part(c, b, Outages.runs(slots, Outages.OFF), R.string.outage_bar_off);
+        part(c, b, Outages.runs(slots, Outages.MAYBE), R.string.outage_bar_maybe);
+        return b.length() > 0 ? b.toString() : c.getString(R.string.outage_bar_none);
+    }
+
+    private static void part(Context c, StringBuilder b, java.util.List<int[]> runs, int label) {
+        if (runs.isEmpty()) return;
+        StringBuilder ranges = new StringBuilder();
+        for (int[] r : runs) {
+            if (ranges.length() > 0) ranges.append(", ");
+            ranges.append(c.getString(R.string.outage_bar_range, hhmm(r[0]), hhmm(r[1])));
+        }
+        if (b.length() > 0) b.append("; ");
+        b.append(c.getString(label, ranges));
+    }
+
+    static String hhmm(int minutes) {
+        return String.format(java.util.Locale.ROOT, "%02d:%02d", minutes / 60, minutes % 60);
+    }
+
     static String duration(Context c, int minutes) {
         int h = minutes / 60, m = minutes % 60;
         if (h == 0) return c.getString(R.string.dur_min, m);

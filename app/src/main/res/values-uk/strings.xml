@@ -10,6 +10,7 @@
     <string name="live_tv">Ефірне ТБ</string>
     <string name="open">Відкрити</string>
     <string name="add_favorite">Додати в улюблені</string>
+    <string name="in_favorites">в улюблених</string>
     <string name="remove_favorite">Прибрати з улюблених</string>
     <string name="move_left">Посунути ліворуч</string>
     <string name="move_right">Посунути праворуч</string>
@@ -61,6 +62,10 @@
     <string name="street_hint">Назва вулиці, наприклад Закревського</string>
     <string name="house_title">Будинок</string>
     <string name="house_hint">Номер будинку, наприклад 11</string>
+    <string name="outage_bar_off">без світла %s</string>
+    <string name="outage_bar_maybe">можливо без світла %s</string>
+    <string name="outage_bar_none">без відключень</string>
+    <string name="outage_bar_range">з %1$s до %2$s</string>
     <string name="outage_today">Сьогодні</string>
     <string name="outage_tomorrow">Завтра</string>
     <string name="outage_loading">Завантаження графіка…</string>
@@ -117,6 +122,9 @@
     <string name="memory_nothing">У фоні не працювало нічого зайвого.</string>
     <string name="memory_auto">Автоочищення памʼяті</string>
     <string name="memory_auto_on">Коли памʼяті мало, закриває фонові додатки (потрібне налагодження USB)</string>
+    <string name="section_show">На головному екрані</string>
+    <string name="section_rest">Заставка і камін</string>
+    <string name="section_memory">Швидкість і памʼять</string>
     <string name="about">Про Lehko</string>
     <string name="about_summary">Версія %1$s · %2$s</string>
     <string name="about_text">Lehko безкоштовний і з відкритим кодом: %s\n\nПогода від Open-Meteo, графіки відключень від YASNO і ДТЕК (через проєкт outage-data-ua), курси валют від Монобанку і НБУ, криптовалюти від Binance. Без акаунтів, реклами і стеження.\n\nПеред видаленням Lehko поверніть стандартний головний екран, інакше телевізор може залишитися без нього.</string>

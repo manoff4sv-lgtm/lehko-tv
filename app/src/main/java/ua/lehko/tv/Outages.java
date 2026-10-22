@@ -116,6 +116,23 @@ final class Outages {
 
     // MARK: - The schedule
 
+    /**
+     * The runs of {@code state} in a day's slots as {start, end} minutes after midnight (end exclusive, 1440 at most):
+     * for reading the schedule aloud.
+     */
+    static java.util.List<int[]> runs(byte[] slots, byte state) {
+        java.util.List<int[]> out = new java.util.ArrayList<>();
+        int minutes = 1440 / slots.length;
+        for (int i = 0; i < slots.length; i++) {
+            if (slots[i] != state) continue;
+            int j = i;
+            while (j + 1 < slots.length && slots[j + 1] == state) j++;
+            out.add(new int[]{i * minutes, (j + 1) * minutes});
+            i = j;
+        }
+        return out;
+    }
+
     static final class Day {
         /** "yyyy-MM-dd" in Kyiv. */
         final String date;

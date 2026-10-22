@@ -19,6 +19,11 @@ final class Ambient {
     static final float MIN_VALUE = 0.22f, MAX_VALUE = 0.30f, MAX_SATURATION = 0.6f;
     /** After sunset the tint is dimmer still. */
     static final float NIGHT = 0.7f;
+    /**
+     * No tint brighter than this (WCAG relative luminance): at the same HSV value a yellow or green is far brighter
+     * than a blue, and the date and the rates line sit on the tint's brightest corner. Keeps all text above 4.5:1.
+     */
+    static final double MAX_LUMINANCE = 0.034;
 
     /** Mean colour of each app's picture (before toning), by package. */
     private static final Map<String, Integer> MEAN = Collections.synchronizedMap(new HashMap<String, Integer>());
@@ -68,8 +73,19 @@ final class Ambient {
         float[] hsv = hsv(rgb);
         float s = Math.min(hsv[1], MAX_SATURATION);
         float v = MIN_VALUE + (MAX_VALUE - MIN_VALUE) * hsv[2];
+        for (int i = 0; i < 40 && luminance(rgb(hsv[0], s, v)) > MAX_LUMINANCE; i++) v *= 0.98f;
         if (night) v *= NIGHT;
         return rgb(hsv[0], s, v);
+    }
+
+    /** WCAG relative luminance of an sRGB colour, 0..1. */
+    static double luminance(int rgb) {
+        return 0.2126 * linear((rgb >> 16) & 0xFF) + 0.7152 * linear((rgb >> 8) & 0xFF) + 0.0722 * linear(rgb & 0xFF);
+    }
+
+    private static double linear(int c) {
+        double x = c / 255.0;
+        return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
     }
 
     /** Hue in degrees [0, 360), saturation and value in [0, 1]. */

@@ -10,11 +10,16 @@
     android:paddingEnd="@dimen/safe_h"
     android:paddingBottom="@dimen/safe_v">
 
-    <!-- Clock and date on the left, weather on the right. About 120dp tall, so the outage card still fits. -->
+    <!-- Clock and date on the left, weather on the right. About 120dp tall, so the outage card still fits.
+         With a screen reader on it becomes focusable, so it can be read (the background shows that focus). -->
     <LinearLayout
+        android:id="@+id/header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:layout_margin="-4dp"
+        android:background="@drawable/row_bg"
+        android:orientation="horizontal"
+        android:padding="4dp">
 
         <LinearLayout
             android:layout_width="0dp"
@@ -159,7 +164,8 @@
                 android:id="@+id/outage_dot"
                 android:layout_width="10dp"
                 android:layout_height="10dp"
-                android:layout_marginEnd="10dp" />
+                android:layout_marginEnd="10dp"
+                android:importantForAccessibility="no" />
 
             <TextView
                 android:id="@+id/outage_status"
@@ -242,6 +248,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="8dp"
+        android:accessibilityLiveRegion="polite"
         android:background="@drawable/card_bg"
         android:paddingStart="14dp"
         android:paddingTop="8dp"

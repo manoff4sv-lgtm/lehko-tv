@@ -70,7 +70,7 @@ final class FireScene {
         box.addView(clock);
         outage = new TextView(c);
         outage.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        outage.setTextColor(0xCC9A8676);
+        outage.setTextColor(0xFFA8968A); // dim, but still 7:1 on the dark wall
         outage.setMaxLines(1);
         outage.setPadding(0, Math.round(4 * dp), 0, 0);
         box.addView(outage);

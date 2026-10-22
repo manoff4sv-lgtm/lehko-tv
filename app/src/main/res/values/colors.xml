@@ -6,12 +6,17 @@
     <color name="surface_focus">#FF2B3443</color>
     <color name="stroke_focus">#FFF2F4F7</color>
     <color name="text_primary">#FFF2F4F7</color>
-    <color name="text_secondary">#FF9AA3AF</color>
-    <color name="text_dim">#FF6B7280</color>
+    <!-- Text colours pass WCAG AA (4.5:1) on the background, the cards and the darkest-allowed ambient tint. -->
+    <color name="text_secondary">#FFA7AFBA</color>
+    <color name="text_dim">#FF8B93A0</color>
     <color name="accent">#FFFFC940</color>
     <color name="power_on">#FF3FB950</color>
     <color name="power_off">#FFE5484D</color>
     <color name="power_maybe">#FFD29922</color>
+    <!-- Lighter versions for text (the rates line's arrows, error messages). -->
+    <color name="rate_up">#FF4CD164</color>
+    <color name="rate_down">#FFFF7A7F</color>
+    <color name="error_text">#FFFF7A7F</color>
     <color name="track">#FF262C36</color>
     <color name="sun">#FFFFC940</color>
     <color name="cloud">#FFCBD5E1</color>

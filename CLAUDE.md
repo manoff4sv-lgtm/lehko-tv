@@ -50,6 +50,12 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   every 3 min, never prompts). `HomeMode.enable` stores the stock launcher's PSS (`K_LAUNCHER_PSS`, from
   `dumpsys meminfo`). `App.onTrimMemory`: UI_HIDDEN trims the picture cache to ~3 MB (the favorites' tiles hold those
   bitmaps anyway), RUNNING_LOW and up empties it.
+- Design/accessibility pass (2026-10-22, with the tvastar skill's platform-neutral rules): text colours and
+  `Ambient.MAX_LUMINANCE` keep all text >= 4.5:1 (AmbientTest checks it); focus = white 2dp outline everywhere
+  (tiles, `row_bg`, focusable `card_bg`); OutageBar shows state by shape too (on thin, off solid, maybe outlined) and
+  has a spoken description (`Outages.runs`, `OutageText.describe`); with a spoken-feedback service on, the header and
+  outage card are focusable; live regions on notices/status cards; Settings has section headers; FireView stands
+  still when animator duration scale is 0. Rates arrows and error text use `rate_up`/`rate_down`/`error_text`.
 - Fireplace: `Fire` (pure Doom-fire automaton, 160x90, tested), `FireView` (firebox drawn once into a half-size
   RGB_565 bitmap, fire scaled into the arch with a filtering paint, logs, flickering glow; ~30 fps via
   `postOnAnimation` only while visible), `FireScene` (shared: drifting dim clock + outage line, slow pixel shift,
