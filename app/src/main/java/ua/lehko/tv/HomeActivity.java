@@ -72,6 +72,12 @@ public final class HomeActivity extends Activity {
     private boolean appsDirty = true, resumed, weatherLoading, outageLoading, appsLoaded, focusedOnce, rebuilding;
     /** The favorites list the row was last built from, so coming back home only rebuilds it when it changed. */
     private String builtFavorites;
+    /** What the row shows (see favoritesKey), so a package event for another app doesn't rebuild it. */
+    private String builtKey;
+    /** A favorite's own package changed since the row was built. */
+    private boolean favoriteChanged;
+    /** Counts app list loads: two can overlap on the IO pool, and only the latest one counts. */
+    private int appsLoads;
     /** Safe mode (see Watchdog): this activity shows only a plain message and does nothing else. */
     private boolean safe;
     private TextView safeText;
@@ -146,29 +152,42 @@ public final class HomeActivity extends Activity {
     private final LauncherApps.Callback packages = new LauncherApps.Callback() {
         @Override public void onPackageRemoved(String pkg, UserHandle user) {
             Apps.forget(pkg);
-            changed();
+            changed(pkg);
         }
 
         @Override public void onPackageAdded(String pkg, UserHandle user) {
-            changed();
+            changed(pkg);
         }
 
         @Override public void onPackageChanged(String pkg, UserHandle user) {
             Apps.forget(pkg);
-            changed();
+            changed(pkg);
         }
 
         @Override public void onPackagesAvailable(String[] pkgs, UserHandle user, boolean replacing) {
-            changed();
+            changed(pkgs);
         }
 
         @Override public void onPackagesUnavailable(String[] pkgs, UserHandle user, boolean replacing) {
-            changed();
+            changed(pkgs);
         }
 
-        private void changed() {
+        private void changed(String... pkgs) {
             appsDirty = true;
-            if (resumed) loadApps();
+            // A favorite's own change (an update may bring a new banner) rebuilds the row even if nothing else differs.
+            List<String> favs = Prefs.favorites(HomeActivity.this);
+            for (String p : pkgs) if (favs.contains(p)) favoriteChanged = true;
+            // Updates and component changes come in bursts: one reload after them.
+            if (resumed) {
+                App.MAIN.removeCallbacks(reloadApps);
+                App.MAIN.postDelayed(reloadApps, 1_000);
+            }
+        }
+    };
+
+    private final Runnable reloadApps = new Runnable() {
+        @Override public void run() {
+            if (resumed && appsDirty) loadApps();
         }
     };
 
@@ -286,6 +305,7 @@ public final class HomeActivity extends Activity {
             TvInputManager tim = tvInputs();
             if (tim != null) tim.unregisterCallback(inputWatch);
             App.MAIN.removeCallbacks(reloadInputs);
+            App.MAIN.removeCallbacks(reloadApps);
             App.MAIN.removeCallbacks(hideNotice);
             App.MAIN.removeCallbacks(ticker);
             App.MAIN.removeCallbacks(idle);
@@ -376,6 +396,7 @@ public final class HomeActivity extends Activity {
         }
         resumed = false;
         Prefs.of(this).unregisterOnSharedPreferenceChangeListener(noticeWatch);
+        App.MAIN.removeCallbacks(reloadApps); // appsDirty stays set: onResume reloads
         App.MAIN.removeCallbacks(ticker);
         App.MAIN.removeCallbacks(idle);
         super.onPause();
@@ -421,20 +442,33 @@ public final class HomeActivity extends Activity {
 
     private void loadApps() {
         appsDirty = false;
+        final int load = ++appsLoads;
         final Context app = getApplicationContext();
         App.IO.execute(new Runnable() {
             @Override public void run() {
                 final List<Apps.Entry> all = Apps.load(app);
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
-                        if (isDestroyed()) return;
+                        if (isDestroyed() || load != appsLoads) return;
                         apps = all;
                         appsLoaded = true;
-                        buildFavorites();
+                        // Most package events are about other apps: the row stays as it is (no rebuild, no flicker).
+                        if (favoriteChanged || !favoritesKey(Apps.favorites(HomeActivity.this, all)).equals(builtKey)) {
+                            buildFavorites();
+                        }
                     }
                 });
             }
         });
+    }
+
+    /** What the favorites row shows of the apps: which activity each tile opens, and its name. */
+    private static String favoritesKey(List<Apps.Entry> favs) {
+        StringBuilder b = new StringBuilder();
+        for (Apps.Entry a : favs) {
+            b.append(a.component.flattenToShortString()).append(' ').append(a.leanback).append(' ').append(a.label).append('\n');
+        }
+        return b.toString();
     }
 
     private void buildFavorites() {
@@ -462,6 +496,8 @@ public final class HomeActivity extends Activity {
         favoritesRow.removeAllViews();
         List<Apps.Entry> favs = Apps.favorites(this, apps);
         builtFavorites = Prefs.of(this).getString(Prefs.FAVORITES, "");
+        builtKey = favoritesKey(favs);
+        favoriteChanged = false;
         Tile toFocus = null;
         for (final Apps.Entry a : favs) {
             Tile t = appTile(a, tileW, tileH);
