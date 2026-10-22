@@ -496,7 +496,8 @@ public final class HomeActivity extends Activity {
     /** Tints the background after the focused favorite's picture; anything else gets the plain background. */
     private void ambient(View focused) {
         String pkg = favoritePkg(focused);
-        Integer mean = pkg == null ? null : Ambient.mean(pkg, Apps.cached(pkg));
+        // The tile's own picture: Android may have emptied the picture cache while an app was in front.
+        Integer mean = pkg == null ? null : Ambient.mean(pkg, ((Tile) focused).picture());
         fadeTo(mean == null ? bgTop : Ambient.tone(mean, night()));
         if (pkg != null) ((Tile) focused).glow(mean == null ? 0xFF000000 : Ambient.glow(mean));
     }
