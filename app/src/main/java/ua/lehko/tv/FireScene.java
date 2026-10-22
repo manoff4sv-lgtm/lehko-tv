@@ -81,10 +81,15 @@ final class FireScene {
         updateOutage();
     }
 
-    /** Every minute: the outage line, and a new spot for the clock (and the scene) to drift to. */
+    /**
+     * Every minute: the outage line, and a new spot for the clock (and the scene) to drift to. The home screen is
+     * paused under the fire (and may not have been shown for hours before a FireDream), so the schedule is
+     * downloaded from here too.
+     */
     private final Runnable drift = new Runnable() {
         @Override public void run() {
             updateOutage();
+            Outages.refreshIfStale(context, outageFetched);
             int w = root.getWidth(), h = root.getHeight();
             if (w > 0 && box.getWidth() > 0) {
                 // Under the arch, above the flames.
@@ -102,6 +107,13 @@ final class FireScene {
                 }
             }
             App.MAIN.postDelayed(this, placed ? 60_000 : 200);
+        }
+    };
+
+    /** A download finished: the new line now rather than in a minute. */
+    private final Runnable outageFetched = new Runnable() {
+        @Override public void run() {
+            if (started) updateOutage();
         }
     };
 

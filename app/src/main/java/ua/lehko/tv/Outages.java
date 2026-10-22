@@ -219,6 +219,40 @@ final class Outages {
         return Prefs.of(c).getLong(P_FETCHED, 0);
     }
 
+    /** The schedule is downloaded again when older than this, but not within RETRY_MS of a failed try. */
+    static final long MAX_AGE_MS = 10 * 60_000L, RETRY_MS = 5 * 60_000L;
+    /** Main thread only; shared by every caller, so two screens never download at once. */
+    private static boolean loading;
+    private static long failedAt;
+
+    /** Main thread: downloads the schedule in the background when it is old, then runs {@code done} on the main thread. */
+    static void refreshIfStale(Context c, final Runnable done) {
+        final Context app = c.getApplicationContext();
+        long now = System.currentTimeMillis();
+        if (loading || !enabled(app) || !Net.stale(now, fetchedAt(app), MAX_AGE_MS) || !Net.stale(now, failedAt, RETRY_MS)) {
+            return;
+        }
+        loading = true;
+        App.NET.execute(new Runnable() {
+            @Override public void run() {
+                Schedule s = null;
+                try {
+                    s = refresh(app);
+                } catch (Exception ignored) {
+                    // Offline (e.g. during an outage): the cached schedule stays.
+                }
+                final boolean ok = s != null;
+                App.MAIN.post(new Runnable() {
+                    @Override public void run() {
+                        loading = false;
+                        if (!ok) failedAt = System.currentTimeMillis();
+                        done.run();
+                    }
+                });
+            }
+        });
+    }
+
     /** The cached schedule, or null (also when it is another group's: the weekly re-check may have moved us). */
     static Schedule cached(Context c) {
         String raw = Prefs.of(c).getString(P_CACHE, null);
