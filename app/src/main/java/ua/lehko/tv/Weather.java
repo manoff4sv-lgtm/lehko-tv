@@ -20,6 +20,8 @@ final class Weather {
     static final String CACHE = "weather_json", CACHE_TIME = "weather_time";
     /** Refresh after this long. */
     static final long MAX_AGE_MS = 30 * 60_000L;
+    /** Older than this, a forecast is marked old on the home screen and left out of the clock screensaver. */
+    static final long OLD_MS = 3 * 3600_000L;
 
     static final class Data {
         double temp, max, min;
