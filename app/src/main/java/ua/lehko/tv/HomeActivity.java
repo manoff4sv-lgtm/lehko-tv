@@ -1,5 +1,7 @@
 package ua.lehko.tv;
 
+import android.animation.ArgbEvaluator;
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -15,6 +17,7 @@ import android.text.format.DateFormat;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -49,11 +52,26 @@ public final class HomeActivity extends Activity {
     private Outages.Schedule schedule;
     private int tileW, tileH, smallW, smallH, gap;
     private String focusPkgAfterRebuild;
+    /** The last weather shown (for "is it night?"). */
+    private Weather.Data weather;
+
+    /** Full-screen background: the top-left corner takes a dark tint of the focused app, bottom-right stays dark. */
+    private GradientDrawable background;
+    private final ValueAnimator ambientFade = ValueAnimator.ofObject(new ArgbEvaluator(), 0, 0);
+    private int ambientShown, ambientTarget, bgTop, bgBottom;
+
+    private final ViewTreeObserver.OnGlobalFocusChangeListener focusWatch = new ViewTreeObserver.OnGlobalFocusChangeListener() {
+        @Override public void onGlobalFocusChanged(View oldFocus, View newFocus) {
+            if (newFocus != null) focusChanged(newFocus);
+        }
+    };
 
     private final Runnable ticker = new Runnable() {
         @Override public void run() {
             showOutage();
             maybeRefresh();
+            View f = getCurrentFocus();
+            if (f != null) ambient(f); // sunset may have passed
             long now = System.currentTimeMillis();
             App.MAIN.postDelayed(this, 60_000 - now % 60_000 + 200);
         }
@@ -119,6 +137,20 @@ public final class HomeActivity extends Activity {
         tomorrowBar = findViewById(R.id.outage_tomorrow);
         notice = findViewById(R.id.notice);
 
+        bgTop = getColor(R.color.bg_top);
+        bgBottom = getColor(R.color.bg_bottom);
+        ambientShown = ambientTarget = bgTop;
+        background = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{bgTop, bgBottom});
+        getWindow().setBackgroundDrawable(background);
+        ambientFade.setDuration(450);
+        ambientFade.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override public void onAnimationUpdate(ValueAnimator a) {
+                ambientShown = (Integer) a.getAnimatedValue();
+                background.setColors(new int[]{ambientShown, bgBottom});
+            }
+        });
+        getWindow().getDecorView().getViewTreeObserver().addOnGlobalFocusChangeListener(focusWatch);
+
         String datePattern = DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEEdMMMM");
         TextClock date = findViewById(R.id.date);
         date.setFormat12Hour(datePattern);
@@ -146,6 +178,8 @@ public final class HomeActivity extends Activity {
             if (la != null) la.unregisterCallback(packages);
             App.MAIN.removeCallbacks(hideNotice);
             App.MAIN.removeCallbacks(ticker);
+            ambientFade.cancel();
+            getWindow().getDecorView().getViewTreeObserver().removeOnGlobalFocusChangeListener(focusWatch);
         }
         super.onDestroy();
     }
@@ -273,7 +307,9 @@ public final class HomeActivity extends Activity {
                     Apps.remember(a, pic, banner[0]);
                     App.MAIN.post(new Runnable() {
                         @Override public void run() {
-                            if (a.pkg.equals(t.key)) t.show(pic, banner[0], a.label);
+                            if (!a.pkg.equals(t.key)) return;
+                            t.show(pic, banner[0], a.label);
+                            if (t.isFocused()) ambient(t);
                         }
                     });
                 }
@@ -285,6 +321,38 @@ public final class HomeActivity extends Activity {
             }
         });
         return t;
+    }
+
+    // MARK: - Focus: the background tint
+
+    private void focusChanged(View focused) {
+        ambient(focused);
+    }
+
+    /** The package of a favorite's tile, or null for anything else (shortcuts, "All apps"). */
+    private String favoritePkg(View v) {
+        if (!(v instanceof Tile) || v.getParent() != favoritesRow) return null;
+        Object key = ((Tile) v).key;
+        return key instanceof String && !"add".equals(key) ? (String) key : null;
+    }
+
+    /** Tints the background after the focused favorite's picture; anything else gets the plain background. */
+    private void ambient(View focused) {
+        String pkg = favoritePkg(focused);
+        Integer mean = pkg == null ? null : Ambient.mean(pkg, Apps.cached(pkg));
+        fadeTo(mean == null ? bgTop : Ambient.tone(mean, night()));
+    }
+
+    private void fadeTo(int color) {
+        if (color == ambientTarget) return;
+        ambientTarget = color;
+        ambientFade.cancel();
+        ambientFade.setObjectValues(ambientShown, color);
+        ambientFade.start();
+    }
+
+    private boolean night() {
+        return weather != null && !weather.day;
     }
 
     private void addWithGap(LinearLayout row, View v) {
@@ -454,6 +522,7 @@ public final class HomeActivity extends Activity {
     }
 
     private void showWeather(Weather.Data d) {
+        weather = d;
         if (Weather.place(this) == null) {
             weatherIcon.setImageDrawable(null);
             weatherTemp.setText("");

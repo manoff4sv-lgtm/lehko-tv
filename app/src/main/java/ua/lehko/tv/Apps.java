@@ -191,7 +191,11 @@ final class Apps {
 
     /** A cached banner or icon, or null if it hasn't been loaded yet. */
     static Drawable cached(Entry a) {
-        return PICTURES.get(a.pkg);
+        return cached(a.pkg);
+    }
+
+    static Drawable cached(String pkg) {
+        return PICTURES.get(pkg);
     }
 
     static boolean cachedIsBanner(Entry a) {
@@ -250,5 +254,6 @@ final class Apps {
     static void forget(String pkg) {
         PICTURES.remove(pkg);
         BANNER.remove(pkg);
+        Ambient.forget(pkg);
     }
 }
