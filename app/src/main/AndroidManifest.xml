@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- "Uninstall" in an app's menu. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- The "unneeded apps" screen shows names of apps that are turned off (they have no tile any more). -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />

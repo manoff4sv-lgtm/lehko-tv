@@ -17,9 +17,11 @@ OUT=build/quick
 rm -rf "$OUT" && mkdir -p "$OUT/gen" "$OUT/classes" "$OUT/dex"
 MAIN=app/src/main
 
+# Gradle takes the package from `namespace`; plain aapt2 needs it in the manifest.
+sed 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="ua.lehko.tv">|' \
+  "$MAIN/AndroidManifest.xml" > "$OUT/AndroidManifest.xml"
 "$BT/aapt2" compile --dir "$MAIN/res" -o "$OUT/res.zip"
-"$BT/aapt2" link -o "$OUT/base.apk" -I "$AJ" --manifest "$MAIN/AndroidManifest.xml" \
-  --rename-manifest-package ua.lehko.tv --custom-package ua.lehko.tv \
+"$BT/aapt2" link -o "$OUT/base.apk" -I "$AJ" --manifest "$OUT/AndroidManifest.xml" \
   --java "$OUT/gen" "$OUT/res.zip" --min-sdk-version 26 --target-sdk-version 34 \
   --version-code 1 --version-name quick --auto-add-overlay
 

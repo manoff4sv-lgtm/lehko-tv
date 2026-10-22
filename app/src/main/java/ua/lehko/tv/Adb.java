@@ -83,10 +83,15 @@ final class Adb implements Closeable {
 
     /** Connects and authenticates; if the TV doesn't know Lehko's key yet, waits up to {@code approvalMs} for you. */
     static Adb connect(Context c, int approvalMs, Approval approval) throws IOException {
-        KeyPair keys = keys(c);
+        return connect(c.getNoBackupFilesDir(), "127.0.0.1", PORT, approvalMs, approval);
+    }
+
+    /** The same, with the key folder and address given (tests talk to a fake TV). */
+    static Adb connect(File keyDir, String host, int port, int approvalMs, Approval approval) throws IOException {
+        KeyPair keys = keys(keyDir);
         Socket s = new Socket();
         try {
-            s.connect(new InetSocketAddress("127.0.0.1", PORT), 3000);
+            s.connect(new InetSocketAddress(host, port), 3000);
         } catch (IOException e) {
             s.close();
             throw new Failure(Failure.PORT_CLOSED, "debugging port is closed");
@@ -205,8 +210,7 @@ final class Adb implements Closeable {
     // MARK: - Keys
 
     /** Lehko's RSA key pair, created once and kept in the app's private storage. */
-    private static synchronized KeyPair keys(Context c) throws IOException {
-        File dir = c.getNoBackupFilesDir();
+    private static synchronized KeyPair keys(File dir) throws IOException {
         File priv = new File(dir, "adbkey"), pub = new File(dir, "adbkey.pub");
         try {
             KeyFactory kf = KeyFactory.getInstance("RSA");
