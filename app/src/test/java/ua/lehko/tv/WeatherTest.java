@@ -8,6 +8,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.Locale;
 
 public class WeatherTest {
     static final String FORECAST = "{\"latitude\":50.45,\"longitude\":30.52,\"timezone\":\"Europe/Kiev\","
@@ -88,9 +89,30 @@ public class WeatherTest {
     }
 
     @Test public void degrees() {
-        assertEquals("+12°", Weather.degrees(12.4));
-        assertEquals("−3°", Weather.degrees(-2.6));
-        assertEquals("0°", Weather.degrees(-0.4));
+        assertEquals("+12°", Weather.degrees(12.4, false));
+        assertEquals("−3°", Weather.degrees(-2.6, false));
+        assertEquals("0°", Weather.degrees(-0.4, false));
+        assertEquals("+54°F", Weather.degrees(12.4, true));
+        assertEquals("−40°F", Weather.degrees(-40, true));
+    }
+
+    /** English (United States) is the usual English on TVs anywhere: Fahrenheit only in America. */
+    @Test public void fahrenheitWhere() {
+        assertFalse(Weather.fahrenheit(Locale.US, "Europe/Kiev"));
+        assertTrue(Weather.fahrenheit(Locale.US, "America/New_York"));
+        assertFalse(Weather.fahrenheit(new Locale("uk", "UA"), "America/New_York"));
+        assertTrue(Weather.fahrenheit(Locale.forLanguageTag("en-GB-u-mu-fahrenhe"), "Europe/London"));
+        assertFalse(Weather.fahrenheit(Locale.forLanguageTag("en-US-u-mu-celsius"), "America/Chicago"));
+    }
+
+    /** Asked for in Celsius now; a cache from a US TV before that is still read right. */
+    @Test public void olderCacheInFahrenheit() throws Exception {
+        Weather.Data d = Weather.parse("{\"current_units\":{\"temperature_2m\":\"°F\"},"
+                + "\"current\":{\"time\":\"2026-10-22T13:15\",\"temperature_2m\":50,\"weather_code\":3,\"is_day\":1},"
+                + "\"daily\":{\"temperature_2m_max\":[59],\"temperature_2m_min\":[41]}}");
+        assertEquals(10, d.temp, 0.001);
+        assertEquals(15, d.max, 0.001);
+        assertEquals(5, d.min, 0.001);
     }
 
     @Test public void places() throws Exception {
