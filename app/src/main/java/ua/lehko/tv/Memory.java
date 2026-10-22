@@ -63,6 +63,11 @@ final class Memory {
         try {
             HomeMode.killAll(c, true, p);
         } catch (IOException | RuntimeException e) {
+            // Android 14 has no other way: say why nothing was closed, not that nothing was running.
+            if (android.os.Build.VERSION.SDK_INT >= 34) {
+                boolean denied = e instanceof Adb.Failure && ((Adb.Failure) e).reason == Adb.Failure.NOT_ALLOWED;
+                return c.getString(denied ? R.string.adb_rejected : R.string.cleanup_need_debugging);
+            }
             killBackground(c);
         }
         // Give the kernel a moment to take the memory back.
