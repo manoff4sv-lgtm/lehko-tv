@@ -16,11 +16,6 @@ public class RatesTest {
     static final String NBU = "[{\"r030\":36,\"txt\":\"Австралійський долар\",\"rate\":27.1,\"cc\":\"AUD\",\"exchangedate\":\"23.10.2026\"},"
             + "{\"r030\":978,\"txt\":\"Євро\",\"rate\":50.6123,\"cc\":\"EUR\",\"exchangedate\":\"23.10.2026\"},"
             + "{\"r030\":840,\"txt\":\"Долар США\",\"rate\":44.9876,\"cc\":\"USD\",\"exchangedate\":\"23.10.2026\"}]";
-    static final String BINANCE = "[{\"symbol\":\"BTCUSDT\",\"openPrice\":\"66320.00000000\",\"highPrice\":\"67500.00000000\","
-            + "\"lowPrice\":\"66000.00000000\",\"lastPrice\":\"67120.00000000\",\"volume\":\"1.0\",\"quoteVolume\":\"1.0\","
-            + "\"openTime\":1792530000000,\"closeTime\":1792616400000,\"firstId\":1,\"lastId\":2,\"count\":2},"
-            + "{\"symbol\":\"ETHUSDT\",\"openPrice\":\"2419.68000000\",\"lastPrice\":\"2410.00000000\"}]";
-
     @Test public void monobank() throws Exception {
         List<Rates.Fiat> f = Rates.parseMonobank(MONOBANK);
         assertEquals(2, f.size());
@@ -48,32 +43,13 @@ public class RatesTest {
         assertEquals("EUR", f.get(1).code);
     }
 
-    @Test public void binance() throws Exception {
-        List<Rates.Coin> c = Rates.parseBinance(BINANCE);
-        assertEquals(2, c.size());
-        assertEquals("BTC", c.get(0).code);
-        assertEquals(67120, c.get(0).price, 1e-9);
-        assertEquals(1.206, c.get(0).change, 0.001);
-        assertEquals(-0.4, c.get(1).change, 0.001);
-        assertTrue(Rates.parseBinance("[{\"symbol\":\"BTCUSDT\",\"lastPrice\":\"oops\"}]").isEmpty());
-    }
-
-    @Test public void theLine() throws Exception {
-        String line = Rates.line(Rates.parseMonobank(MONOBANK), Rates.parseBinance(BINANCE), ',', ' ');
-        assertEquals("USD 44,83 / 45,23 · EUR 50,38 / 51,01 · BTC $67 120 ▲1,2% · ETH $2 410 ▼0,4%", line);
-        assertEquals("USD 44.99 · EUR 50.61", Rates.line(Rates.parseNbu(NBU), Collections.<Rates.Coin>emptyList(), '.', ','));
-        assertEquals("BTC $67,120 ▲1.2% · ETH $2,410 ▼0.4%",
-                Rates.line(Collections.<Rates.Fiat>emptyList(), Rates.parseBinance(BINANCE), '.', ','));
-        assertEquals("", Rates.line(Collections.<Rates.Fiat>emptyList(), Collections.<Rates.Coin>emptyList(), ',', ' '));
-    }
-
-    @Test public void compactLine() throws Exception {
-        assertEquals("$ 45,23 · € 51,01 · BTC 67 120 ▲1,2%",
-                Rates.compact(Rates.parseMonobank(MONOBANK), Rates.parseBinance(BINANCE), ',', ' '));
-        // The NBU has one rate; without crypto there is no coin part.
-        assertEquals("$ 44,99 · € 50,61", Rates.compact(Rates.parseNbu(NBU), Collections.<Rates.Coin>emptyList(), ',', ' '));
-        assertEquals("BTC 67 120 ▲1,2%",
-                Rates.compact(Collections.<Rates.Fiat>emptyList(), Rates.parseBinance(BINANCE), ',', ' '));
+    @Test public void theLines() throws Exception {
+        assertEquals("USD 44,83 / 45,23 · EUR 50,38 / 51,01", Rates.line(Rates.parseMonobank(MONOBANK), ',', ' '));
+        assertEquals("USD 44.99 · EUR 50.61", Rates.line(Rates.parseNbu(NBU), '.', ','));
+        assertEquals("", Rates.line(Collections.<Rates.Fiat>emptyList(), ',', ' '));
+        // The short one: what a dollar and a euro cost (selling rate, or the NBU's one rate).
+        assertEquals("$ 45,23 · € 51,01", Rates.compact(Rates.parseMonobank(MONOBANK), ',', ' '));
+        assertEquals("$ 44,99 · € 50,61", Rates.compact(Rates.parseNbu(NBU), ',', ' '));
     }
 
     @Test public void numbers() {
@@ -90,7 +66,5 @@ public class RatesTest {
         List<Rates.Fiat> f = Rates.fiatFromJson(Rates.fiatJson(Rates.parseMonobank(MONOBANK)));
         assertEquals(2, f.size());
         assertEquals(45.2345, f.get(0).sell, 1e-9);
-        List<Rates.Coin> c = Rates.coinsFromJson(Rates.coinJson(Rates.parseBinance(BINANCE)));
-        assertEquals(-0.4, c.get(1).change, 0.001);
     }
 }

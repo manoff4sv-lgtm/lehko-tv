@@ -15,34 +15,31 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 /**
- * One line under the date: the dollar and euro in hryvnias (Monobank's buy/sell, the NBU's official rate as a
- * fallback) and Bitcoin and Ether in dollars with their 24-hour change (Binance). Public data without keys. The last
- * answers are kept, so the line still shows offline.
+ * The dollar and euro in hryvnias for the home screen: Monobank's buy/sell, the NBU's official rate as a fallback.
+ * Public data without keys. The last answer is kept, so the line still shows offline.
  */
 final class Rates {
     private Rates() {}
 
-    static final String P_FIAT = "rates_fiat_on", P_CRYPTO = "rates_crypto_on";
-    static final String FIAT = "rates_fiat", FIAT_TIME = "rates_fiat_time", CRYPTO = "rates_crypto",
-            CRYPTO_TIME = "rates_crypto_time", MONO_PAUSE = "rates_mono_pause_until";
+    static final String P_FIAT = "rates_fiat_on";
+    static final String FIAT = "rates_fiat", FIAT_TIME = "rates_fiat_time", MONO_PAUSE = "rates_mono_pause_until";
+    /** Left over from the crypto line (removed): cleared once. */
+    private static final String[] OLD_KEYS = {"rates_crypto_on", "rates_crypto", "rates_crypto_time"};
 
     /** Monobank answers from a cache and limits how often it may be asked: twice an hour is plenty. */
-    static final long FIAT_EVERY_MS = 30 * 60_000L, CRYPTO_EVERY_MS = 10 * 60_000L;
+    static final long FIAT_EVERY_MS = 30 * 60_000L;
     /** After "429 Too many requests" Monobank is left alone for an hour (the NBU answers meanwhile). */
     static final long MONO_PAUSE_MS = 60 * 60_000L;
-    /** Older than this, that part of the line is hidden (a TV that was off for days shouldn't show old prices). */
-    static final long FIAT_SHOW_MS = 3 * 86_400_000L, CRYPTO_SHOW_MS = 86_400_000L;
+    /** Older than this, the line is hidden (a TV that was off for days shouldn't show old rates). */
+    static final long FIAT_SHOW_MS = 3 * 86_400_000L;
 
     static final String MONOBANK = "https://api.monobank.ua/bank/currency";
     static final String NBU = "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?json";
-    static final String BINANCE = "https://api.binance.com/api/v3/ticker/24hr?type=MINI"
-            + "&symbols=%5B%22BTCUSDT%22,%22ETHUSDT%22%5D";
 
     /** ISO 4217 numeric codes, in the order shown. */
     private static final int[] CURRENCIES = {840, 978};
     private static final String[] CURRENCY_NAMES = {"USD", "EUR"};
     private static final int UAH = 980;
-    private static final String[] COINS = {"BTC", "ETH"};
 
     /** A currency in hryvnias: buy and sell, or one rate (the NBU's, or Monobank's cross rate): then sell is 0. */
     static final class Fiat {
@@ -53,18 +50,6 @@ final class Rates {
             this.code = code;
             this.buy = buy;
             this.sell = sell;
-        }
-    }
-
-    /** A coin in dollars and its change over 24 hours, in percent. */
-    static final class Coin {
-        final String code;
-        final double price, change;
-
-        Coin(String code, double price, double change) {
-            this.code = code;
-            this.price = price;
-            this.change = change;
         }
     }
 
@@ -80,38 +65,20 @@ final class Rates {
         return p.getBoolean(P_FIAT, "Europe/Kiev".equals(tz) || "Europe/Kyiv".equals(tz));
     }
 
-    static boolean cryptoEnabled(Context c) {
-        return Prefs.of(c).getBoolean(P_CRYPTO, true);
-    }
-
-    /** Is a download due for anything that is turned on? */
+    /** Is a download due? */
     static boolean due(Context c) {
         SharedPreferences p = Prefs.of(c);
-        long now = System.currentTimeMillis();
-        return fiatEnabled(p) && now - p.getLong(FIAT_TIME, 0) > FIAT_EVERY_MS
-                || cryptoEnabled(c) && now - p.getLong(CRYPTO_TIME, 0) > CRYPTO_EVERY_MS;
+        return fiatEnabled(p) && System.currentTimeMillis() - p.getLong(FIAT_TIME, 0) > FIAT_EVERY_MS;
     }
 
     // MARK: - Downloading
 
-    /** Downloads what is due and caches it. Throws if something due couldn't be had. Network: off the UI thread. */
-    static void refresh(Context c) throws IOException, JSONException {
+    /** Downloads the rates when due and caches them. Throws if they couldn't be had. Network: off the UI thread. */
+    static void refresh(Context c) throws IOException {
         SharedPreferences p = Prefs.of(c);
         long now = System.currentTimeMillis();
-        IOException failed = null;
-        if (fiatEnabled(p) && now - p.getLong(FIAT_TIME, 0) > FIAT_EVERY_MS) {
-            try {
-                p.edit().putString(FIAT, fiatJson(fetchFiat(p, now))).putLong(FIAT_TIME, now).apply();
-            } catch (IOException e) {
-                failed = e;
-            }
-        }
-        if (cryptoEnabled(c) && now - p.getLong(CRYPTO_TIME, 0) > CRYPTO_EVERY_MS) {
-            List<Coin> coins = parseBinance(Net.get(BINANCE));
-            if (coins.isEmpty()) throw new IOException("no prices");
-            p.edit().putString(CRYPTO, coinJson(coins)).putLong(CRYPTO_TIME, now).apply();
-        }
-        if (failed != null) throw failed;
+        if (!fiatEnabled(p) || now - p.getLong(FIAT_TIME, 0) <= FIAT_EVERY_MS) return;
+        p.edit().putString(FIAT, fiatJson(fetchFiat(p, now))).putLong(FIAT_TIME, now).apply();
     }
 
     private static List<Fiat> fetchFiat(SharedPreferences p, long now) throws IOException {
@@ -171,30 +138,6 @@ final class Rates {
         return out;
     }
 
-    /** Binance MINI tickers: [{"symbol":"BTCUSDT","openPrice":"67000.0","lastPrice":"67120.0",...}, ...]. */
-    static List<Coin> parseBinance(String json) throws JSONException {
-        JSONArray a = new JSONArray(json);
-        List<Coin> out = new ArrayList<>();
-        for (String coin : COINS) {
-            for (int i = 0; i < a.length(); i++) {
-                JSONObject o = a.optJSONObject(i);
-                if (o == null || !(coin + "USDT").equals(o.optString("symbol"))) continue;
-                double last = number(o.optString("lastPrice")), open = number(o.optString("openPrice"));
-                if (last > 0) out.add(new Coin(coin, last, open > 0 ? (last - open) / open * 100 : 0));
-                break;
-            }
-        }
-        return out;
-    }
-
-    private static double number(String s) {
-        try {
-            return Double.parseDouble(s);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
     // MARK: - The cache (our own short JSON)
 
     static String fiatJson(List<Fiat> list) {
@@ -217,82 +160,51 @@ final class Rates {
         return out;
     }
 
-    static String coinJson(List<Coin> list) {
-        JSONArray a = new JSONArray();
-        try {
-            for (Coin c : list) a.put(new JSONObject().put("c", c.code).put("p", c.price).put("d", c.change));
-        } catch (JSONException e) {
-            throw new IllegalArgumentException(e);
-        }
-        return a.toString();
-    }
-
-    static List<Coin> coinsFromJson(String json) throws JSONException {
-        List<Coin> out = new ArrayList<>();
-        JSONArray a = new JSONArray(json);
-        for (int i = 0; i < a.length(); i++) {
-            JSONObject o = a.getJSONObject(i);
-            out.add(new Coin(o.getString("c"), o.getDouble("p"), o.optDouble("d", 0)));
-        }
-        return out;
-    }
-
     // MARK: - The line
 
     /**
      * The home screen's two versions from what is cached: {compact, full}, or null when there is nothing (fresh
-     * enough) to show. The compact one is always visible, the full one only with the details.
+     * enough) to show. The compact one is always visible, the full one while the details are open.
      */
     static String[] lines(Context c) {
         SharedPreferences p = Prefs.of(c);
-        long now = System.currentTimeMillis();
-        List<Fiat> fiat = new ArrayList<>();
-        List<Coin> coins = new ArrayList<>();
+        if (p.contains(OLD_KEYS[0]) || p.contains(OLD_KEYS[1])) {
+            SharedPreferences.Editor e = p.edit();
+            for (String k : OLD_KEYS) e.remove(k);
+            e.apply();
+        }
+        String f = p.getString(FIAT, null);
+        if (!fiatEnabled(p) || f == null || System.currentTimeMillis() - p.getLong(FIAT_TIME, 0) >= FIAT_SHOW_MS) return null;
+        List<Fiat> fiat;
         try {
-            String f = p.getString(FIAT, null);
-            if (fiatEnabled(p) && f != null && now - p.getLong(FIAT_TIME, 0) < FIAT_SHOW_MS) fiat = fiatFromJson(f);
-            String k = p.getString(CRYPTO, null);
-            if (cryptoEnabled(c) && k != null && now - p.getLong(CRYPTO_TIME, 0) < CRYPTO_SHOW_MS) coins = coinsFromJson(k);
+            fiat = fiatFromJson(f);
         } catch (JSONException e) {
             return null;
         }
         DecimalFormatSymbols sym = DecimalFormatSymbols.getInstance(Locale.getDefault());
         char d = sym.getDecimalSeparator(), g = sym.getGroupingSeparator();
-        String full = line(fiat, coins, d, g);
-        return full.isEmpty() ? null : new String[]{compact(fiat, coins, d, g), full};
+        String full = line(fiat, d, g);
+        return full.isEmpty() ? null : new String[]{compact(fiat, d, g), full};
     }
 
-    /** "$ 41,80 · € 48,62 · BTC 67 120 ▲1,2%": what a dollar and a euro cost (the selling rate) and the first coin. */
-    static String compact(List<Fiat> fiat, List<Coin> coins, char decimal, char grouping) {
+    /** "$ 41,80 · € 48,62": what a dollar and a euro cost (the selling rate, or the one rate there is). */
+    static String compact(List<Fiat> fiat, char decimal, char grouping) {
         StringBuilder b = new StringBuilder();
         for (Fiat f : fiat) {
             if (b.length() > 0) b.append(" · ");
             String symbol = "USD".equals(f.code) ? "$" : "EUR".equals(f.code) ? "€" : f.code;
             b.append(symbol).append(' ').append(number(f.sell > 0 ? f.sell : f.buy, 2, decimal, grouping));
         }
-        if (!coins.isEmpty()) {
-            Coin k = coins.get(0);
-            if (b.length() > 0) b.append(" · ");
-            b.append(k.code).append(' ').append(number(k.price, k.price >= 100 ? 0 : 2, decimal, grouping))
-                    .append(' ').append(k.change < 0 ? '▼' : '▲').append(number(Math.abs(k.change), 1, decimal, grouping))
-                    .append('%');
-        }
         return b.toString();
     }
 
-    /** "USD 44,83 / 45,23 · EUR 50,38 / 51,01 · BTC $67 120 ▲1,2% · ETH $2 410 ▼0,4%" (or a part of it). */
-    static String line(List<Fiat> fiat, List<Coin> coins, char decimal, char grouping) {
+    /** "USD 44,83 / 45,23 · EUR 50,38 / 51,01": buy and sell (or the one rate there is). */
+    static String line(List<Fiat> fiat, char decimal, char grouping) {
         StringBuilder b = new StringBuilder();
         for (Fiat f : fiat) {
             if (b.length() > 0) b.append(" · ");
             b.append(f.code).append(' ').append(number(f.buy, 2, decimal, grouping));
             if (f.sell > 0) b.append(" / ").append(number(f.sell, 2, decimal, grouping));
-        }
-        for (Coin k : coins) {
-            if (b.length() > 0) b.append(" · ");
-            b.append(k.code).append(" $").append(number(k.price, k.price >= 100 ? 0 : 2, decimal, grouping))
-                    .append(' ').append(k.change < 0 ? '▼' : '▲').append(number(Math.abs(k.change), 1, decimal, grouping))
-                    .append('%');
         }
         return b.toString();
     }

@@ -47,9 +47,10 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   listener also drives the focused app's name under the favorites row.
 - `Weather` also keeps the next hours (`forecast_hours=6`, `forecast_days=2` so evening hours aren't cut at midnight)
   and sunrise/sunset as moments (`utc_offset_seconds`). Header: icon/temp/text on one row, 5 hour columns, sun line.
-- `Rates`: Monobank (every 30 min, 1 h pause after HTTP 429) with NBU fallback; Binance MINI tickers for BTC/ETH
-  every 10 min (change = (last - open) / open). Own compact JSON cache; one line under the date, hidden when off or
-  empty or too old. `Net.HttpError` carries the status code.
+- `Rates`: USD/EUR in hryvnias from Monobank (every 30 min, 1 h pause after HTTP 429) with NBU fallback. Own compact
+  JSON cache; compact line ("$ 41,80 · € 48,62") always, full buy/sell while the details are open; hidden when off,
+  empty or too old. `Net.HttpError` carries the status code. Crypto (Binance BTC/ETH) was built and then removed at
+  Eugene's request (2026-10-22): don't bring it back.
 - `Memory`: free memory, own PSS; `clean()` = `HomeMode.killAll` (`am kill-all`, may show the debugging prompt) else
   `killBackgroundProcesses` per app; `maybeAutoClean()` on Home resume when memory is low (< 20% or < 500 MB, at most
   every 3 min, never prompts). `HomeMode.enable` stores the stock launcher's PSS (`K_LAUNCHER_PSS`, from
@@ -134,7 +135,7 @@ After each item: `tools/quick-build.sh` and `tools/quick-test.sh` green, small c
    small line with sunrise/sunset times. Header must stay <= ~130dp tall so everything still fits 960x540dp with the
    outage card visible. Extend `Weather.Data`, `Weather.parse` and WeatherTest.
 3. **Focused app name** (done) in a 13sp `text_secondary` TextView under the favorites row (updates on focus; a short fade).
-4. **Rates line** (done) under the date (left column), one 14sp line, e.g.
+4. **Rates line** (done; the crypto part was later removed at Eugene's request) under the date, one 14sp line, e.g.
    `USD 44,83 / 45,23 · EUR 50,38 / 51,01 · BTC $67 120 ▲1,2% · ETH $2 410 ▼0,4%`.
    - Currency: Monobank `https://api.monobank.ua/bank/currency` (verified 2026-10-22: JSON array of ~107 objects like
      `{"currencyCodeA":840,"currencyCodeB":980,"date":1792616473,"rateBuy":44.83,"rateSell":45.2345}`; EUR is 978;

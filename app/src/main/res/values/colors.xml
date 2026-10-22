@@ -13,9 +13,7 @@
     <color name="power_on">#FF3FB950</color>
     <color name="power_off">#FFE5484D</color>
     <color name="power_maybe">#FFD29922</color>
-    <!-- Lighter versions for text (the rates line's arrows, error messages). -->
-    <color name="rate_up">#FF4CD164</color>
-    <color name="rate_down">#FFFF7A7F</color>
+    <!-- A lighter red for error messages (text). -->
     <color name="error_text">#FFFF7A7F</color>
     <!-- The power ring: off is ember (thick), possible amber (dashed), on a thin light line. -->
     <color name="ember">#FFFF6A3D</color>

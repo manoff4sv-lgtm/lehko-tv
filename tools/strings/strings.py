@@ -134,8 +134,6 @@ s("fireplace_sound", "Fireplace crackle", "Тріск каміна", "Треск
 s("fireplace_sound_on", "A quiet crackling sound", "Тихе потріскування", "Тихое потрескивание")
 s("rates_fiat", "Exchange rates", "Курс валют", "Курс валют")
 s("rates_fiat_on", "Dollar and euro to hryvnia · Monobank, NBU", "Долар і євро до гривні · Монобанк, НБУ", "Доллар и евро к гривне · Монобанк, НБУ")
-s("rates_crypto", "Cryptocurrencies", "Криптовалюти", "Криптовалюты")
-s("rates_crypto_on", "Bitcoin and Ether in dollars · Binance", "Біткоїн та ефір у доларах · Binance", "Биткоин и эфир в долларах · Binance")
 s("cleanup", "Unneeded apps", "Зайві додатки", "Лишние приложения")
 s("cleanup_summary", "Turn off apps you don’t use to free memory", "Вимкніть те, чим не користуєтесь, щоб звільнити памʼять", "Выключите то, чем не пользуетесь, чтобы освободить память")
 s("memory", "Memory", "Памʼять", "Память")
@@ -155,9 +153,9 @@ s("section_memory", "Speed and memory", "Швидкість і памʼять", 
 s("about", "About Lehko", "Про Lehko", "О Lehko")
 s("about_summary", "Version %1$s · %2$s", "Версія %1$s · %2$s", "Версия %1$s · %2$s")
 s("about_text",
-  "Lehko is free and open source: %s\\n\\nWeather comes from Open-Meteo, outage schedules from YASNO and DTEK (through the outage-data-ua project), exchange rates from Monobank and the NBU, crypto prices from Binance. No accounts, ads or tracking.\\n\\nBefore uninstalling Lehko, switch the home screen back to the TV’s own, or the TV may be left without one.",
-  "Lehko безкоштовний і з відкритим кодом: %s\\n\\nПогода від Open-Meteo, графіки відключень від YASNO і ДТЕК (через проєкт outage-data-ua), курси валют від Монобанку і НБУ, криптовалюти від Binance. Без акаунтів, реклами і стеження.\\n\\nПеред видаленням Lehko поверніть стандартний головний екран, інакше телевізор може залишитися без нього.",
-  "Lehko бесплатный и с открытым кодом: %s\\n\\nПогода от Open-Meteo, графики отключений от YASNO и ДТЭК (через проект outage-data-ua), курсы валют от Монобанка и НБУ, криптовалюты от Binance. Без аккаунтов, рекламы и слежки.\\n\\nПеред удалением Lehko верните стандартный главный экран, иначе телевизор может остаться без него.")
+  "Lehko is free and open source: %s\\n\\nWeather comes from Open-Meteo, outage schedules from YASNO and DTEK (through the outage-data-ua project), exchange rates from Monobank and the NBU. No accounts, ads or tracking.\\n\\nBefore uninstalling Lehko, switch the home screen back to the TV’s own, or the TV may be left without one.",
+  "Lehko безкоштовний і з відкритим кодом: %s\\n\\nПогода від Open-Meteo, графіки відключень від YASNO і ДТЕК (через проєкт outage-data-ua), курси валют від Монобанку і НБУ. Без акаунтів, реклами і стеження.\\n\\nПеред видаленням Lehko поверніть стандартний головний екран, інакше телевізор може залишитися без нього.",
+  "Lehko бесплатный и с открытым кодом: %s\\n\\nПогода от Open-Meteo, графики отключений от YASNO и ДТЭК (через проект outage-data-ua), курсы валют от Монобанка и НБУ. Без аккаунтов, рекламы и слежки.\\n\\nПеред удалением Lehko верните стандартный главный экран, иначе телевизор может остаться без него.")
 
 s("enable_title", "Make Lehko the home screen", "Зробити Lehko головним екраном", "Сделать Lehko главным экраном")
 s("enable_intro", "Android TV lets only its debugging mode change the home screen. Lehko uses it on the TV itself, no computer needed.", "Змінити головний екран на Android TV можна лише через режим налагодження. Lehko користується ним прямо на телевізорі, компʼютер не потрібен.", "Сменить главный экран на Android TV можно только через режим отладки. Lehko пользуется им прямо на телевизоре, компьютер не нужен.")

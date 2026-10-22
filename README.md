@@ -25,9 +25,8 @@
 - **Назва вибраного додатка** під рядом улюблених: на банерах її видно не завжди.
 - **Погода** від Open-Meteo: зараз і «дощ з 17:00», а в подробицях мінімум і максимум, наступні 5 годин, схід і
   захід сонця. Працює без ключів і показує останній прогноз навіть без інтернету.
-- **Курси:** долар і євро до гривні (продаж у Монобанку, або офіційний курс НБУ, якщо Монобанк не відповідає) і
-  біткоїн зі зміною за добу; у подробицях купівля і продаж та ефір. Дані Binance для криптовалют. Валюти і
-  криптовалюти вмикаються окремо в налаштуваннях; останні значення видно й без інтернету.
+- **Курси:** долар і євро до гривні: продаж у Монобанку (або офіційний курс НБУ, якщо Монобанк не відповідає), у
+  подробицях купівля і продаж. Вмикаються в налаштуваннях; останні значення видно й без інтернету.
 - **Графік відключень світла**: зараз є чи нема і до котрої, коли відключать або ввімкнуть, кільце на сьогодні,
   смуга на завтра в подробицях.
   - Київ (місто): група за вашою адресою (з 2026 року в Києві 60 груп по будинках), дані YASNO, запасне джерело ДТЕК.
@@ -121,7 +120,7 @@ IP телевізора є в **Налаштування → Мережа та �
 Без акаунтів, аналітики і реклами. Lehko звертається лише до:
 - [Open-Meteo](https://open-meteo.com) за погодою (координати вибраного міста);
 - [YASNO](https://yasno.ua) і [outage-data-ua](https://github.com/Baskerville42/outage-data-ua) (дзеркало графіків ДТЕК на GitHub) за графіками відключень, якщо ви їх увімкнули;
-- [Монобанк](https://api.monobank.ua/docs/) і [НБУ](https://bank.gov.ua/ua/open-data/api-dev) за курсами валют, [Binance](https://www.binance.com) за цінами криптовалют, якщо ці рядки увімкнені.
+- [Монобанк](https://api.monobank.ua/docs/) і [НБУ](https://bank.gov.ua/ua/open-data/api-dev) за курсами валют, якщо вони увімкнені.
 
 Ваша адреса для пошуку групи надсилається лише в YASNO і зберігається тільки на телевізорі.
 
@@ -142,7 +141,7 @@ IP телевізора є в **Налаштування → Мережа та �
 
 - [Free My TV](https://github.com/simbasjungles/free-my-tv): ідея і підхід із вбудованим ADB-клієнтом.
 - [Open-Meteo](https://open-meteo.com), [YASNO](https://yasno.ua), [ДТЕК](https://www.dtek-kem.com.ua/ua/shutdowns),
-  [outage-data-ua](https://github.com/Baskerville42/outage-data-ua), Монобанк, НБУ, Binance.
+  [outage-data-ua](https://github.com/Baskerville42/outage-data-ua), Монобанк, НБУ.
 - Вогонь у каміні: класичний алгоритм «Doom fire» (Fabien Sanglard описав його у статті «How DOOM fire was done»).
 
 Ліцензія [MIT](LICENSE).
@@ -161,7 +160,7 @@ apps with banners and round buttons for HDMI inputs, Live TV and settings. Up fr
 the next 5 hours, sunrise and sunset, full rates, tomorrow's schedule.
 
 Also: the background takes on a dark tint of the focused app's banner; a line under the date with the dollar and
-euro in hryvnias (Monobank, or the NBU) and Bitcoin and Ether (Binance); a "Memory" button that shows free memory and
+euro in hryvnias (Monobank, or the NBU); a "Memory" button that shows free memory and
 closes cached background apps (through the TV's debugging, or Android's own way up to Android 13), with optional
 automatic cleaning when memory runs low; and a fireplace (bricks, logs, a "Doom fire", a dim clock and the outage
 status, optional quiet crackle) after 5 idle minutes on the home screen, also available as a screensaver. The
@@ -183,7 +182,7 @@ is gone). Bring the original back before uninstalling Lehko. If Lehko's home scr
 the original comes back by itself.
 
 **Privacy:** no accounts, analytics or ads; only Open-Meteo, YASNO and the outage-data-ua mirror are contacted, plus
-Monobank, the NBU and Binance when the rates line is on.
+Monobank and the NBU when the rates line is on.
 
 **Build:** `./gradlew assembleRelease`. Plain Java, no libraries. MIT licensed. Inspired by
 [Free My TV](https://github.com/simbasjungles/free-my-tv).

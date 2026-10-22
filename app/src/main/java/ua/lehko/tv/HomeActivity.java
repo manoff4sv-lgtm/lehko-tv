@@ -828,7 +828,7 @@ public final class HomeActivity extends Activity {
         });
     }
 
-    /** A short line (always) and the full one (details); 24-hour changes in green or red. Hidden without data. */
+    /** A short line, and the full one while the details are open. Hidden without data. */
     private void showRates() {
         String[] lines = Rates.lines(this);
         ratesLine.setVisibility(lines == null ? View.GONE : View.VISIBLE);
@@ -836,22 +836,9 @@ public final class HomeActivity extends Activity {
             ratesShort = ratesLong = null;
             return;
         }
-        ratesShort = coloured(lines[0]);
-        ratesLong = coloured(lines[1]);
+        ratesShort = lines[0];
+        ratesLong = lines[1];
         ratesLine.setText(info.hasFocus() ? ratesLong : ratesShort);
-    }
-
-    private CharSequence coloured(String line) {
-        SpannableString s = new SpannableString(line);
-        int up = getColor(R.color.rate_up), down = getColor(R.color.rate_down);
-        for (int i = 0; i < line.length(); i++) {
-            char ch = line.charAt(i);
-            if (ch != '▲' && ch != '▼') continue;
-            int end = line.indexOf('%', i);
-            s.setSpan(new ForegroundColorSpan(ch == '▲' ? up : down), i, end < 0 ? line.length() : end + 1,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        }
-        return s;
     }
 
     // MARK: - Outages

@@ -123,8 +123,6 @@
     <string name="fireplace_sound_on">Тихое потрескивание</string>
     <string name="rates_fiat">Курс валют</string>
     <string name="rates_fiat_on">Доллар и евро к гривне · Монобанк, НБУ</string>
-    <string name="rates_crypto">Криптовалюты</string>
-    <string name="rates_crypto_on">Биткоин и эфир в долларах · Binance</string>
     <string name="cleanup">Лишние приложения</string>
     <string name="cleanup_summary">Выключите то, чем не пользуетесь, чтобы освободить память</string>
     <string name="memory">Память</string>
@@ -143,7 +141,7 @@
     <string name="section_memory">Скорость и память</string>
     <string name="about">О Lehko</string>
     <string name="about_summary">Версия %1$s · %2$s</string>
-    <string name="about_text">Lehko бесплатный и с открытым кодом: %s\n\nПогода от Open-Meteo, графики отключений от YASNO и ДТЭК (через проект outage-data-ua), курсы валют от Монобанка и НБУ, криптовалюты от Binance. Без аккаунтов, рекламы и слежки.\n\nПеред удалением Lehko верните стандартный главный экран, иначе телевизор может остаться без него.</string>
+    <string name="about_text">Lehko бесплатный и с открытым кодом: %s\n\nПогода от Open-Meteo, графики отключений от YASNO и ДТЭК (через проект outage-data-ua), курсы валют от Монобанка и НБУ. Без аккаунтов, рекламы и слежки.\n\nПеред удалением Lehko верните стандартный главный экран, иначе телевизор может остаться без него.</string>
     <string name="enable_title">Сделать Lehko главным экраном</string>
     <string name="enable_intro">Сменить главный экран на Android TV можно только через режим отладки. Lehko пользуется им прямо на телевизоре, компьютер не нужен.</string>
     <string name="step_dev">Включите режим разработчика: Настройки → Система → Об устройстве → 7 раз нажмите «Сборка ОС Android TV».</string>
