@@ -47,12 +47,19 @@ public class AmbientTest {
         }
     }
 
-    /** text_secondary (#A7AFBA) on the brightest tint any colour can give: at least WCAG AA. */
+    /**
+     * text_secondary (#A7AFBA) and text_dim (#959DAA, the dial's hour numbers right on the tint) on the brightest
+     * tint any colour, or a white banner, can give: at least WCAG AA.
+     */
     @Test public void textOnTheTintPassesAa() {
-        double text = Ambient.luminance(0xA7AFBA);
-        for (int h = 0; h < 360; h += 5) {
-            double bg = Ambient.luminance(Ambient.tone(Ambient.rgb(h, 1, 1), false));
-            assertTrue("hue " + h, (text + 0.05) / (bg + 0.05) >= 4.5);
+        for (int color : new int[]{0xA7AFBA, 0x959DAA}) {
+            double text = Ambient.luminance(color);
+            for (int h = 0; h < 360; h++) {
+                double bg = Ambient.luminance(Ambient.tone(Ambient.rgb(h, 1, 1), false));
+                assertTrue(Integer.toHexString(color) + " on hue " + h, (text + 0.05) / (bg + 0.05) >= 4.5);
+            }
+            double white = Ambient.luminance(Ambient.tone(0xFFFFFFFF, false));
+            assertTrue(Integer.toHexString(color) + " on white's tint", (text + 0.05) / (white + 0.05) >= 4.5);
         }
     }
 

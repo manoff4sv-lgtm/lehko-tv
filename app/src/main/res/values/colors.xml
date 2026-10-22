@@ -6,9 +6,9 @@
     <color name="surface_focus">#FF2B3443</color>
     <color name="stroke_focus">#FFF2F4F7</color>
     <color name="text_primary">#FFF2F4F7</color>
-    <!-- Text colours pass WCAG AA (4.5:1) on the background, the cards and the darkest-allowed ambient tint. -->
+    <!-- Text colours pass WCAG AA (4.5:1) on the background, the cards and the brightest ambient tint (AmbientTest). -->
     <color name="text_secondary">#FFA7AFBA</color>
-    <color name="text_dim">#FF8B93A0</color>
+    <color name="text_dim">#FF959DAA</color>
     <color name="accent">#FFFFC940</color>
     <color name="power_on">#FF3FB950</color>
     <color name="power_off">#FFE5484D</color>

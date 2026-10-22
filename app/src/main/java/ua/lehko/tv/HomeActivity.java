@@ -644,7 +644,7 @@ public final class HomeActivity extends Activity {
             }
         });
         updateMemoryTile();
-        IconButton lehko = new IconButton(this, "lehko", getDrawable(R.drawable.ic_lehko), getString(R.string.settings_title), false);
+        IconButton lehko = new IconButton(this, "lehko", getDrawable(R.drawable.ic_lehko_button), getString(R.string.settings_title), false);
         addWithGap(quickRow, lehko);
         lehko.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lehko's round button: the golden leaf, turning dark on the white focused circle like the other buttons' icons. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:drawable="@drawable/ic_lehko_dark" />
+    <item android:drawable="@drawable/ic_lehko" />
+</selector>
