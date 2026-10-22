@@ -11,10 +11,19 @@ import java.util.List;
 
 public class WeatherTest {
     static final String FORECAST = "{\"latitude\":50.45,\"longitude\":30.52,\"timezone\":\"Europe/Kiev\","
+            + "\"utc_offset_seconds\":10800,"
             + "\"current\":{\"time\":\"2026-10-22T13:15\",\"interval\":900,\"temperature_2m\":12.4,\"weather_code\":3,\"is_day\":1},"
             + "\"minutely_15\":{\"time\":[\"2026-10-22T13:15\",\"2026-10-22T13:30\",\"2026-10-22T13:45\",\"2026-10-22T14:00\"],"
             + "\"precipitation\":[0.3,0.0,0.05,0.4]},"
-            + "\"daily\":{\"time\":[\"2026-10-22\"],\"weather_code\":[61],\"temperature_2m_max\":[14.6],\"temperature_2m_min\":[7.5]}}";
+            + "\"hourly\":{\"time\":[\"2026-10-22T13:00\",\"2026-10-22T14:00\",\"2026-10-22T15:00\",\"2026-10-22T16:00\","
+            + "\"2026-10-22T17:00\",\"2026-10-22T18:00\"],\"temperature_2m\":[12.4,12.9,13.3,12.1,10.8,9.6],"
+            + "\"weather_code\":[3,3,61,61,2,1],\"is_day\":[1,1,1,1,0,0]},"
+            + "\"daily\":{\"time\":[\"2026-10-22\",\"2026-10-23\"],\"weather_code\":[61,3],\"temperature_2m_max\":[14.6,13.0],"
+            + "\"temperature_2m_min\":[7.5,6.0],\"sunrise\":[\"2026-10-22T07:23\",\"2026-10-23T07:25\"],"
+            + "\"sunset\":[\"2026-10-22T17:41\",\"2026-10-23T17:39\"]}}";
+    /** 2026-10-22 13:15 in Kyiv (UTC+3). */
+    static final long NOW = 1792664100000L;
+    static final long HOUR = 3_600_000L;
 
     @Test public void parsesCurrentAndDaily() throws Exception {
         Weather.Data d = Weather.parse(FORECAST);
@@ -26,6 +35,49 @@ public class WeatherTest {
         // The slot at "now" is skipped; 0.05 mm is below the threshold; 14:00 is the first real rain.
         assertEquals("14:00", d.precipAt);
         assertFalse(d.precipSnow);
+    }
+
+    @Test public void comingHours() throws Exception {
+        Weather.Data d = Weather.parse(FORECAST);
+        assertEquals(6, d.hours.size());
+        assertEquals("13:00", d.hours.get(0).time);
+        assertEquals(1792663200000L, d.hours.get(0).at);
+        List<Weather.Hour> next = Weather.next(d, NOW, 5);
+        assertEquals(5, next.size());
+        assertEquals("14:00", next.get(0).time);
+        assertEquals(12.9, next.get(0).temp, 0.001);
+        assertEquals(61, next.get(1).code);
+        assertEquals("18:00", next.get(4).time);
+        assertFalse(next.get(4).day);
+        // An hour later only four are left until the next download.
+        assertEquals(4, Weather.next(d, NOW + HOUR, 5).size());
+    }
+
+    @Test public void sunriseAndSunset() throws Exception {
+        Weather.Data d = Weather.parse(FORECAST);
+        assertEquals("07:23", d.sunrise);
+        assertEquals("17:41", d.sunset);
+        assertFalse(Weather.night(d, NOW));
+        assertTrue(Weather.night(d, NOW + 5 * HOUR)); // 18:15
+        assertTrue(Weather.night(d, NOW - 7 * HOUR)); // 06:15
+        // A forecast two days old still knows roughly when it is dark.
+        assertFalse(Weather.night(d, NOW + 48 * HOUR));
+        assertTrue(Weather.night(d, NOW + 48 * HOUR + 7 * HOUR));
+    }
+
+    @Test public void olderCacheWithoutDetails() throws Exception {
+        String old = "{\"current\":{\"time\":\"2026-10-22T21:00\",\"temperature_2m\":5,\"weather_code\":0,\"is_day\":0}}";
+        Weather.Data d = Weather.parse(old);
+        assertTrue(d.hours.isEmpty());
+        assertNull(d.sunrise);
+        assertTrue(Weather.night(d, NOW));
+        assertTrue(Weather.next(d, NOW, 5).isEmpty());
+    }
+
+    @Test public void epoch() {
+        assertEquals(1792663200000L, Weather.epoch("2026-10-22T13:00", 10800));
+        assertEquals(0, Weather.epoch("2026-10-22", 10800));
+        assertEquals(0, Weather.epoch("soon", 0));
     }
 
     @Test public void noHintWhileItAlreadyRains() throws Exception {

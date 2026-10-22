@@ -29,6 +29,7 @@
     <string name="weather_old">No update since %s</string>
     <string name="weather_rain_at">Rain from %s</string>
     <string name="weather_snow_at">Snow from %s</string>
+    <string name="weather_sun">Sunrise %1$s · sunset %2$s</string>
     <string name="city_kyiv">Kyiv</string>
     <string name="weather_city">Weather city</string>
     <string name="city_search_title">City for the weather</string>

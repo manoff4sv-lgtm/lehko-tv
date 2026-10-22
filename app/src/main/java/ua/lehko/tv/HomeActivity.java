@@ -14,6 +14,8 @@ import android.os.Bundle;
 import android.os.UserHandle;
 import android.provider.Settings;
 import android.text.format.DateFormat;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,10 +35,16 @@ import java.util.Locale;
 public final class HomeActivity extends Activity {
     private static final long OUTAGE_MAX_AGE_MS = 10 * 60_000L;
 
-    private LinearLayout favoritesRow, quickRow, outageCard, outageDays, tomorrowBox;
+    private LinearLayout favoritesRow, quickRow, outageCard, outageDays, tomorrowBox, weatherHours;
     private HorizontalScrollView favoritesScroll;
     private ImageView weatherIcon;
-    private TextView weatherTemp, weatherText, weatherExtra, outageStatus, outageGroup, notice;
+    private TextView weatherTemp, weatherText, weatherExtra, weatherSun, outageStatus, outageGroup, notice;
+    /** The next hours under the current weather. */
+    private static final int HOURS = 5;
+    private final TextView[] hourTime = new TextView[HOURS], hourTemp = new TextView[HOURS];
+    private final ImageView[] hourIcon = new ImageView[HOURS];
+    /** When the first hour shown begins (then the strip moves on by one). */
+    private long firstHourAt;
     private View outageDot;
     private OutageBar todayBar, tomorrowBar;
 
@@ -70,9 +78,10 @@ public final class HomeActivity extends Activity {
         @Override public void run() {
             showOutage();
             maybeRefresh();
+            long now = System.currentTimeMillis();
+            if (weather != null && firstHourAt != 0 && now >= firstHourAt) showWeather(weather);
             View f = getCurrentFocus();
             if (f != null) ambient(f); // sunset may have passed
-            long now = System.currentTimeMillis();
             App.MAIN.postDelayed(this, 60_000 - now % 60_000 + 200);
         }
     };
@@ -127,6 +136,9 @@ public final class HomeActivity extends Activity {
         weatherTemp = findViewById(R.id.weather_temp);
         weatherText = findViewById(R.id.weather_text);
         weatherExtra = findViewById(R.id.weather_extra);
+        weatherHours = findViewById(R.id.weather_hours);
+        weatherSun = findViewById(R.id.weather_sun);
+        buildHours();
         outageCard = findViewById(R.id.outage);
         outageDays = findViewById(R.id.outage_days);
         tomorrowBox = findViewById(R.id.outage_tomorrow_box);
@@ -352,7 +364,7 @@ public final class HomeActivity extends Activity {
     }
 
     private boolean night() {
-        return weather != null && !weather.day;
+        return Weather.night(weather, System.currentTimeMillis());
     }
 
     private void addWithGap(LinearLayout row, View v) {
@@ -523,18 +535,14 @@ public final class HomeActivity extends Activity {
 
     private void showWeather(Weather.Data d) {
         weather = d;
-        if (Weather.place(this) == null) {
+        firstHourAt = 0;
+        if (Weather.place(this) == null || d == null) {
             weatherIcon.setImageDrawable(null);
             weatherTemp.setText("");
-            weatherText.setText(R.string.weather_pick_city);
+            weatherText.setText(d == null && Weather.place(this) != null ? R.string.weather_loading : R.string.weather_pick_city);
             weatherExtra.setVisibility(View.GONE);
-            return;
-        }
-        if (d == null) {
-            weatherIcon.setImageDrawable(null);
-            weatherTemp.setText("");
-            weatherText.setText(R.string.weather_loading);
-            weatherExtra.setVisibility(View.GONE);
+            weatherHours.setVisibility(View.GONE);
+            weatherSun.setVisibility(View.GONE);
             return;
         }
         weatherIcon.setImageResource(Weather.icon(d.code, d.day));
@@ -556,6 +564,58 @@ public final class HomeActivity extends Activity {
         }
         weatherExtra.setText(extra);
         weatherExtra.setVisibility(extra == null ? View.GONE : View.VISIBLE);
+
+        List<Weather.Hour> next = Weather.next(d, System.currentTimeMillis(), HOURS);
+        for (int i = 0; i < HOURS; i++) {
+            View cell = (View) hourTime[i].getParent();
+            if (i >= next.size()) {
+                cell.setVisibility(View.GONE);
+                continue;
+            }
+            Weather.Hour h = next.get(i);
+            hourTime[i].setText(h.time);
+            hourIcon[i].setImageResource(Weather.icon(h.code, h.day));
+            hourTemp[i].setText(Weather.degrees(h.temp));
+            cell.setVisibility(View.VISIBLE);
+        }
+        if (!next.isEmpty()) firstHourAt = next.get(0).at;
+        weatherHours.setVisibility(next.isEmpty() ? View.GONE : View.VISIBLE);
+        boolean sun = d.sunrise != null && d.sunset != null;
+        if (sun) weatherSun.setText(getString(R.string.weather_sun, d.sunrise, d.sunset));
+        weatherSun.setVisibility(sun ? View.VISIBLE : View.GONE);
+    }
+
+    /** Five small columns under the current weather: hour, icon, temperature. Made once, filled by showWeather. */
+    private void buildHours() {
+        float dp = getResources().getDisplayMetrics().density;
+        for (int i = 0; i < HOURS; i++) {
+            LinearLayout cell = new LinearLayout(this);
+            cell.setOrientation(LinearLayout.VERTICAL);
+            cell.setGravity(Gravity.CENTER_HORIZONTAL);
+            cell.setMinimumWidth(Math.round(42 * dp));
+            hourTime[i] = smallText(11, R.color.text_dim);
+            cell.addView(hourTime[i]);
+            hourIcon[i] = new ImageView(this);
+            hourIcon[i].setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(Math.round(20 * dp), Math.round(20 * dp));
+            ip.topMargin = ip.bottomMargin = Math.round(dp);
+            cell.addView(hourIcon[i], ip);
+            hourTemp[i] = smallText(13, R.color.text_secondary);
+            cell.addView(hourTemp[i]);
+            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            if (i > 0) cp.setMarginStart(Math.round(6 * dp));
+            weatherHours.addView(cell, cp);
+        }
+    }
+
+    private TextView smallText(int sp, int color) {
+        TextView t = new TextView(this);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
+        t.setTextColor(getColor(color));
+        t.setIncludeFontPadding(false);
+        t.setMaxLines(1);
+        return t;
     }
 
     // MARK: - Outages

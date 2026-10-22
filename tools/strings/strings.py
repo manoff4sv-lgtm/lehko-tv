@@ -36,6 +36,7 @@ s("weather_loading", "Loading the weather…", "Завантаження пог�
 s("weather_old", "No update since %s", "Не оновлювалося з %s", "Не обновлялось с %s")
 s("weather_rain_at", "Rain from %s", "Дощ з %s", "Дождь с %s")
 s("weather_snow_at", "Snow from %s", "Сніг з %s", "Снег с %s")
+s("weather_sun", "Sunrise %1$s · sunset %2$s", "Схід сонця %1$s · захід %2$s", "Восход %1$s · закат %2$s")
 s("city_kyiv", "Kyiv", "Київ", "Киев")
 s("weather_city", "Weather city", "Місто для погоди", "Город для погоды")
 s("city_search_title", "City for the weather", "Місто для погоди", "Город для погоды")

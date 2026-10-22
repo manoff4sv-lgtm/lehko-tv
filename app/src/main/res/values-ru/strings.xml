@@ -27,6 +27,7 @@
     <string name="weather_old">Не обновлялось с %s</string>
     <string name="weather_rain_at">Дождь с %s</string>
     <string name="weather_snow_at">Снег с %s</string>
+    <string name="weather_sun">Восход %1$s · закат %2$s</string>
     <string name="city_kyiv">Киев</string>
     <string name="weather_city">Город для погоды</string>
     <string name="city_search_title">Город для погоды</string>
