@@ -2,10 +2,13 @@ plugins {
     id "com.android.application"
 }
 
-// The version comes from the git tag in CI (v1.2.3 -> versionName 1.2.3, versionCode 10203).
+// The version comes from the git tag in CI (v1.2.3 -> versionName 1.2.3, versionCode 10203; v0.9.0-beta.1 -> 0.9.0-beta.1).
 def tag = System.getenv("GITHUB_REF_TYPE") == "tag" ? System.getenv("GITHUB_REF_NAME") : null
-def appVersion = (tag != null && tag ==~ /v\d+\.\d+\.\d+/) ? tag.substring(1) : "1.0.0"
-def appVersionCode = appVersion.tokenize(".").collect { it as int }.with { it[0] * 10000 + it[1] * 100 + it[2] }
+def tagMatch = tag != null ? (tag =~ /^v(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z.]+)?$/) : null
+def appVersion = (tagMatch != null && tagMatch.matches()) ? tag.substring(1) : "0.0.0-dev"
+def appVersionCode = (tagMatch != null && tagMatch.matches())
+        ? (tagMatch.group(1) as int) * 10000 + (tagMatch.group(2) as int) * 100 + (tagMatch.group(3) as int)
+        : 1
 
 // Release signing comes from environment variables (set by CI from repository secrets).
 // Without them the release build is signed with the debug key, so forks and local builds still work.

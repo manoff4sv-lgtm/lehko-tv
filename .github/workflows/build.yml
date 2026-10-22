@@ -61,4 +61,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "$HAS_KEY" != "true" ]; then echo "Refusing to publish a debug-signed release: add the signing secrets."; exit 1; fi
-          gh release create "$GITHUB_REF_NAME" Lehko.apk --title "Lehko ${GITHUB_REF_NAME#v}" --generate-notes
+          PRE=""
+          case "$GITHUB_REF_NAME" in *-*) PRE="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" Lehko.apk --title "Lehko ${GITHUB_REF_NAME#v}" --generate-notes $PRE
