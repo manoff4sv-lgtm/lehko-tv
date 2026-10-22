@@ -67,6 +67,15 @@ public class RatesTest {
         assertEquals("", Rates.line(Collections.<Rates.Fiat>emptyList(), Collections.<Rates.Coin>emptyList(), ',', ' '));
     }
 
+    @Test public void compactLine() throws Exception {
+        assertEquals("$ 45,23 · € 51,01 · BTC 67 120 ▲1,2%",
+                Rates.compact(Rates.parseMonobank(MONOBANK), Rates.parseBinance(BINANCE), ',', ' '));
+        // The NBU has one rate; without crypto there is no coin part.
+        assertEquals("$ 44,99 · € 50,61", Rates.compact(Rates.parseNbu(NBU), Collections.<Rates.Coin>emptyList(), ',', ' '));
+        assertEquals("BTC 67 120 ▲1,2%",
+                Rates.compact(Collections.<Rates.Fiat>emptyList(), Rates.parseBinance(BINANCE), ',', ' '));
+    }
+
     @Test public void numbers() {
         assertEquals("1 234 567", Rates.number(1234567.4, 0, ',', ' '));
         assertEquals("1 000,00", Rates.number(999.995, 2, ',', ' '));

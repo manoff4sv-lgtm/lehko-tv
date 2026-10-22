@@ -17,6 +17,15 @@
     <color name="rate_up">#FF4CD164</color>
     <color name="rate_down">#FFFF7A7F</color>
     <color name="error_text">#FFFF7A7F</color>
+    <!-- The power ring: off is ember (thick), possible amber (dashed), on a thin light line. -->
+    <color name="ember">#FFFF6A3D</color>
+    <color name="ring_on">#4DFFFFFF</color>
+    <color name="ring_track">#1FFFFFFF</color>
+    <!-- Glass: see-through dark surfaces over the tinted background, with a hairline edge. -->
+    <color name="glass">#800E1117</color>
+    <color name="glass_light">#12FFFFFF</color>
+    <color name="hairline">#14FFFFFF</color>
+    <color name="on_white">#FF111418</color>
     <color name="track">#FF262C36</color>
     <color name="sun">#FFFFC940</color>
     <color name="cloud">#FFCBD5E1</color>

@@ -3,10 +3,11 @@
     <!-- TV safe area: 5% of 960x540 dp. -->
     <dimen name="safe_h">48dp</dimen>
     <dimen name="safe_v">27dp</dimen>
-    <dimen name="tile_w">168dp</dimen>
-    <dimen name="tile_h">94dp</dimen>
-    <dimen name="tile_gap">14dp</dimen>
-    <dimen name="small_tile_w">128dp</dimen>
-    <dimen name="small_tile_h">72dp</dimen>
-    <dimen name="radius">10dp</dimen>
+    <dimen name="tile_w">184dp</dimen>
+    <dimen name="tile_h">104dp</dimen>
+    <dimen name="tile_gap">18dp</dimen>
+    <!-- Room around a tile for the focus ring: 4dp gap + 3dp ring. -->
+    <dimen name="ring_pad">7dp</dimen>
+    <dimen name="icon_button">52dp</dimen>
+    <dimen name="radius">14dp</dimen>
 </resources>

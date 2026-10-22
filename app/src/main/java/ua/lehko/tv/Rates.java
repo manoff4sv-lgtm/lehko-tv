@@ -239,8 +239,11 @@ final class Rates {
 
     // MARK: - The line
 
-    /** The line for the home screen from what is cached, or null when there is nothing (fresh enough) to show. */
-    static String line(Context c) {
+    /**
+     * The home screen's two versions from what is cached: {compact, full}, or null when there is nothing (fresh
+     * enough) to show. The compact one is always visible, the full one only with the details.
+     */
+    static String[] lines(Context c) {
         SharedPreferences p = Prefs.of(c);
         long now = System.currentTimeMillis();
         List<Fiat> fiat = new ArrayList<>();
@@ -254,8 +257,27 @@ final class Rates {
             return null;
         }
         DecimalFormatSymbols sym = DecimalFormatSymbols.getInstance(Locale.getDefault());
-        String line = line(fiat, coins, sym.getDecimalSeparator(), sym.getGroupingSeparator());
-        return line.isEmpty() ? null : line;
+        char d = sym.getDecimalSeparator(), g = sym.getGroupingSeparator();
+        String full = line(fiat, coins, d, g);
+        return full.isEmpty() ? null : new String[]{compact(fiat, coins, d, g), full};
+    }
+
+    /** "$ 41,80 · € 48,62 · BTC 67 120 ▲1,2%": what a dollar and a euro cost (the selling rate) and the first coin. */
+    static String compact(List<Fiat> fiat, List<Coin> coins, char decimal, char grouping) {
+        StringBuilder b = new StringBuilder();
+        for (Fiat f : fiat) {
+            if (b.length() > 0) b.append(" · ");
+            String symbol = "USD".equals(f.code) ? "$" : "EUR".equals(f.code) ? "€" : f.code;
+            b.append(symbol).append(' ').append(number(f.sell > 0 ? f.sell : f.buy, 2, decimal, grouping));
+        }
+        if (!coins.isEmpty()) {
+            Coin k = coins.get(0);
+            if (b.length() > 0) b.append(" · ");
+            b.append(k.code).append(' ').append(number(k.price, k.price >= 100 ? 0 : 2, decimal, grouping))
+                    .append(' ').append(k.change < 0 ? '▼' : '▲').append(number(Math.abs(k.change), 1, decimal, grouping))
+                    .append('%');
+        }
+        return b.toString();
     }
 
     /** "USD 44,83 / 45,23 · EUR 50,38 / 51,01 · BTC $67 120 ▲1,2% · ETH $2 410 ▼0,4%" (or a part of it). */

@@ -35,24 +35,27 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 
-/** The home screen: clock, weather, today's outage schedule, favorite apps and a row of shortcuts. */
+/**
+ * The home screen: the clock in a 24-hour ring of today's power schedule, short power, weather and rates lines (with
+ * details on focus), favorite apps and a row of round shortcut buttons.
+ */
 public final class HomeActivity extends Activity {
     private static final long OUTAGE_MAX_AGE_MS = 10 * 60_000L;
 
-    private LinearLayout favoritesRow, quickRow, outageCard, outageDays, tomorrowBox, weatherHours, header;
+    private LinearLayout favoritesRow, quickRow, weatherHours, info;
+    private View details, tomorrowBox;
     private HorizontalScrollView favoritesScroll;
     private ImageView weatherIcon;
-    private TextView weatherTemp, weatherText, weatherExtra, weatherSun, outageStatus, outageGroup, notice, focusName,
-            favoritesLabel, ratesLine;
+    private TextView weatherTemp, weatherText, weatherSun, powerTitle, powerDetail, notice, focusName, ratesLine, ratesFull;
+    private DialView dial;
     /** The next hours under the current weather. */
     private static final int HOURS = 5;
     private final TextView[] hourTime = new TextView[HOURS], hourTemp = new TextView[HOURS];
     private final ImageView[] hourIcon = new ImageView[HOURS];
     /** When the first hour shown begins (then the strip moves on by one). */
     private long firstHourAt;
-    private View outageDot;
-    private OutageBar todayBar, tomorrowBar;
-    private Tile memoryTile;
+    private OutageBar tomorrowBar;
+    private IconButton memoryButton;
     private boolean cleaning;
 
     private List<Apps.Entry> apps = new ArrayList<>();
@@ -68,7 +71,7 @@ public final class HomeActivity extends Activity {
     private long weatherFailedAt, outageFailedAt, ratesFailedAt;
     private boolean ratesLoading;
     private Outages.Schedule schedule;
-    private int tileW, tileH, smallW, smallH, gap;
+    private int tileW, tileH, gap, buttonGap;
     private String focusPkgAfterRebuild;
     /** The last weather shown (for "is it night?"). */
     private Weather.Data weather;
@@ -114,7 +117,6 @@ public final class HomeActivity extends Activity {
     private final Runnable hideNotice = new Runnable() {
         @Override public void run() {
             notice.setVisibility(View.GONE);
-            favoritesLabel.setVisibility(View.VISIBLE);
         }
     };
 
@@ -161,23 +163,27 @@ public final class HomeActivity extends Activity {
         weatherIcon = findViewById(R.id.weather_icon);
         weatherTemp = findViewById(R.id.weather_temp);
         weatherText = findViewById(R.id.weather_text);
-        weatherExtra = findViewById(R.id.weather_extra);
         weatherHours = findViewById(R.id.weather_hours);
-        header = findViewById(R.id.header);
         weatherSun = findViewById(R.id.weather_sun);
         buildHours();
-        outageCard = findViewById(R.id.outage);
-        outageDays = findViewById(R.id.outage_days);
-        tomorrowBox = findViewById(R.id.outage_tomorrow_box);
-        outageStatus = findViewById(R.id.outage_status);
-        outageGroup = findViewById(R.id.outage_group);
-        outageDot = findViewById(R.id.outage_dot);
-        todayBar = findViewById(R.id.outage_today);
+        dial = findViewById(R.id.dial);
+        info = findViewById(R.id.info);
+        details = findViewById(R.id.details);
+        powerTitle = findViewById(R.id.power_title);
+        powerDetail = findViewById(R.id.power_detail);
+        tomorrowBox = findViewById(R.id.tomorrow_box);
         tomorrowBar = findViewById(R.id.outage_tomorrow);
+        tomorrowBar.showLabels(false);
         notice = findViewById(R.id.notice);
         focusName = findViewById(R.id.focus_name);
-        favoritesLabel = findViewById(R.id.favorites_label);
         ratesLine = findViewById(R.id.rates);
+        ratesFull = findViewById(R.id.rates_full);
+        // Calm by default; Up from the favorites opens the details.
+        info.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override public void onFocusChange(View v, boolean hasFocus) {
+                details.setVisibility(hasFocus ? View.VISIBLE : View.GONE);
+            }
+        });
 
         bgTop = getColor(R.color.bg_top);
         bgBottom = getColor(R.color.bg_bottom);
@@ -193,16 +199,16 @@ public final class HomeActivity extends Activity {
         });
         getWindow().getDecorView().getViewTreeObserver().addOnGlobalFocusChangeListener(focusWatch);
 
-        String datePattern = DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEEdMMMM");
+        String datePattern = DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEdMMMM");
         TextClock date = findViewById(R.id.date);
         date.setFormat12Hour(datePattern);
         date.setFormat24Hour(datePattern);
 
         tileW = getResources().getDimensionPixelSize(R.dimen.tile_w);
         tileH = getResources().getDimensionPixelSize(R.dimen.tile_h);
-        smallW = getResources().getDimensionPixelSize(R.dimen.small_tile_w);
-        smallH = getResources().getDimensionPixelSize(R.dimen.small_tile_h);
-        gap = getResources().getDimensionPixelSize(R.dimen.tile_gap);
+        // The tiles keep room for their focus ring on both sides, so the visible gap is that plus the margin.
+        gap = getResources().getDimensionPixelSize(R.dimen.tile_gap) - 2 * getResources().getDimensionPixelSize(R.dimen.ring_pad);
+        buttonGap = Math.round(14 * getResources().getDisplayMetrics().density);
 
         LauncherApps la = (LauncherApps) getSystemService(Context.LAUNCHER_APPS_SERVICE);
         if (la != null) la.registerCallback(packages, App.MAIN);
@@ -248,23 +254,6 @@ public final class HomeActivity extends Activity {
         updateMemoryTile();
         Memory.maybeAutoClean(this);
         scheduleIdle();
-        // With a screen reader the weather and the outage card can be reached with the remote and read aloud;
-        // otherwise they stay out of the way of the D-pad.
-        boolean reader = screenReader();
-        header.setFocusable(reader);
-        outageCard.setFocusable(reader);
-    }
-
-    private boolean screenReader() {
-        android.view.accessibility.AccessibilityManager am =
-                (android.view.accessibility.AccessibilityManager) getSystemService(ACCESSIBILITY_SERVICE);
-        if (am == null || !am.isEnabled()) return false;
-        try {
-            return !am.getEnabledAccessibilityServiceList(
-                    android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_SPOKEN).isEmpty();
-        } catch (RuntimeException e) {
-            return false;
-        }
     }
 
     @Override public void onUserInteraction() {
@@ -287,8 +276,6 @@ public final class HomeActivity extends Activity {
     private void showNotice(String text) {
         notice.setText(text);
         notice.setVisibility(View.VISIBLE);
-        // The notice takes the section title's place, so the shortcuts row still fits on screen.
-        favoritesLabel.setVisibility(View.GONE);
         App.MAIN.removeCallbacks(hideNotice);
         App.MAIN.postDelayed(hideNotice, 20_000);
     }
@@ -427,8 +414,8 @@ public final class HomeActivity extends Activity {
 
     private void focusChanged(View focused) {
         ambient(focused);
-        CharSequence name = focused instanceof Tile && focused.getParent() == favoritesRow
-                ? focused.getContentDescription() : null;
+        boolean named = focused.getParent() == favoritesRow || focused.getParent() == quickRow;
+        CharSequence name = named ? focused.getContentDescription() : null;
         showFocusName(name == null ? "" : name);
     }
 
@@ -456,6 +443,7 @@ public final class HomeActivity extends Activity {
         String pkg = favoritePkg(focused);
         Integer mean = pkg == null ? null : Ambient.mean(pkg, Apps.cached(pkg));
         fadeTo(mean == null ? bgTop : Ambient.tone(mean, night()));
+        if (pkg != null) ((Tile) focused).glow(mean == null ? 0xFF000000 : Ambient.glow(mean));
     }
 
     private void fadeTo(int color) {
@@ -473,7 +461,7 @@ public final class HomeActivity extends Activity {
     private void addWithGap(LinearLayout row, View v) {
         ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(lp.width, lp.height);
-        p.setMarginEnd(gap);
+        p.setMarginEnd(row == quickRow ? buttonGap : gap);
         row.addView(v, p);
     }
 
@@ -560,10 +548,10 @@ public final class HomeActivity extends Activity {
 
     private void buildQuickRow() {
         View focused = getCurrentFocus();
-        Object focusedKey = focused instanceof Tile && focused.getParent() == quickRow ? ((Tile) focused).key : null;
+        String focusedKey = focused instanceof IconButton && focused.getParent() == quickRow ? ((IconButton) focused).key : null;
         quickRow.removeAllViews();
         for (final Inputs.Input in : inputs) {
-            Tile t = shortcut("input:" + in.id, in.tuner ? R.drawable.ic_live_tv : R.drawable.ic_input, in.label);
+            IconButton t = shortcut("input:" + in.id, in.tuner ? R.drawable.ic_live_tv : R.drawable.ic_input, in.label);
             t.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
                     Inputs.open(HomeActivity.this, in);
@@ -580,33 +568,29 @@ public final class HomeActivity extends Activity {
                 Apps.start(HomeActivity.this, new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             }
         });
-        memoryTile = shortcut("memory", R.drawable.ic_memory, memoryLabel());
-        memoryTile.setOnClickListener(new View.OnClickListener() {
+        memoryButton = shortcut("memory", R.drawable.ic_memory, getString(R.string.memory));
+        memoryButton.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 cleanMemory();
             }
         });
         updateMemoryTile();
-        Tile settings = shortcut("lehko", R.drawable.ic_lehko, getString(R.string.lehko_settings));
-        settings.setContentDescription(getString(R.string.settings_title));
-        settings.setOnClickListener(new View.OnClickListener() {
+        shortcut("lehko", R.drawable.ic_lehko, getString(R.string.settings_title)).setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 Apps.start(HomeActivity.this, new Intent(HomeActivity.this, SettingsActivity.class));
             }
         });
         if (focusedKey != null) {
             for (int i = 0; i < quickRow.getChildCount(); i++) {
-                if (focusedKey.equals(((Tile) quickRow.getChildAt(i)).key)) quickRow.getChildAt(i).requestFocus();
+                if (focusedKey.equals(((IconButton) quickRow.getChildAt(i)).key)) quickRow.getChildAt(i).requestFocus();
             }
         }
     }
 
-    private Tile shortcut(String key, int icon, CharSequence label) {
-        Tile t = new Tile(this, smallW, smallH);
-        t.key = key;
-        t.show(getDrawable(icon), false, label);
-        addWithGap(quickRow, t);
-        return t;
+    private IconButton shortcut(String key, int icon, CharSequence name) {
+        IconButton b = new IconButton(this, key, getDrawable(icon), name);
+        addWithGap(quickRow, b);
+        return b;
     }
 
     // MARK: - Memory
@@ -615,12 +599,11 @@ public final class HomeActivity extends Activity {
         return getString(R.string.memory_free_short, Memory.freeMb(this));
     }
 
+    /** "Memory · 412 MB free": the button's name, shown under the favorites while it has focus. */
     private void updateMemoryTile() {
-        if (memoryTile == null) return;
-        String label = memoryLabel();
-        memoryTile.label(label);
-        // The label alone ("412 MB free") doesn't say what the tile does.
-        memoryTile.setContentDescription(getString(R.string.memory) + ", " + label);
+        if (memoryButton == null) return;
+        memoryButton.setName(getString(R.string.memory_button, memoryLabel()));
+        if (memoryButton.isFocused()) showFocusName(memoryButton.getContentDescription());
     }
 
     /** The memory tile: closes background apps (asking for debugging if needed) and says how much that freed. */
@@ -706,33 +689,33 @@ public final class HomeActivity extends Activity {
             weatherIcon.setImageDrawable(null);
             weatherTemp.setText("");
             weatherText.setText(d == null && Weather.place(this) != null ? R.string.weather_loading : R.string.weather_pick_city);
-            weatherExtra.setVisibility(View.GONE);
             weatherHours.setVisibility(View.GONE);
             weatherSun.setVisibility(View.GONE);
             return;
         }
         weatherIcon.setImageResource(Weather.icon(d.code, d.day));
         weatherTemp.setText(Weather.degrees(d.temp));
-        weatherText.setText(getString(Weather.text(d.code)) + "  ↑" + Weather.degrees(d.max) + "  ↓" + Weather.degrees(d.min));
-        String extra = null;
+        // "Cloudy, rain from 21:00": the hint (or an old forecast's warning) in amber after the sky.
+        String hint = null;
         long age = System.currentTimeMillis() - Weather.cacheTime(this);
         if (age > 3 * 3600_000L) {
-            extra = getString(R.string.weather_old, DateFormat.getTimeFormat(this).format(Weather.cacheTime(this)));
+            hint = getString(R.string.weather_old, DateFormat.getTimeFormat(this).format(Weather.cacheTime(this)));
         } else if (d.precipAt != null) {
-            extra = getString(d.precipSnow ? R.string.weather_snow_at : R.string.weather_rain_at, d.precipAt);
+            hint = getString(d.precipSnow ? R.string.weather_snow_at : R.string.weather_rain_at, d.precipAt);
         }
-        String city = Weather.cityName(this);
-        if (extra == null && !city.isEmpty()) {
-            weatherExtra.setTextColor(getColor(R.color.text_dim));
-            extra = city;
+        String sky = getString(Weather.text(d.code));
+        if (hint == null) {
+            weatherText.setText(sky);
         } else {
-            weatherExtra.setTextColor(getColor(R.color.accent));
+            String h = hint.substring(0, 1).toLowerCase(Locale.getDefault()) + hint.substring(1);
+            SpannableString t = new SpannableString(sky + ", " + h);
+            t.setSpan(new ForegroundColorSpan(getColor(R.color.accent)), sky.length() + 2, t.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            weatherText.setText(t);
         }
-        weatherExtra.setText(extra);
-        weatherExtra.setVisibility(extra == null ? View.GONE : View.VISIBLE);
 
         List<Weather.Hour> next = Weather.next(d, System.currentTimeMillis(), HOURS);
-        // In the TV's own 12/24-hour style and time zone, like the clock above.
+        // In the TV's own 12/24-hour style and time zone, like the clock.
         java.text.DateFormat time = DateFormat.getTimeFormat(this);
         for (int i = 0; i < HOURS; i++) {
             View cell = (View) hourTime[i].getParent();
@@ -748,12 +731,17 @@ public final class HomeActivity extends Activity {
         }
         if (!next.isEmpty()) firstHourAt = next.get(0).at;
         weatherHours.setVisibility(next.isEmpty() ? View.GONE : View.VISIBLE);
-        boolean sun = d.sunrise != null && d.sunset != null;
-        if (sun) {
-            weatherSun.setText(getString(R.string.weather_sun, time.format(new java.util.Date(d.sunriseAt)),
+        // Details: "Kyiv · ↑+15° ↓+8° · Sunrise 07:23 · sunset 17:41".
+        StringBuilder sun = new StringBuilder();
+        String city = Weather.cityName(this);
+        if (!city.isEmpty()) sun.append(city).append(" · ");
+        sun.append('↑').append(Weather.degrees(d.max)).append(" ↓").append(Weather.degrees(d.min));
+        if (d.sunrise != null && d.sunset != null) {
+            sun.append(" · ").append(getString(R.string.weather_sun, time.format(new java.util.Date(d.sunriseAt)),
                     time.format(new java.util.Date(d.sunsetAt))));
         }
-        weatherSun.setVisibility(sun ? View.VISIBLE : View.GONE);
+        weatherSun.setText(sun);
+        weatherSun.setVisibility(View.VISIBLE);
     }
 
     /** Five small columns under the current weather: hour, icon, temperature. Made once, filled by showWeather. */
@@ -763,7 +751,7 @@ public final class HomeActivity extends Activity {
             LinearLayout cell = new LinearLayout(this);
             cell.setOrientation(LinearLayout.VERTICAL);
             cell.setGravity(Gravity.CENTER_HORIZONTAL);
-            cell.setMinimumWidth(Math.round(42 * dp));
+            cell.setMinimumWidth(Math.round(44 * dp));
             hourTime[i] = smallText(11, R.color.text_dim);
             cell.addView(hourTime[i]);
             hourIcon[i] = new ImageView(this);
@@ -771,11 +759,11 @@ public final class HomeActivity extends Activity {
             LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(Math.round(20 * dp), Math.round(20 * dp));
             ip.topMargin = ip.bottomMargin = Math.round(dp);
             cell.addView(hourIcon[i], ip);
-            hourTemp[i] = smallText(13, R.color.text_secondary);
+            hourTemp[i] = smallText(13, R.color.text_primary);
             cell.addView(hourTemp[i]);
             LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
-            if (i > 0) cp.setMarginStart(Math.round(6 * dp));
+            if (i > 0) cp.setMarginStart(Math.round(2 * dp));
             weatherHours.addView(cell, cp);
         }
     }
@@ -815,13 +803,17 @@ public final class HomeActivity extends Activity {
         });
     }
 
-    /** One line under the date; the 24-hour changes in green (up) or red (down). Hidden when there's nothing. */
+    /** A short line (always) and the full one (details); 24-hour changes in green or red. Hidden without data. */
     private void showRates() {
-        String line = Rates.line(this);
-        if (line == null) {
-            ratesLine.setVisibility(View.GONE);
-            return;
-        }
+        String[] lines = Rates.lines(this);
+        ratesLine.setVisibility(lines == null ? View.GONE : View.VISIBLE);
+        ratesFull.setVisibility(lines == null ? View.GONE : View.VISIBLE);
+        if (lines == null) return;
+        ratesLine.setText(coloured(lines[0]));
+        ratesFull.setText(coloured(lines[1]));
+    }
+
+    private CharSequence coloured(String line) {
         SpannableString s = new SpannableString(line);
         int up = getColor(R.color.rate_up), down = getColor(R.color.rate_down);
         for (int i = 0; i < line.length(); i++) {
@@ -831,8 +823,7 @@ public final class HomeActivity extends Activity {
             s.setSpan(new ForegroundColorSpan(ch == '▲' ? up : down), i, end < 0 ? line.length() : end + 1,
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
-        ratesLine.setText(s);
-        ratesLine.setVisibility(View.VISIBLE);
+        return s;
     }
 
     // MARK: - Outages
@@ -863,35 +854,47 @@ public final class HomeActivity extends Activity {
         });
     }
 
+    /** The ring, the two power lines and tomorrow's bar (details). Without outages: a plain 24-hour ring. */
     private void showOutage() {
         if (!Outages.enabled(this)) {
-            outageCard.setVisibility(View.GONE);
+            Calendar now = Calendar.getInstance();
+            dial.set(null, now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE));
+            powerTitle.setVisibility(View.GONE);
+            powerDetail.setVisibility(View.GONE);
+            tomorrowBox.setVisibility(View.GONE);
             return;
         }
-        outageCard.setVisibility(View.VISIBLE);
-        outageGroup.setText(getString(R.string.outage_group, Outages.chosenGroup(this)));
         long now = System.currentTimeMillis();
         Outages.Status st = Outages.status(schedule, now);
-        outageStatus.setText(OutageText.status(this, schedule, st));
-        GradientDrawable dot = new GradientDrawable();
-        dot.setShape(GradientDrawable.OVAL);
-        dot.setColor(getColor(st.state == Outages.ON ? R.color.power_on : st.state == Outages.OFF ? R.color.power_off
-                : st.state == Outages.MAYBE ? R.color.power_maybe : R.color.text_dim));
-        outageDot.setBackground(dot);
+        String[] lines = OutageText.lines(this, schedule, st, Outages.chosenGroup(this));
+        // "Power is on  until 22:00": the state large, the time smaller and lighter. No power is ember, maybe amber.
+        SpannableString title = new SpannableString(lines[1] == null ? lines[0] : lines[0] + "  " + lines[1]);
+        int color = getColor(st.state == Outages.OFF ? R.color.ember : st.state == Outages.MAYBE ? R.color.power_maybe
+                : R.color.text_primary);
+        title.setSpan(new ForegroundColorSpan(color), 0, lines[0].length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        if (lines[1] != null) {
+            title.setSpan(new ForegroundColorSpan(getColor(R.color.text_secondary)), lines[0].length(), title.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            title.setSpan(new android.text.style.RelativeSizeSpan(0.66f), lines[0].length(), title.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        powerTitle.setText(title);
+        powerTitle.setVisibility(View.VISIBLE);
+        powerDetail.setText(lines[2]);
+        powerDetail.setVisibility(lines[2] == null ? View.GONE : View.VISIBLE);
 
+        Calendar k = Calendar.getInstance(Outages.KYIV);
+        int kyivMinute = k.get(Calendar.HOUR_OF_DAY) * 60 + k.get(Calendar.MINUTE);
         Outages.Day today = schedule == null ? null : schedule.day(Outages.today());
         Outages.Day tomorrow = schedule == null ? null : schedule.day(Outages.tomorrow());
-        boolean show = today != null && !(st.clearAhead && schedule.noSchedules);
-        outageDays.setVisibility(show ? View.VISIBLE : View.GONE);
-        if (show) {
-            Calendar k = Calendar.getInstance(Outages.KYIV);
-            todayBar.set(today.slots, k.get(Calendar.HOUR_OF_DAY) * 60 + k.get(Calendar.MINUTE));
-            todayBar.setContentDescription(OutageText.describe(this, today.slots));
-            tomorrowBox.setVisibility(tomorrow != null ? View.VISIBLE : View.INVISIBLE);
-            if (tomorrow != null) {
-                tomorrowBar.set(tomorrow.slots, -1);
-                tomorrowBar.setContentDescription(OutageText.describe(this, tomorrow.slots));
-            }
+        dial.set(today == null ? null : today.slots, kyivMinute);
+        // Screen readers get today's ring in words with the second line.
+        if (today != null && lines[2] != null) powerDetail.setContentDescription(lines[2] + ". " + OutageText.describe(this, today.slots));
+        else powerDetail.setContentDescription(null);
+        tomorrowBox.setVisibility(tomorrow != null ? View.VISIBLE : View.GONE);
+        if (tomorrow != null) {
+            tomorrowBar.set(tomorrow.slots, -1);
+            tomorrowBar.setContentDescription(OutageText.describe(this, tomorrow.slots));
         }
     }
 

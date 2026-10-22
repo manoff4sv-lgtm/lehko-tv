@@ -26,7 +26,7 @@ public final class AllAppsActivity extends Activity {
     private TextView empty;
     private final Adapter adapter = new Adapter();
     private List<Apps.Entry> apps = new ArrayList<>();
-    private int selected = -1, tileW, tileH;
+    private int selected = -1, tileW, tileH, cellW, cellH;
 
     private final LauncherApps.Callback packages = new LauncherApps.Callback() {
         @Override public void onPackageRemoved(String pkg, UserHandle user) {
@@ -57,9 +57,16 @@ public final class AllAppsActivity extends Activity {
         setContentView(R.layout.all_apps);
         tileW = getResources().getDimensionPixelSize(R.dimen.tile_w);
         tileH = getResources().getDimensionPixelSize(R.dimen.tile_h);
+        // A tile keeps room for its focus ring around the picture; the spacing shrinks by the same amount.
+        int pad = getResources().getDimensionPixelSize(R.dimen.ring_pad);
+        int spacing = getResources().getDimensionPixelSize(R.dimen.tile_gap) - 2 * pad;
+        cellW = tileW + 2 * pad;
+        cellH = tileH + 2 * pad;
         grid = findViewById(R.id.grid);
         empty = findViewById(R.id.empty);
-        grid.setColumnWidth(tileW);
+        grid.setColumnWidth(cellW);
+        grid.setHorizontalSpacing(spacing);
+        grid.setVerticalSpacing(spacing);
         grid.setSelector(new ColorDrawable(0));
         grid.setAdapter(adapter);
         grid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -170,7 +177,7 @@ public final class AllAppsActivity extends Activity {
 
         @Override public View getView(int position, View convertView, ViewGroup parent) {
             final Tile t = convertView instanceof Tile ? (Tile) convertView : new Tile(AllAppsActivity.this, tileW, tileH);
-            t.setLayoutParams(new GridView.LayoutParams(tileW, tileH));
+            t.setLayoutParams(new GridView.LayoutParams(cellW, cellH));
             // Grid items are not focusable themselves: the grid moves the selection.
             t.setFocusable(false);
             t.setClickable(false);

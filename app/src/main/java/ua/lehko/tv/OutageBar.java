@@ -20,6 +20,8 @@ public final class OutageBar extends View {
     private byte[] slots;
     /** Minute of the day for the "now" mark, or -1 for none (tomorrow). */
     private int nowMinute = -1;
+    /** Hour numbers under the bar (off for the compact one in the home screen's details). */
+    private boolean labels = true;
     private final int on, off, maybe, unknown, mark;
     private final float density;
 
@@ -39,6 +41,11 @@ public final class OutageBar extends View {
         outline.setColor(maybe);
     }
 
+    void showLabels(boolean show) {
+        labels = show;
+        requestLayout();
+    }
+
     void set(byte[] slots, int nowMinute) {
         this.slots = slots;
         this.nowMinute = nowMinute;
@@ -46,7 +53,7 @@ public final class OutageBar extends View {
     }
 
     @Override protected void onMeasure(int widthSpec, int heightSpec) {
-        int h = Math.round(10 * density + 4 * density + text.getTextSize() + 2 * density);
+        int h = labels ? Math.round(10 * density + 4 * density + text.getTextSize() + 2 * density) : Math.round(10 * density);
         setMeasuredDimension(MeasureSpec.getSize(widthSpec), resolveSize(h, heightSpec));
     }
 
@@ -88,6 +95,7 @@ public final class OutageBar extends View {
             rect.set(x - density, -2 * density, x + density, barH + 2 * density);
             canvas.drawRoundRect(rect, density, density, paint);
         }
+        if (!labels) return;
         float y = barH + 4 * density - text.ascent();
         for (int h = 0; h <= 24; h += 3) {
             float x = w * h / 24f;

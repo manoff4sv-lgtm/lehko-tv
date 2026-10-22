@@ -78,6 +78,12 @@ final class Ambient {
         return rgb(hsv[0], s, v);
     }
 
+    /** The focused tile's glow: the tint's hue, bright and moderately saturated (its shadow is faint anyway). */
+    static int glow(int rgb) {
+        float[] hsv = hsv(rgb);
+        return rgb(hsv[0], Math.min(hsv[1], 0.7f), 0.95f);
+    }
+
     /** WCAG relative luminance of an sRGB colour, 0..1. */
     static double luminance(int rgb) {
         return 0.2126 * linear((rgb >> 16) & 0xFF) + 0.7152 * linear((rgb >> 8) & 0xFF) + 0.0722 * linear(rgb & 0xFF);
