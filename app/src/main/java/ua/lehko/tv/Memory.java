@@ -62,7 +62,7 @@ final class Memory {
         long before = info(c).availMem;
         try {
             HomeMode.killAll(c, true, p);
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             killBackground(c);
         }
         // Give the kernel a moment to take the memory back.
@@ -100,8 +100,10 @@ final class Memory {
         });
     }
 
-    /** Without debugging: Android's own way, for every app that isn't system plumbing. */
+    /** Without debugging: Android's own way, for every app that isn't system plumbing (Android 13 and older). */
     static void killBackground(Context c) {
+        // Android 14 lets an app close only its own processes: hundreds of calls would do nothing.
+        if (android.os.Build.VERSION.SDK_INT >= 34) return;
         ActivityManager am = (ActivityManager) c.getSystemService(Context.ACTIVITY_SERVICE);
         if (am == null) return;
         try {

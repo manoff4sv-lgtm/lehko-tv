@@ -33,9 +33,9 @@ final class Crackle {
     }
 
     private void play() {
-        Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO);
         AudioTrack track = null;
         try {
+            Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO);
             int min = AudioTrack.getMinBufferSize(RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
             track = new AudioTrack.Builder()
                     .setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)

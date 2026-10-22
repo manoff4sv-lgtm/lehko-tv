@@ -252,12 +252,16 @@ final class Apps {
     }
 
     /**
-     * Gives picture memory back. {@code all}: everything (memory is low); otherwise down to about the favorites row
-     * (Lehko just went to the background: the next visit home then needs no reloading).
+     * Gives picture memory back. {@code all}: everything; otherwise all but the favorites' (their tiles on the home
+     * screen hold those bitmaps anyway, so dropping them would free nothing and only cost a reload).
      */
-    static void trimPictures(boolean all) {
-        if (all) PICTURES.evictAll();
-        else PICTURES.trimToSize(3 * 1024);
+    static void trimPictures(Context c, boolean all) {
+        if (all) {
+            PICTURES.evictAll();
+            return;
+        }
+        java.util.Set<String> keep = new java.util.HashSet<>(Prefs.favorites(c));
+        for (String pkg : PICTURES.snapshot().keySet()) if (!keep.contains(pkg)) PICTURES.remove(pkg);
     }
 
     static void forget(String pkg) {

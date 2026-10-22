@@ -45,9 +45,10 @@ final class FireScene {
         context = c;
         float dp = c.getResources().getDisplayMetrics().density;
         shift = Math.round(10 * dp);
+        // No background: the fire view covers everything (less to fill 30 times a second).
         root = new FrameLayout(c);
-        root.setBackgroundColor(0xFF000000);
         fire = new FireView(c);
+        fire.setPaused(true);
         // A little larger than the screen, so the slow drift never shows an edge.
         FrameLayout.LayoutParams fp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT);
@@ -57,18 +58,19 @@ final class FireScene {
         box = new LinearLayout(c);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setGravity(Gravity.CENTER_HORIZONTAL);
-        box.setAlpha(0.8f);
+        // Hidden until it has its first spot; dim through its colours (view alpha would cost a layer per frame).
+        box.setVisibility(View.INVISIBLE);
         TextClock clock = new TextClock(c);
         clock.setFormat12Hour("h:mm");
         clock.setFormat24Hour("H:mm");
         clock.setTextSize(TypedValue.COMPLEX_UNIT_SP, 40);
-        clock.setTextColor(0xFFB09A86);
+        clock.setTextColor(0xCCB09A86);
         clock.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
         clock.setIncludeFontPadding(false);
         box.addView(clock);
         outage = new TextView(c);
         outage.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        outage.setTextColor(0xFF9A8676);
+        outage.setTextColor(0xCC9A8676);
         outage.setMaxLines(1);
         outage.setPadding(0, Math.round(4 * dp), 0, 0);
         box.addView(outage);
@@ -92,6 +94,7 @@ final class FireScene {
                     placed = true;
                     box.setTranslationX(x);
                     box.setTranslationY(y);
+                    box.setVisibility(View.VISIBLE);
                 } else {
                     box.animate().translationX(x).translationY(y).setDuration(40_000).start();
                     fire.animate().translationX(fx).translationY(fy).setDuration(40_000).start();
@@ -116,6 +119,7 @@ final class FireScene {
         started = true;
         App.MAIN.removeCallbacks(drift);
         App.MAIN.post(drift);
+        fire.setPaused(false);
         if (sound(context)) {
             crackle = new Crackle();
             crackle.start();
@@ -124,6 +128,7 @@ final class FireScene {
 
     void stop() {
         started = false;
+        fire.setPaused(true);
         App.MAIN.removeCallbacks(drift);
         box.animate().cancel();
         fire.animate().cancel();

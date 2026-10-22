@@ -12,6 +12,7 @@ public final class FireDream extends DreamService {
         setFullscreen(true);
         scene = new FireScene(this);
         setContentView(scene.root);
+        if (getWindow() != null) getWindow().setBackgroundDrawable(null);
     }
 
     @Override public void onDreamingStarted() {

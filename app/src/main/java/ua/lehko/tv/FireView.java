@@ -38,17 +38,20 @@ final class FireView extends View {
     /** Logs: centre x, centre y, length, thickness, angle in degrees (view pixels). */
     private final float[][] logs = new float[3][];
     private Bitmap box;
-    private boolean boxFailed, visible, attached;
+    /** Grid cells outside the arch, kept clear, so the fire needs no clip path (costly on some GPUs). */
+    private int[] outside = new int[0];
+    private boolean boxFailed, visible, attached, paused;
     private float glowX, glowY, glowR, flicker = 0.75f, flickerTarget = 0.75f;
     private long lastFrame;
 
     private final Runnable frameTick = new Runnable() {
         @Override public void run() {
-            if (!visible || !attached) return;
+            if (!visible || !attached || paused) return;
             long now = SystemClock.uptimeMillis();
             if (now - lastFrame >= FRAME_MS) {
                 lastFrame = now;
                 fire.step();
+                for (int i : outside) fire.pixels[i] = 0;
                 frame.setPixels(fire.pixels, 0, Fire.W, 0, 0, Fire.W, Fire.H);
                 if (random.nextInt(5) == 0) flickerTarget = 0.55f + random.nextFloat() * 0.45f;
                 flicker += (flickerTarget - flicker) * 0.2f;
@@ -61,7 +64,7 @@ final class FireView extends View {
     FireView(Context c) {
         super(c);
         // Warm up, so the fire is already burning on the first frame.
-        for (int i = 0; i < 60; i++) fire.step();
+        for (int i = 0; i < 40; i++) fire.step();
         frame.setPixels(fire.pixels, 0, Fire.W, 0, 0, Fire.W, Fire.H);
     }
 
@@ -89,9 +92,15 @@ final class FireView extends View {
         update();
     }
 
+    /** Paused by its scene (not started yet, or covered by the TV's own screensaver). */
+    void setPaused(boolean p) {
+        paused = p;
+        update();
+    }
+
     private void update() {
         removeCallbacks(frameTick);
-        if (visible && attached) postOnAnimation(frameTick);
+        if (visible && attached && !paused) postOnAnimation(frameTick);
     }
 
     // MARK: - Layout
@@ -111,7 +120,22 @@ final class FireView extends View {
         arch.arcTo(r, 180, 180, false);
         arch.lineTo(right, bottom);
         arch.close();
-        fireRect.set(left, archTop + (bottom - archTop) * 0.04f, right, bottom + h * 0.01f);
+        fireRect.set(left, archTop + (bottom - archTop) * 0.04f, right, bottom);
+        // Which grid cells fall outside the arch's round top.
+        float cx = (left + right) / 2, rx = (right - left) / 2, ry = sideTop - archTop;
+        float cellW = fireRect.width() / Fire.W, cellH = fireRect.height() / Fire.H;
+        int[] cells = new int[Fire.W * Fire.H];
+        int n = 0;
+        for (int gy = 0; gy < Fire.H; gy++) {
+            float y = fireRect.top + (gy + 0.5f) * cellH;
+            if (y >= sideTop) break;
+            float dy = (y - sideTop) / ry;
+            for (int gx = 0; gx < Fire.W; gx++) {
+                float dx = (fireRect.left + (gx + 0.5f) * cellW - cx) / rx;
+                if (dx * dx + dy * dy > 1) cells[n++] = gy * Fire.W + gx;
+            }
+        }
+        outside = java.util.Arrays.copyOf(cells, n);
         logs[0] = new float[]{w * 0.462f, h * 0.850f, w * 0.27f, h * 0.050f, -5};
         logs[1] = new float[]{w * 0.540f, h * 0.855f, w * 0.26f, h * 0.048f, 6};
         logs[2] = new float[]{w * 0.502f, h * 0.814f, w * 0.21f, h * 0.044f, -2};
@@ -133,10 +157,7 @@ final class FireView extends View {
         } else {
             c.drawColor(0xFF070505);
         }
-        c.save();
-        c.clipPath(arch);
         c.drawBitmap(frame, null, fireRect, soft);
-        c.restore();
         for (float[] g : logs) if (g != null) drawLog(c, g);
         glow.setAlpha(Math.round(255 * flicker));
         c.drawCircle(glowX, glowY, glowR, glow);
@@ -182,7 +203,8 @@ final class FireView extends View {
         }
         Canvas c = new Canvas(box);
         c.scale(box.getWidth() / (float) w, box.getHeight() / (float) h);
-        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        // Dithered: the dark gradients would band in 16-bit colour.
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
         Random rnd = new Random(1); // the same bricks every time
         float line = Math.max(2, h * 0.004f);
 

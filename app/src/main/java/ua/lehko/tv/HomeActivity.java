@@ -57,7 +57,9 @@ public final class HomeActivity extends Activity {
 
     private List<Apps.Entry> apps = new ArrayList<>();
     private List<Inputs.Input> inputs = new ArrayList<>();
-    private boolean appsDirty = true, resumed, weatherLoading, outageLoading, appsLoaded, focusedOnce;
+    private boolean appsDirty = true, resumed, weatherLoading, outageLoading, appsLoaded, focusedOnce, rebuilding;
+    /** The favorites list the row was last built from, so coming back home only rebuilds it when it changed. */
+    private String builtFavorites;
     /** Safe mode (see Watchdog): this activity shows only a plain message and does nothing else. */
     private boolean safe;
     private TextView safeText;
@@ -78,7 +80,8 @@ public final class HomeActivity extends Activity {
 
     private final ViewTreeObserver.OnGlobalFocusChangeListener focusWatch = new ViewTreeObserver.OnGlobalFocusChangeListener() {
         @Override public void onGlobalFocusChanged(View oldFocus, View newFocus) {
-            if (newFocus != null) focusChanged(newFocus);
+            // While the row is rebuilt, focus passes through other tiles for a moment: not worth a fade.
+            if (newFocus != null && !rebuilding) focusChanged(newFocus);
         }
     };
 
@@ -229,7 +232,8 @@ public final class HomeActivity extends Activity {
         if (safe) return;
         resumed = true;
         if (appsDirty) loadApps();
-        else if (appsLoaded) buildFavorites(); // favorites may have changed in All apps
+        // Favorites may have changed in All apps. Otherwise the tiles stay as they are: no reloading, no flicker.
+        else if (appsLoaded && !Prefs.of(this).getString(Prefs.FAVORITES, "").equals(builtFavorites)) buildFavorites();
         loadInputs();
         showWeather(Weather.cached(this));
         showRates();
@@ -248,6 +252,12 @@ public final class HomeActivity extends Activity {
     @Override public void onUserInteraction() {
         super.onUserInteraction();
         if (!safe) scheduleIdle();
+    }
+
+    /** Back from a menu (whose keys don't reach onUserInteraction): the idle time starts again. */
+    @Override public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus && !safe) scheduleIdle();
     }
 
     private void scheduleIdle() {
@@ -310,6 +320,17 @@ public final class HomeActivity extends Activity {
     }
 
     private void buildFavorites() {
+        rebuilding = true;
+        try {
+            fillFavorites();
+        } finally {
+            rebuilding = false;
+        }
+        View f = getCurrentFocus();
+        if (f != null) focusChanged(f);
+    }
+
+    private void fillFavorites() {
         View focused = getCurrentFocus();
         boolean hadFocus = focused != null && focused.getParent() == favoritesRow;
         Object focusedKey = hadFocus ? ((Tile) focused).key : null;
@@ -320,6 +341,7 @@ public final class HomeActivity extends Activity {
         }
         favoritesRow.removeAllViews();
         List<Apps.Entry> favs = Apps.favorites(this, apps);
+        builtFavorites = Prefs.of(this).getString(Prefs.FAVORITES, "");
         Tile toFocus = null;
         for (final Apps.Entry a : favs) {
             Tile t = appTile(a, tileW, tileH);
@@ -593,7 +615,14 @@ public final class HomeActivity extends Activity {
         };
         App.ADB.execute(new Runnable() {
             @Override public void run() {
-                final String result = Memory.clean(app, progress);
+                String text;
+                try {
+                    text = Memory.clean(app, progress);
+                } catch (RuntimeException e) {
+                    // Never let the button take the home screen down.
+                    text = app.getString(R.string.memory_nothing);
+                }
+                final String result = text;
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
                         cleaning = false;
@@ -676,6 +705,8 @@ public final class HomeActivity extends Activity {
         weatherExtra.setVisibility(extra == null ? View.GONE : View.VISIBLE);
 
         List<Weather.Hour> next = Weather.next(d, System.currentTimeMillis(), HOURS);
+        // In the TV's own 12/24-hour style and time zone, like the clock above.
+        java.text.DateFormat time = DateFormat.getTimeFormat(this);
         for (int i = 0; i < HOURS; i++) {
             View cell = (View) hourTime[i].getParent();
             if (i >= next.size()) {
@@ -683,7 +714,7 @@ public final class HomeActivity extends Activity {
                 continue;
             }
             Weather.Hour h = next.get(i);
-            hourTime[i].setText(h.time);
+            hourTime[i].setText(time.format(new java.util.Date(h.at)));
             hourIcon[i].setImageResource(Weather.icon(h.code, h.day));
             hourTemp[i].setText(Weather.degrees(h.temp));
             cell.setVisibility(View.VISIBLE);
@@ -691,7 +722,10 @@ public final class HomeActivity extends Activity {
         if (!next.isEmpty()) firstHourAt = next.get(0).at;
         weatherHours.setVisibility(next.isEmpty() ? View.GONE : View.VISIBLE);
         boolean sun = d.sunrise != null && d.sunset != null;
-        if (sun) weatherSun.setText(getString(R.string.weather_sun, d.sunrise, d.sunset));
+        if (sun) {
+            weatherSun.setText(getString(R.string.weather_sun, time.format(new java.util.Date(d.sunriseAt)),
+                    time.format(new java.util.Date(d.sunsetAt))));
+        }
         weatherSun.setVisibility(sun ? View.VISIBLE : View.GONE);
     }
 

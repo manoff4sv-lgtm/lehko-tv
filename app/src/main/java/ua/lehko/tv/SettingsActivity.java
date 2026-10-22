@@ -181,20 +181,40 @@ public final class SettingsActivity extends Activity {
         }
     }
 
-    /** "Lehko 38 MB · the stock launcher used 240 MB · 412 of 1024 MB free". Computed once per list build. */
+    /** "Lehko 38 MB · the stock launcher used 240 MB · 412 of 1024 MB free", measured off the UI thread. */
     private String memorySummary;
+    private boolean measuring;
 
     private String memorySummary() {
         if (memorySummary != null) return memorySummary;
-        StringBuilder b = new StringBuilder();
-        long own = Memory.ownPssKb(this) / 1024;
-        if (own > 0) b.append(getString(R.string.memory_lehko, own));
-        long launcher = Prefs.of(this).getLong(HomeMode.K_LAUNCHER_PSS, 0) / 1024;
-        if (launcher > 0) b.append(b.length() > 0 ? " · " : "").append(getString(R.string.memory_launcher, launcher));
-        android.app.ActivityManager.MemoryInfo mi = Memory.info(this);
-        b.append(b.length() > 0 ? " · " : "").append(getString(R.string.memory_free_of, mi.availMem / Memory.MB,
-                mi.totalMem / Memory.MB));
-        return memorySummary = b.toString();
+        if (!measuring) {
+            measuring = true;
+            final Context app = getApplicationContext();
+            App.IO.execute(new Runnable() {
+                @Override public void run() {
+                    StringBuilder b = new StringBuilder();
+                    long own = Memory.ownPssKb(app) / 1024;
+                    if (own > 0) b.append(app.getString(R.string.memory_lehko, own));
+                    long launcher = Prefs.of(app).getLong(HomeMode.K_LAUNCHER_PSS, 0) / 1024;
+                    if (launcher > 0) {
+                        b.append(b.length() > 0 ? " · " : "").append(app.getString(R.string.memory_launcher, launcher));
+                    }
+                    android.app.ActivityManager.MemoryInfo mi = Memory.info(app);
+                    b.append(b.length() > 0 ? " · " : "").append(app.getString(R.string.memory_free_of,
+                            mi.availMem / Memory.MB, mi.totalMem / Memory.MB));
+                    final String text = b.toString();
+                    App.MAIN.post(new Runnable() {
+                        @Override public void run() {
+                            measuring = false;
+                            if (isDestroyed()) return;
+                            memorySummary = text;
+                            adapter.notifyDataSetChanged();
+                        }
+                    });
+                }
+            });
+        }
+        return getString(R.string.loading);
     }
 
     // MARK: - Home screen on/off
