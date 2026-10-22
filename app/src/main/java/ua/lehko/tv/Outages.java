@@ -95,8 +95,11 @@ final class Outages {
         return chosenRegion(c) != null && !chosenGroup(c).isEmpty();
     }
 
-    /** Saves the region and group; street and house ids (YASNO) let Lehko re-check the group now and then. */
-    static void choose(Context c, Region r, String group, String address, long streetId, long houseId) {
+    /**
+     * Saves the region and group; street and house ids (YASNO) let Lehko re-check the group now and then.
+     * Synchronized with the cache writes in {@link #refresh}: a download for the old choice must not land after it.
+     */
+    static synchronized void choose(Context c, Region r, String group, String address, long streetId, long houseId) {
         SharedPreferences.Editor e = Prefs.of(c).edit()
                 .putString(P_REGION, r.id).putString(P_GROUP, group)
                 .remove(P_CACHE).remove(P_FETCHED).remove(P_ETAG);
@@ -109,7 +112,7 @@ final class Outages {
         e.apply();
     }
 
-    static void turnOff(Context c) {
+    static synchronized void turnOff(Context c) {
         Prefs.of(c).edit().remove(P_REGION).remove(P_GROUP).remove(P_ADDRESS).remove(P_STREET).remove(P_HOUSE)
                 .remove(P_RESOLVED).remove(P_CACHE).remove(P_FETCHED).remove(P_ETAG).apply();
     }
@@ -167,11 +170,24 @@ final class Outages {
 
     /** Fetches the schedule for the chosen region and group, caches it and returns it. Network: off the UI thread. */
     static Schedule refresh(Context c) throws IOException, JSONException {
-        Region r = chosenRegion(c);
-        String group = chosenGroup(c);
-        if (r == null || group.isEmpty()) return null;
-        maybeRecheckGroup(c, r);
-        group = chosenGroup(c);
+        // A second round when another region or group was chosen during the download: the answer is for the old one.
+        for (int round = 0; round < 2; round++) {
+            Region r = chosenRegion(c);
+            if (r == null || chosenGroup(c).isEmpty()) return null;
+            maybeRecheckGroup(c, r);
+            String group = chosenGroup(c);
+            Schedule s = fetch(r, group);
+            synchronized (Outages.class) {
+                if (r != chosenRegion(c) || !group.equals(chosenGroup(c))) continue;
+                Prefs.of(c).edit().putString(P_CACHE, toJson(s).toString()).putLong(P_FETCHED, System.currentTimeMillis()).apply();
+            }
+            return s;
+        }
+        return null;
+    }
+
+    /** YASNO first; the DTEK mirror when YASNO fails or has nothing for today (and its groups are the same). */
+    private static Schedule fetch(Region r, String group) throws IOException, JSONException {
         Schedule s = null;
         IOException failure = null;
         if (r.yasno()) {
@@ -196,7 +212,6 @@ final class Outages {
             s = new Schedule();
             s.group = group;
         }
-        Prefs.of(c).edit().putString(P_CACHE, toJson(s).toString()).putLong(P_FETCHED, System.currentTimeMillis()).apply();
         return s;
     }
 
@@ -204,11 +219,13 @@ final class Outages {
         return Prefs.of(c).getLong(P_FETCHED, 0);
     }
 
+    /** The cached schedule, or null (also when it is another group's: the weekly re-check may have moved us). */
     static Schedule cached(Context c) {
         String raw = Prefs.of(c).getString(P_CACHE, null);
         if (raw == null) return null;
         try {
-            return fromJson(new JSONObject(raw));
+            Schedule s = fromJson(new JSONObject(raw));
+            return s.group.equals(chosenGroup(c)) ? s : null;
         } catch (JSONException e) {
             return null;
         }
@@ -222,12 +239,16 @@ final class Outages {
         if (System.currentTimeMillis() - p.getLong(P_RESOLVED, 0) < 7L * 24 * 3600_000) return;
         try {
             String group = groupByAddress(r, street, house);
-            SharedPreferences.Editor e = p.edit().putLong(P_RESOLVED, System.currentTimeMillis());
-            if (group != null && !group.equals(chosenGroup(c))) {
-                e.putString(P_GROUP, group);
-                Prefs.notice(c, c.getString(R.string.outage_group_changed, group));
+            synchronized (Outages.class) {
+                // Something else was chosen meanwhile: this answer is for the old address.
+                if (r != chosenRegion(c) || p.getLong(P_STREET, 0) != street || p.getLong(P_HOUSE, 0) != house) return;
+                SharedPreferences.Editor e = p.edit().putLong(P_RESOLVED, System.currentTimeMillis());
+                if (group != null && !group.equals(chosenGroup(c))) {
+                    e.putString(P_GROUP, group);
+                    Prefs.notice(c, c.getString(R.string.outage_group_changed, group));
+                }
+                e.apply();
             }
-            e.apply();
         } catch (IOException | JSONException ignored) {
             // Try again on the next refresh.
         }
@@ -280,22 +301,50 @@ final class Outages {
     /** The groups the source knows, sorted 1.1, 1.2, 2.1, ... 10.1 (for picking from a list). */
     static List<String> groups(Region r) throws IOException, JSONException {
         List<String> out = new ArrayList<>();
+        boolean mirror = r.mirror != null && (!r.yasno() || r.mirrorMatchesYasno);
         if (r.yasno()) {
-            JSONObject o = new JSONObject(Net.get(YASNO + "/regions/" + r.yasnoRegion + "/dsos/" + r.yasnoDso + "/planned-outages"));
-            for (Iterator<String> it = o.keys(); it.hasNext(); ) out.add(it.next());
-        } else if (r.mirror != null) {
-            JSONObject o = new JSONObject(Net.get(MIRROR + r.mirror + ".json", 15_000));
-            JSONObject preset = o.optJSONObject("preset");
-            JSONObject names = preset != null ? preset.optJSONObject("sch_names") : null;
-            if (names != null) {
-                for (Iterator<String> it = names.keys(); it.hasNext(); ) {
-                    String k = it.next();
-                    if (k.startsWith("GPV")) out.add(k.substring(3));
-                }
+            try {
+                JSONObject o = new JSONObject(Net.get(YASNO + "/regions/" + r.yasnoRegion + "/dsos/" + r.yasnoDso + "/planned-outages"));
+                for (Iterator<String> it = o.keys(); it.hasNext(); ) out.add(it.next());
+            } catch (IOException | JSONException e) {
+                // Kyiv's groups are the same in the DTEK mirror, which also stands in for YASNO's schedules.
+                if (!mirror) throw e;
             }
         }
+        if (out.isEmpty() && mirror) out = mirrorGroups(Net.get(MIRROR + r.mirror + ".json", 15_000));
         sortGroups(out);
         return out;
+    }
+
+    /**
+     * The groups in a mirror file: those with schedules in fact.data, else the preset's list. (Kyiv's preset still
+     * names the "N.2" groups it had before 2026-01-29, which have no schedules any more.)
+     */
+    static List<String> mirrorGroups(String json) throws JSONException {
+        JSONObject o = new JSONObject(json);
+        List<String> out = new ArrayList<>();
+        JSONObject fact = o.optJSONObject("fact");
+        JSONObject data = fact != null ? fact.optJSONObject("data") : null;
+        if (data != null) {
+            for (Iterator<String> it = data.keys(); it.hasNext(); ) {
+                JSONObject day = data.optJSONObject(it.next());
+                if (day != null) addGroups(day, out);
+            }
+        }
+        if (out.isEmpty()) {
+            JSONObject preset = o.optJSONObject("preset");
+            JSONObject names = preset != null ? preset.optJSONObject("sch_names") : null;
+            if (names != null) addGroups(names, out);
+        }
+        return out;
+    }
+
+    /** "GPV11.1" keys as "11.1", once each. */
+    private static void addGroups(JSONObject keys, List<String> out) {
+        for (Iterator<String> it = keys.keys(); it.hasNext(); ) {
+            String k = it.next();
+            if (k.startsWith("GPV") && !out.contains(k.substring(3))) out.add(k.substring(3));
+        }
     }
 
     static void sortGroups(List<String> groups) {

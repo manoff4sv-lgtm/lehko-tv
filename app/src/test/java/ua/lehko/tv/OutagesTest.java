@@ -255,6 +255,22 @@ public class OutagesTest {
         assertEquals(Arrays.asList("1.1", "1.2", "2.1", "10.1", "60.1"), g);
     }
 
+    /** Kyiv's mirror file: the preset still names the old "N.2" groups, only the "N.1" ones have schedules. */
+    @Test public void mirrorGroups() throws Exception {
+        String preset = "\"preset\":{\"sch_names\":{\"GPV1.1\":\"Черга 1.1\",\"GPV1.2\":\"Черга 1.2\","
+                + "\"GPV2.1\":\"Черга 2.1\",\"GPV2.2\":\"Черга 2.2\"}}";
+        String json = "{\"fact\":{\"today\":1792530000,\"data\":{\"1792530000\":{\"GPV1.1\":{\"1\":\"yes\"},"
+                + "\"GPV2.1\":{\"1\":\"no\"}},\"1792616400\":{\"GPV1.1\":{\"1\":\"no\"}}}}," + preset + "}";
+        List<String> g = Outages.mirrorGroups(json);
+        Outages.sortGroups(g);
+        assertEquals(Arrays.asList("1.1", "2.1"), g);
+        // No schedules in force: the preset's list.
+        g = Outages.mirrorGroups("{\"fact\":{\"today\":1792530000,\"data\":[]}," + preset + "}");
+        Outages.sortGroups(g);
+        assertEquals(Arrays.asList("1.1", "1.2", "2.1", "2.2"), g);
+        assertTrue(Outages.mirrorGroups("{}").isEmpty());
+    }
+
     @Test public void cacheRoundTrip() throws Exception {
         Outages.Schedule s = Outages.parseYasno(YASNO, "2.1", "2026-10-22", "2026-10-23");
         JSONObject o = Outages.toJson(s);
