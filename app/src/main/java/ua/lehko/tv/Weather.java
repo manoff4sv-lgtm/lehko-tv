@@ -25,8 +25,10 @@ final class Weather {
         double temp, max, min;
         int code;
         boolean day;
-        /** "HH:mm" of the first rain or snow in the next hours (not counting what falls right now), or null. */
+        /** "HH:mm" (city time) of the first rain or snow in the next hours (not counting what falls right now), or null. */
         String precipAt;
+        /** The same as a moment, or 0: to show it only while it is ahead, in the TV's own time format. */
+        long precipStart;
         boolean precipSnow;
         /** The coming hours, from the current one on (a few at most). */
         final List<Hour> hours = new ArrayList<>();
@@ -173,6 +175,7 @@ final class Weather {
                     if (t.compareTo(now) <= 0) continue;
                     if (precip.optDouble(i, 0) >= 0.1) {
                         d.precipAt = t.length() >= 16 ? t.substring(11, 16) : t;
+                        d.precipStart = epoch(t, offset);
                         d.precipSnow = isSnow(d.code) || d.temp <= (o.toString().contains("\"°F\"") ? 33 : 0.5);
                         break;
                     }
