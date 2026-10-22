@@ -61,6 +61,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "$HAS_KEY" != "true" ]; then echo "Refusing to publish a debug-signed release: add the signing secrets."; exit 1; fi
-          PRE=""
-          case "$GITHUB_REF_NAME" in *-*) PRE="--prerelease" ;; esac
-          gh release create "$GITHUB_REF_NAME" Lehko.apk --title "Lehko ${GITHUB_REF_NAME#v}" --generate-notes $PRE
+          # The release may already exist (made in GitHub's "Draft a new release" page): then just attach the APK.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" Lehko.apk --clobber
+          else
+            PRE=""
+            case "$GITHUB_REF_NAME" in *-*) PRE="--prerelease" ;; esac
+            gh release create "$GITHUB_REF_NAME" Lehko.apk --title "Lehko ${GITHUB_REF_NAME#v}" --generate-notes $PRE
+          fi
