@@ -72,7 +72,9 @@ final class FireView extends View {
 
     FireView(Context c) {
         super(c);
-        // Warm up, so the fire is already burning on the first frame.
+        // Warm up, so the fire is already burning on the first frame (and the still one with animations off is
+        // flames, not a low flat band).
+        fire.warm();
         for (int i = 0; i < 40; i++) fire.step();
         frame.setPixels(fire.pixels, 0, Fire.W, 0, 0, Fire.W, Fire.H);
     }
