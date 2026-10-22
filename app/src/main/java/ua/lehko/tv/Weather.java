@@ -74,12 +74,17 @@ final class Weather {
 
     /** Fetches and caches; returns the fresh data. Network: call off the UI thread. */
     static Data refresh(Context c) throws IOException, JSONException {
-        double[] p = place(c);
-        if (p == null) return null;
-        String json = Net.get(url(p[0], p[1], fahrenheit()));
-        Data d = parse(json);
-        Prefs.of(c).edit().putString(CACHE, json).putLong(CACHE_TIME, System.currentTimeMillis()).apply();
-        return d;
+        // A second round when the city was changed during the download: the answer is for the old one.
+        for (int round = 0; round < 2; round++) {
+            double[] p = place(c);
+            if (p == null) return null;
+            String json = Net.get(url(p[0], p[1], fahrenheit()));
+            Data d = parse(json);
+            if (!java.util.Arrays.equals(p, place(c))) continue;
+            Prefs.of(c).edit().putString(CACHE, json).putLong(CACHE_TIME, System.currentTimeMillis()).apply();
+            return d;
+        }
+        return null;
     }
 
     /** The cached data (any age), or null. */
