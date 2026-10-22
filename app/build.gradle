@@ -2,6 +2,11 @@ plugins {
     id "com.android.application"
 }
 
+// The version comes from the git tag in CI (v1.2.3 -> versionName 1.2.3, versionCode 10203).
+def tag = System.getenv("GITHUB_REF_TYPE") == "tag" ? System.getenv("GITHUB_REF_NAME") : null
+def appVersion = (tag != null && tag ==~ /v\d+\.\d+\.\d+/) ? tag.substring(1) : "1.0.0"
+def appVersionCode = appVersion.tokenize(".").collect { it as int }.with { it[0] * 10000 + it[1] * 100 + it[2] }
+
 // Release signing comes from environment variables (set by CI from repository secrets).
 // Without them the release build is signed with the debug key, so forks and local builds still work.
 def releaseKeystore = System.getenv("LEHKO_KEYSTORE")
@@ -14,8 +19,8 @@ android {
         applicationId "ua.lehko.tv"
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName "1.0.0"
+        versionCode appVersionCode
+        versionName appVersion
     }
 
     signingConfigs {
