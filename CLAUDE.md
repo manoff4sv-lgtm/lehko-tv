@@ -67,27 +67,73 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
 - Release signing: CI reads secrets LEHKO_KEYSTORE_BASE64, LEHKO_KEYSTORE_PASSWORD, LEHKO_KEY_ALIAS,
   LEHKO_KEY_PASSWORD; without them release is debug-signed. Keep the release key stable (updates need it).
 
-## Status / TODO (in order)
+## Status
 
-1. [x] `SettingsActivity` (layouts settings.xml, settings_row.xml, enable_dialog.xml exist): ListView rows:
-   home screen (enable dialog with dev-options / USB-debugging status from Settings.Global DEVELOPMENT_SETTINGS_ENABLED
-   / ADB_ENABLED, buttons to open ACTION_DEVICE_INFO_SETTINGS / ACTION_APPLICATION_DEVELOPMENT_SETTINGS, "full mode"
-   checkbox; disable with confirm), preview home (only when off), weather city (EditText search dialog -> results),
-   outages (region list incl. "off" -> for YASNO regions "by address" (street -> house -> group) or "pick group";
-   mirror regions: pick group from list), screensaver (system / Lehko clock, via HomeMode.setScreensaver),
-   unneeded apps -> CleanupActivity, about (version, repo URL, privacy, "switch back to Original before uninstalling").
-   Map errors: Adb.Failure PORT_CLOSED / NOT_ALLOWED / TLS_ONLY / PROTOCOL, HomeMode.WifiOwnerException, Refused.
-2. [x] `CleanupActivity`: list launchable apps + a few known optional system pkgs (play.games, youtube.tvmusic,
-   tvrecommendations, katniss with mic warning), excluding HomeMode.isProtected and Wi-Fi owners; toggle via
-   HomeMode.setAppEnabled on App.ADB; needs QUERY_ALL_PACKAGES in the manifest for labels of disabled apps.
-3. [x] Strings: values (en), values-uk, values-ru. Every R.string referenced in code/layouts must exist in all three.
-4. [x] Build green with tools/quick-build.sh, then unit tests (app/src/test): Outages.parseYasno/parseMirror/status,
-   Weather.parse, Adb.sign (compare with JDK Signature "NONEwithRSA" over SHA1 prefix+token), Adb.publicKeyBlob.
-5. [x] `.github/workflows/build.yml`: build + test on push/PR, upload APK artifact; on tag v* attach
-   `Lehko-<version>.apk` to a GitHub Release (stable URL releases/latest/download/Lehko.apk).
-6. [x] `scripts/install.sh|.bat` (adb connect IP:5555, install APK, open settings) and `scripts/revert.sh|.bat`
-   (read /data/local/tmp/lehko_state, pm enable listed pkgs, set-home-activity original, optional uninstall).
-7. [x] README.md (Ukrainian first, then English): what it is, screenshots later, install without PC (Downloader app
-   + URL) and with PC, enabling debugging, going back, what it changes, privacy (Open-Meteo, YASNO, GitHub mirror;
-   no analytics), outage regions supported, credits, MIT LICENSE.
-8. [x] Independent review (done 2026-10-22; all must-fix and should-fix items addressed, see git log) of HomeMode/Adb by a fresh agent before tagging v1.0.0.
+v0.9 is feature-complete and reviewed: home screen, weather, outages, on-device home switching with safe mode,
+unneeded-apps screen, uk/en/ru, CI with signed builds, 36 tests (incl. HomeModeTest against `tools/fake_adbd.py --tv`,
+a simulated Google TV). Nothing has been run on a real TV yet. UI strings live in `tools/strings/strings.py`
+(edit there, then `python3 tools/strings/strings.py app/src/main/res`).
+
+**Do not** publish GitHub releases, change repository settings or rewrite git history without Eugene's OK. Pushing
+tags from cloud sessions is blocked by the git proxy; releases are made on GitHub's "Draft a new release" page
+(tag `v0.9.0-beta.1` style = pre-release) and CI then attaches the signed `Lehko.apk`.
+
+## Next (v0.10): look, memory, rates, fireplace. Goal: nicer and lighter than Free My TV on a 1 GB TV
+
+Eugene asked for these on 2026-10-22. Keep every hard constraint above (no libraries, no blur/shaders, tiny RAM).
+After each item: `tools/quick-build.sh` and `tools/quick-test.sh` green, small commit, push to main, CI green.
+
+1. **Ambient background.** When a favorite tile gets focus, take its (already scaled) picture, average its colors
+   (`Bitmap.createScaledBitmap(b, 8, 4, true)`, mean RGB), clamp to a dark, moderately saturated tone (HSV value
+   about 0.22-0.30, saturation <= 0.6) and animate a full-screen background `GradientDrawable` (top-left = ambient,
+   bottom-right = `bg_bottom`) with `ValueAnimator` + `ArgbEvaluator`, 450 ms. Cache the color per package. After
+   sunset (from item 2) use 70% of that brightness. One drawable, no extra layers.
+2. **Weather details.** Add `&hourly=temperature_2m,weather_code,is_day&forecast_hours=6` and daily `sunrise,sunset`
+   to the Open-Meteo URL. Under the current weather show the next 5 hours (time 11sp dim, 20dp icon, temp 13sp) and a
+   small line with sunrise/sunset times. Header must stay <= ~130dp tall so everything still fits 960x540dp with the
+   outage card visible. Extend `Weather.Data`, `Weather.parse` and WeatherTest.
+3. **Focused app name** in a 13sp `text_secondary` TextView under the favorites row (updates on focus; a short fade).
+4. **Rates line** under the date (left column), one 14sp line, e.g.
+   `USD 44,83 / 45,23 · EUR 50,38 / 51,01 · BTC $67 120 ▲1,2% · ETH $2 410 ▼0,4%`.
+   - Currency: Monobank `https://api.monobank.ua/bank/currency` (verified 2026-10-22: JSON array of ~107 objects like
+     `{"currencyCodeA":840,"currencyCodeB":980,"date":1792616473,"rateBuy":44.83,"rateSell":45.2345}`; EUR is 978;
+     some items only have `rateCross`). Monobank rate-limits: cache, refresh at most every 30 min, back off on 429.
+     Fallback: NBU `https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?json` (`[{"r030":840,"cc":"USD","rate":..}]`).
+   - Crypto: Binance `https://api.binance.com/api/v3/ticker/24hr?type=MINI&symbols=%5B%22BTCUSDT%22,%22ETHUSDT%22%5D`
+     returns an array of `{"symbol","openPrice","lastPrice",...}` strings (no priceChangePercent with type=MINI:
+     change = (last - open) / open). Same call Free My TV uses. Refresh every 10 min. Optionally USDT in UAH via a
+     separate `USDTUAH` request that is simply hidden if Binance rejects the symbol.
+   - New `Rates` class (parse functions pure + RatesTest), fetched on `App.NET` with the same back-off as weather,
+     cached JSON so the line shows offline. Settings rows: "Курс валют" (default on when TZ is Europe/Kiev) and
+     "Криптовалюти" (default on). Hide the line when both are off or nothing is cached.
+5. **Memory.**
+   - Shortcut tile "Памʼять" whose label shows free memory (`ActivityManager.MemoryInfo.availMem`, "вільно 412 МБ").
+     Press: kill cached background apps through ADB `am kill-all` (via `HomeMode`, user-initiated so the permission
+     window may appear); without debugging, fall back to `ActivityManager.killBackgroundProcesses` for running
+     packages (add `KILL_BACKGROUND_PROCESSES`; works up to Android 13). Then a notice "Звільнено 180 МБ".
+   - Auto clean (Settings toggle, default on): on `HomeActivity.onResume`, if availMem < 20% of total or < 200 MB and
+     the last auto clean was > 3 min ago, run `am kill-all` in the background with `Adb.connect(c, 0, null)` (never
+     prompts; silently skip on failure).
+   - Measure: in `HomeMode.enable`, before turning the launcher off, run `dumpsys meminfo <launcher package>` and parse
+     `TOTAL PSS:\s+(\d+)` (or `TOTAL\s+(\d+)`), store in KB. Settings row "Памʼять" summary:
+     "Lehko 38 МБ · стандартний лаунчер займав 240 МБ · вільно 412 з 1024 МБ" (Lehko's own PSS from
+     `ActivityManager.getProcessMemoryInfo(new int[]{Process.myPid()})`). Extend the fake TV for dumpsys meminfo.
+   - `App.onTrimMemory`: at TRIM_MEMORY_RUNNING_LOW or higher (and BACKGROUND/UI_HIDDEN), evict the picture cache.
+6. **Fireplace ("Камін") after 5 minutes idle on the home screen.** Eugene's own idea; make it look cozy.
+   - `FireView`: the classic "Doom fire" cellular automaton on a small grid (about 160x90 cells, 36-color palette
+     black, deep red, orange, yellow, near-white), random wind drift, updated at ~30 fps with `postOnAnimation`
+     (stop when not visible), written into an int[] then `Bitmap.setPixels`, drawn scaled to the full view with a
+     filtering `Paint` so flames look soft. A simple firebox drawn once into a cached bitmap at view size: dark brick
+     arch, three logs (rounded rects with lighter cut ends), a pulsing ember glow (radial gradient alpha). A dim
+     clock plus the outage status line that drift slowly (no burn-in). Budget: < 10% of one A53 core.
+   - `FireplaceActivity`: fullscreen, any key returns home. Do NOT keep the screen on: the TV's own sleep and
+     screensaver timers must still work.
+   - `HomeActivity`: reset an idle timer in `onUserInteraction`; when resumed and idle for the set time, start
+     `FireplaceActivity`. Setting "Камін у простої": 5 хв (default) / 10 хв / 15 хв / вимкнено.
+   - Optional crackle sound, Settings toggle default off: `AudioTrack` streaming quiet procedurally generated brown
+     noise with random short pops.
+   - Also a `FireDream` (DreamService with `FireView`); the screensaver choice becomes system / clock / fireplace.
+7. README (uk + en): describe the new features honestly; update CLAUDE.md "Status"; mark items here as done.
+8. When all is done: a fresh independent review agent over the new code (crashes, leaks, CPU/RAM on 1 GB, focus),
+   fix what it finds, then write Eugene a short summary in Russian (casual, no long dashes): what changed and what
+   to try on the TV. Don't publish a release; ask him.
