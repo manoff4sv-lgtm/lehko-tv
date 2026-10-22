@@ -32,6 +32,8 @@ s("search", "Search", "Знайти", "Найти")
 s("nothing_found", "Nothing found. Try another spelling.", "Нічого не знайдено. Спробуйте інакше.", "Ничего не найдено. Попробуйте иначе.")
 s("not_set", "Not set", "Не вибрано", "Не выбрано")
 
+# FIX-STRINGS-SYS (temporary anchor: new strings of the 'sys' fixes go right below)
+
 s("weather_pick_city", "Choose a city in Lehko settings", "Оберіть місто в налаштуваннях Lehko", "Выберите город в настройках Lehko")
 s("weather_loading", "Loading the weather…", "Завантаження погоди…", "Загрузка погоды…")
 s("weather_old", "No update since %s", "Не оновлювалося з %s", "Не обновлялось с %s")
@@ -56,6 +58,8 @@ s("wx_showers", "Showers", "Злива", "Ливень")
 s("wx_snow_showers", "Snow showers", "Снігопад", "Снегопад")
 s("wx_storm", "Thunderstorm", "Гроза", "Гроза")
 s("wx_storm_hail", "Thunderstorm with hail", "Гроза з градом", "Гроза с градом")
+
+# FIX-STRINGS-CLEAN (temporary anchor: new strings of the 'clean' fixes go right below)
 
 s("outages", "Power outage schedule", "Графік відключень", "График отключений")
 s("outages_off", "Off", "Вимкнено", "Выключено")
@@ -117,6 +121,8 @@ s("dur_min", "%d min", "%d хв", "%d мин")
 s("dur_h", "%d h", "%d год", "%d ч")
 s("dur_h_min", "%1$d h %2$d min", "%1$d год %2$d хв", "%1$d ч %2$d мин")
 
+# FIX-STRINGS-DATA (temporary anchor: new strings of the 'data' fixes go right below)
+
 s("settings_title", "Lehko settings", "Налаштування Lehko", "Настройки Lehko")
 s("home_screen", "Home screen", "Головний екран", "Главный экран")
 s("home_status_off", "The TV’s own home screen is in use", "Зараз стандартний екран телевізора", "Сейчас стандартный экран телевизора")
@@ -156,6 +162,8 @@ s("about_text",
   "Lehko is free and open source: %s\\n\\nWeather comes from Open-Meteo, outage schedules from YASNO and DTEK (through the outage-data-ua project), exchange rates from Monobank and the NBU. No accounts, ads or tracking.\\n\\nBefore uninstalling Lehko, switch the home screen back to the TV’s own, or the TV may be left without one.",
   "Lehko безкоштовний і з відкритим кодом: %s\\n\\nПогода від Open-Meteo, графіки відключень від YASNO і ДТЕК (через проєкт outage-data-ua), курси валют від Монобанку і НБУ. Без акаунтів, реклами і стеження.\\n\\nПеред видаленням Lehko поверніть стандартний головний екран, інакше телевізор може залишитися без нього.",
   "Lehko бесплатный и с открытым кодом: %s\\n\\nПогода от Open-Meteo, графики отключений от YASNO и ДТЭК (через проект outage-data-ua), курсы валют от Монобанка и НБУ. Без аккаунтов, рекламы и слежки.\\n\\nПеред удалением Lehko верните стандартный главный экран, иначе телевизор может остаться без него.")
+
+# FIX-STRINGS-HOME (temporary anchor: new strings of the 'home' fixes go right below)
 
 s("enable_title", "Make Lehko the home screen", "Зробити Lehko головним екраном", "Сделать Lehko главным экраном")
 s("enable_intro", "Android TV lets only its debugging mode change the home screen. Lehko uses it on the TV itself, no computer needed.", "Змінити головний екран на Android TV можна лише через режим налагодження. Lehko користується ним прямо на телевізорі, компʼютер не потрібен.", "Сменить главный экран на Android TV можно только через режим отладки. Lehko пользуется им прямо на телевизоре, компьютер не нужен.")
@@ -204,6 +212,8 @@ s("cleanup_hint_ambient", "Google’s screensaver", "заставка Google", "
 s("state_on", "On", "Увімкнено", "Включено")
 s("state_off", "Off", "Вимкнено", "Выключено")
 
+# FIX-STRINGS-APPS (temporary anchor: new strings of the 'apps' fixes go right below)
+
 s("safe_mode_text", "Lehko’s home screen stopped working, so the TV’s own home screen is coming back…\n\nIf the TV asks “Allow USB debugging?”, press OK.", "Екран Lehko перестав працювати, тому повертаю стандартний екран телевізора…\n\nЯкщо телевізор спитає «Дозволити налагодження USB?», натисніть OK.", "Экран Lehko перестал работать, поэтому возвращаю стандартный экран телевизора…\n\nЕсли телевизор спросит «Разрешить отладку по USB?», нажмите OK.")
 s("safe_mode_retry", "Try again", "Спробувати ще раз", "Попробовать ещё раз")
 s("result_home_failed", "Couldn’t give the home screen back to the TV. Try again, or run scripts/revert from a computer.", "Не вдалося повернути стандартний екран. Спробуйте ще раз або запустіть scripts/revert з компʼютера.", "Не удалось вернуть стандартный экран. Попробуйте ещё раз или запустите scripts/revert с компьютера.")
@@ -214,6 +224,8 @@ s("wifi_check_error", "Lehko couldn’t check which apps saved your Wi-Fi networ
 s("cleanup_system_warning", "This is a system app of your TV. Turning it off is safe to undo here, but some TV features may stop working until you turn it back on.", "Це системний додаток телевізора. Вимкнення можна скасувати тут же, але деякі функції телевізора можуть не працювати, доки не ввімкнете його назад.", "Это системное приложение телевизора. Выключение можно отменить здесь же, но некоторые функции телевизора могут не работать, пока не включите его обратно.")
 s("cleanup_turn_off", "Turn off", "Вимкнути", "Выключить")
 s("cleanup_system", "system", "системний", "системное")
+
+# FIX-STRINGS-BUILD (temporary anchor: new strings of the 'build' fixes go right below)
 
 res = sys.argv[1]
 for i, folder in enumerate(["values", "values-uk", "values-ru"]):

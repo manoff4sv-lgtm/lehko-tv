@@ -18,7 +18,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * first connection with key approval, later ones by signature, shell output in many packets.
  */
 public class AdbProtocolTest {
-    private static final int PORT = 25555;
+    /** LEHKO_TEST_PORT moves the fake adbd ports, so test runs in several checkouts don't collide. */
+    private static final int BASE = Integer.parseInt(System.getenv().getOrDefault("LEHKO_TEST_PORT", "25555"));
+    private static final int PORT = BASE;
     private static Process server;
     private static File keys;
 

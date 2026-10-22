@@ -31,7 +31,9 @@ import java.util.Set;
  * protection, reinstalling, TV updates, the crash safety net and failures halfway.
  */
 public class HomeModeTest {
-    private static final int PORT = 25556;
+    /** LEHKO_TEST_PORT moves the fake adbd ports, so test runs in several checkouts don't collide. */
+    private static final int BASE = Integer.parseInt(System.getenv().getOrDefault("LEHKO_TEST_PORT", "25555"));
+    private static final int PORT = BASE + 2;
     private static final String LAUNCHERX = "com.google.android.apps.tv.launcherx", SETUP = "com.google.android.tungsten.setupwraith";
     private static Process server;
     private static File keys;
