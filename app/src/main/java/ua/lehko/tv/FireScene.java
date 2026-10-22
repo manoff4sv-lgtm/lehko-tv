@@ -3,6 +3,7 @@ package ua.lehko.tv;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Typeface;
+import android.media.AudioManager;
 import android.os.SystemClock;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -173,10 +174,16 @@ final class FireScene {
         App.MAIN.removeCallbacks(drift);
         App.MAIN.post(drift);
         fire.setPaused(false);
-        if (sound(context)) {
+        if (sound(context) && !musicPlaying()) {
             crackle = new Crackle();
             crackle.start();
         }
+    }
+
+    /** Music left playing in the background: no crackle over it. (Asked before ours starts, which would count too.) */
+    private boolean musicPlaying() {
+        AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        return am != null && am.isMusicActive();
     }
 
     void stop() {
