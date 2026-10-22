@@ -278,6 +278,16 @@ public final class SettingsActivity extends Activity {
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
+                // For "the TV forgot Lehko's debugging permission": allows it again and keeps Lehko on.
+                .setNeutralButton(R.string.allow_again, new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        run(new Task() {
+                            @Override public String run(HomeMode.Progress p) throws IOException {
+                                return HomeMode.allowAgain(getApplicationContext(), p);
+                            }
+                        });
+                    }
+                })
                 .show();
     }
 
@@ -655,13 +665,19 @@ public final class SettingsActivity extends Activity {
                 case Adb.Failure.PORT_CLOSED: return getString(R.string.adb_closed);
                 case Adb.Failure.NOT_ALLOWED: return getString(R.string.adb_rejected);
                 case Adb.Failure.TLS_ONLY: return getString(R.string.adb_tls);
-                default: return getString(R.string.error_generic, e.getMessage());
+                default: return getString(R.string.adb_no_answer);
             }
         }
         if (e instanceof HomeMode.WifiOwnerException) return getString(R.string.wifi_owner_error, e.getMessage());
         if (e instanceof HomeMode.WifiCheckException) return getString(R.string.wifi_check_error);
         if (e instanceof HomeMode.Refused) return getString(R.string.home_not_accepted);
-        return getString(R.string.error_generic, e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+        // The TV stopped answering halfway: a timeout or a dropped connection.
+        if (e instanceof java.net.SocketTimeoutException || e instanceof java.io.EOFException
+                || e instanceof java.net.SocketException) {
+            return getString(R.string.adb_no_answer);
+        }
+        // Exception texts are English: only the kind of error goes into the translated sentence.
+        return getString(R.string.error_generic, e.getClass().getSimpleName());
     }
 
     private void setBusy(boolean b) {

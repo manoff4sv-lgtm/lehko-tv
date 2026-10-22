@@ -74,6 +74,8 @@ public class HomeModeTest {
         final MemPrefs prefs = new MemPrefs();
         final File keyDir;
         String notice;
+        int port = PORT;
+        boolean debugging = true;
 
         Env(File keyDir) {
             this.keyDir = keyDir;
@@ -88,7 +90,7 @@ public class HomeModeTest {
         }
 
         @Override public Adb connect(int approvalMs, Adb.Approval approval) throws IOException {
-            return Adb.connect(keyDir, "127.0.0.1", PORT, approvalMs <= 0 ? 0 : 5_000, approval);
+            return Adb.connect(keyDir, "127.0.0.1", port, approvalMs <= 0 ? 0 : 5_000, approval);
         }
 
         @Override public void notice(String text) {
@@ -97,6 +99,10 @@ public class HomeModeTest {
 
         @Override public int sdk() {
             return 34;
+        }
+
+        @Override public boolean debuggingOn() {
+            return debugging;
         }
     }
 
@@ -298,6 +304,29 @@ public class HomeModeTest {
         HomeMode.verify(other);
         assertTrue("nothing done without permission", enabled(state(), LAUNCHERX));
         assertNotNull(other.notice);
+    }
+
+    @Test public void allowingDebuggingAgainKeepsLehkoOn() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.enable(e, true, QUIET);
+        Env forgotten = new Env(Files.createTempDirectory("lehko-keys6").toFile()); // a key the TV doesn't know
+        forgotten.prefs.putAll(e.prefs);
+        HomeMode.verify(forgotten);
+        assertEquals(forgotten.text(R.string.verify_no_permission), forgotten.notice);
+        assertEquals(forgotten.text(R.string.allow_ok), HomeMode.allowAgain(forgotten, QUIET));
+        assertEquals("ua.lehko.tv", state().getString("holder"));
+        assertTrue(forgotten.prefs.getBoolean(HomeMode.K_ON, false));
+    }
+
+    @Test public void closedPortIsToldApartFromDebuggingOff() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.enable(e, false, QUIET);
+        e.port = BASE + 9; // nothing listens: the TV closed the port after a restart
+        HomeMode.verify(e);
+        assertEquals(e.text(R.string.verify_port_closed), e.notice);
+        e.debugging = false;
+        HomeMode.verify(e);
+        assertEquals(e.text(R.string.verify_no_debugging), e.notice);
     }
 
     @Test public void revertFromAComputerSticks() throws Exception {

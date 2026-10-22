@@ -3,6 +3,7 @@ package ua.lehko.tv;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
+import android.provider.Settings;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -102,6 +103,9 @@ final class HomeMode {
         void notice(String text);
 
         int sdk();
+
+        /** "USB debugging" is on in the TV's developer options. */
+        boolean debuggingOn();
     }
 
     static Env env(final Context c) {
@@ -125,6 +129,10 @@ final class HomeMode {
 
             @Override public int sdk() {
                 return Build.VERSION.SDK_INT;
+            }
+
+            @Override public boolean debuggingOn() {
+                return Settings.Global.getInt(app.getContentResolver(), Settings.Global.ADB_ENABLED, 0) == 1;
             }
         };
     }
@@ -451,41 +459,74 @@ final class HomeMode {
      */
     static synchronized void verify(Env c) {
         if (!isOn(c) || Watchdog.safeMode(c.prefs())) return;
-        List<String> fixed = new ArrayList<>();
+        List<String> fixed;
         try (Adb adb = c.connect(0, null)) {
-            adopt(c, adb);
-            if (!noteSaysOn(adb) && !homeHolder(adb).contains(PKG)) {
-                // Given back from a computer (scripts/revert removes the note; a TV update leaves it): accept that.
-                forgetSwitch(c, adb);
-                return;
-            }
-            keepDebuggingAllowed(c, adb);
-            if (!homeHolder(adb).contains(PKG)) {
-                adb.shell("cmd package set-home-activity --user 0 " + HOME);
-                fixed.add(c.text(R.string.the_home_screen));
-            }
-            if (isFull(c)) {
-                Set<String> present = packages(adb, ""), off = packages(adb, "-d");
-                if (present.isEmpty()) return;
-                List<String> todo = new ArrayList<>();
-                for (String pkg : targets(adb, c.prefs().getString(K_HOME, ""), present)) {
-                    if (!off.contains(pkg) && !isCore(pkg)) todo.add(pkg);
-                }
-                if (!todo.isEmpty()) {
-                    Set<String> owners = wifiOwners(adb);
-                    for (String pkg : todo) {
-                        if (!owners.contains(pkg) && disablePackage(c, adb, pkg)) fixed.add(pkg);
-                    }
-                }
-            }
-            if (!fixed.isEmpty()) writeDeviceState(c, adb);
+            fixed = check(c, adb);
         } catch (Adb.Failure e) {
-            c.notice(c.text(e.reason == Adb.Failure.PORT_CLOSED ? R.string.verify_no_debugging : R.string.verify_no_permission));
+            // Debugging on but the port closed: some TVs open it only with "adb tcpip 5555", until the next restart.
+            int text = e.reason != Adb.Failure.PORT_CLOSED ? R.string.verify_no_permission
+                    : c.debuggingOn() ? R.string.verify_port_closed : R.string.verify_no_debugging;
+            c.notice(c.text(text));
             return;
         } catch (IOException e) {
             return;
         }
         if (!fixed.isEmpty()) c.notice(c.text(R.string.verify_fixed, String.join(", ", fixed)));
+    }
+
+    /**
+     * "Allow debugging again" after the TV forgot Lehko's key: may show "Allow USB debugging?", then makes sure the TV
+     * remembers the key (the checks after a reboot never ask) and runs the same check as they do.
+     */
+    static synchronized String allowAgain(Env c, Progress p) throws IOException {
+        try (Adb adb = connect(c, p)) {
+            keepDebuggingAllowed(c, adb);
+        }
+        List<String> fixed = new ArrayList<>();
+        try (Adb adb = c.connect(0, null)) {
+            if (isOn(c) && !Watchdog.safeMode(c.prefs())) fixed = check(c, adb);
+        } catch (Adb.Failure e) {
+            // Allowed without "Always allow": the TV has forgotten it already.
+            if (e.reason == Adb.Failure.NOT_ALLOWED) return c.text(R.string.allow_not_remembered);
+            throw e;
+        }
+        return fixed.isEmpty() ? c.text(R.string.allow_ok) : c.text(R.string.verify_fixed, String.join(", ", fixed));
+    }
+
+    static String allowAgain(Context c, Progress p) throws IOException {
+        return allowAgain(env(c), p);
+    }
+
+    /** Lehko still home, the stock launcher still off (full mode)? Fixes what isn't and returns what it fixed. */
+    private static List<String> check(Env c, Adb adb) throws IOException {
+        List<String> fixed = new ArrayList<>();
+        adopt(c, adb);
+        if (!noteSaysOn(adb) && !homeHolder(adb).contains(PKG)) {
+            // Given back from a computer (scripts/revert removes the note; a TV update leaves it): accept that.
+            forgetSwitch(c, adb);
+            return fixed;
+        }
+        keepDebuggingAllowed(c, adb);
+        if (!homeHolder(adb).contains(PKG)) {
+            adb.shell("cmd package set-home-activity --user 0 " + HOME);
+            fixed.add(c.text(R.string.the_home_screen));
+        }
+        if (isFull(c)) {
+            Set<String> present = packages(adb, ""), off = packages(adb, "-d");
+            if (present.isEmpty()) return fixed;
+            List<String> todo = new ArrayList<>();
+            for (String pkg : targets(adb, c.prefs().getString(K_HOME, ""), present)) {
+                if (!off.contains(pkg) && !isCore(pkg)) todo.add(pkg);
+            }
+            if (!todo.isEmpty()) {
+                Set<String> owners = wifiOwners(adb);
+                for (String pkg : todo) {
+                    if (!owners.contains(pkg) && disablePackage(c, adb, pkg)) fixed.add(pkg);
+                }
+            }
+        }
+        if (!fixed.isEmpty()) writeDeviceState(c, adb);
+        return fixed;
     }
 
     /** Whether the note on the TV still says Lehko is on. */
