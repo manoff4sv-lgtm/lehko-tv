@@ -397,21 +397,7 @@ final class HomeMode {
 
     private static Restored restore(Env c, Adb adb, Progress p) throws IOException {
         Restored r = new Restored();
-        Set<String> disabled = disabled(c);
-        Set<String> remaining = new HashSet<>();
-        int i = 0;
-        for (String pkg : sorted(disabled)) {
-            i++;
-            if (p != null) p.step(c.text(R.string.step_enabling, i, disabled.size()));
-            if (!PACKAGE.matcher(pkg).matches()) continue;
-            // Decided by pm's own answer, never by a package list that might have come back empty.
-            String out = adb.shell("pm enable " + pkg);
-            if (out.contains("new state: enabled")) continue;
-            if (out.contains("Unknown package") || out.contains("does not exist") || out.contains("not found")) continue;
-            remaining.add(pkg);
-            r.failed.add(pkg);
-        }
-        setDisabled(c, remaining);
+        r.failed.addAll(enableRecorded(c, adb, p));
         if (p != null) p.step(c.text(R.string.step_restoring_home));
         r.homeOk = restoreHome(adb, c.prefs().getString(K_HOME, ""));
         restoreScreensaver(c, adb);
@@ -423,6 +409,42 @@ final class HomeMode {
         }
         writeDeviceState(c, adb);
         return r;
+    }
+
+    /** Turns every app Lehko turned off back on. Returns the ones that stay off (and stay recorded). */
+    private static List<String> enableRecorded(Env c, Adb adb, Progress p) throws IOException {
+        Set<String> disabled = disabled(c);
+        List<String> failed = new ArrayList<>();
+        int i = 0;
+        for (String pkg : sorted(disabled)) {
+            i++;
+            if (p != null) p.step(c.text(R.string.step_enabling, i, disabled.size()));
+            if (!PACKAGE.matcher(pkg).matches()) continue;
+            // Decided by pm's own answer, never by a package list that might have come back empty.
+            String out = adb.shell("pm enable " + pkg);
+            if (out.contains("new state: enabled")) continue;
+            if (out.contains("Unknown package") || out.contains("does not exist") || out.contains("not found")) continue;
+            failed.add(pkg);
+        }
+        setDisabled(c, new HashSet<>(failed));
+        return failed;
+    }
+
+    /**
+     * Lehko isn't the home screen, but apps turned off on the "unneeded apps" screen (or left over from a partial
+     * "Original") are: turns them all back on, without touching the home screen or the screensaver.
+     */
+    static synchronized String enableApps(Env c, Progress p) throws IOException {
+        try (Adb adb = connect(c, p)) {
+            List<String> failed = enableRecorded(c, adb, p);
+            writeDeviceState(c, adb);
+            return failed.isEmpty() ? c.text(R.string.result_apps_on)
+                    : c.text(R.string.result_still_off, String.join(", ", failed));
+        }
+    }
+
+    static String enableApps(Context c, Progress p) throws IOException {
+        return enableApps(env(c), p);
     }
 
     /**

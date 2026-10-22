@@ -493,6 +493,16 @@ public class HomeModeTest {
         assertEquals(1, networks(state()));
     }
 
+    @Test public void appsTurnedOffWhileLehkoIsOffComeBackOn() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.setAppEnabled(e, "com.google.android.play.games", false);
+        assertEquals(e.text(R.string.result_apps_on), HomeMode.enableApps(e, QUIET));
+        JSONObject s = state();
+        assertTrue(enabled(s, "com.google.android.play.games"));
+        assertTrue(HomeMode.disabled(e.prefs).isEmpty());
+        assertEquals("the home screen is left alone", LAUNCHERX, s.getString("holder"));
+    }
+
     // MARK: - In-memory SharedPreferences
 
     static final class MemPrefs implements SharedPreferences {

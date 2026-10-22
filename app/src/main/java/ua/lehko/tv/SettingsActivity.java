@@ -30,7 +30,7 @@ import java.util.Locale;
 /** Lehko's settings: the "Lehko" tile in the app list and the last tile on the home screen. */
 public final class SettingsActivity extends Activity {
     private static final int HOME = 1, PREVIEW = 2, CITY = 3, OUTAGES = 4, SAVER = 5, CLEANUP = 6, ABOUT = 7,
-            RATES = 8, MEMORY = 10, AUTO_CLEAN = 11, FIRE_IDLE = 12, FIRE_SOUND = 13;
+            RATES = 8, MEMORY = 10, AUTO_CLEAN = 11, FIRE_IDLE = 12, FIRE_SOUND = 13, APPS_ON = 14;
     /** A section title in the list: {HEADER, string id}. Not focusable, the remote skips it. */
     private static final int HEADER = 100;
 
@@ -63,6 +63,8 @@ public final class SettingsActivity extends Activity {
         memorySummary = null;
         rows.clear();
         rows.add(new int[]{HOME});
+        // Apps turned off with Lehko while it isn't the home screen: "Original" isn't offered, this turns them on.
+        if (!HomeMode.isOn(this) && !HomeMode.disabled(this).isEmpty()) rows.add(new int[]{APPS_ON});
         if (!HomeMode.isOn(this)) rows.add(new int[]{PREVIEW});
         rows.add(new int[]{HEADER, R.string.section_show});
         rows.add(new int[]{CITY});
@@ -84,6 +86,7 @@ public final class SettingsActivity extends Activity {
     private String title(int row) {
         switch (row) {
             case HOME: return getString(R.string.home_screen);
+            case APPS_ON: return getString(R.string.apps_on);
             case PREVIEW: return getString(R.string.preview_home);
             case CITY: return getString(R.string.weather_city);
             case OUTAGES: return getString(R.string.outages);
@@ -103,6 +106,7 @@ public final class SettingsActivity extends Activity {
             case HOME:
                 if (!HomeMode.isOn(this)) return getString(R.string.home_status_off);
                 return getString(HomeMode.isFull(this) ? R.string.home_status_on_full : R.string.home_status_on);
+            case APPS_ON: return getString(R.string.apps_on_summary, HomeMode.disabled(this).size());
             case PREVIEW: return getString(R.string.preview_home_summary);
             case CITY: {
                 String city = Weather.cityName(this);
@@ -137,6 +141,13 @@ public final class SettingsActivity extends Activity {
         switch (row) {
             case HOME:
                 if (HomeMode.isOn(this)) confirmDisable(); else enableDialog();
+                break;
+            case APPS_ON:
+                run(new Task() {
+                    @Override public String run(HomeMode.Progress p) throws IOException {
+                        return HomeMode.enableApps(getApplicationContext(), p);
+                    }
+                });
                 break;
             case PREVIEW:
                 Apps.start(this, new Intent(this, HomeActivity.class));
