@@ -159,7 +159,8 @@ public class HomeModeTest {
 
     @Test public void softModeTurnsNothingOff() throws Exception {
         Env e = new Env(keys);
-        HomeMode.enable(e, false, QUIET);
+        String message = HomeMode.enable(e, false, QUIET);
+        assertEquals("shown on Lehko's home screen too", message, e.notice);
         JSONObject s = state();
         assertEquals("ua.lehko.tv", s.getString("holder"));
         assertTrue(enabled(s, LAUNCHERX));
@@ -284,6 +285,7 @@ public class HomeModeTest {
     @Test public void verifyAfterTvUpdate() throws Exception {
         Env e = new Env(keys);
         HomeMode.enable(e, true, QUIET);
+        e.notice = null;
         // A TV update turns the launcher back on and makes it the home screen again.
         tv("pm enable " + LAUNCHERX);
         tv("cmd package set-home-activity --user 0 " + LAUNCHERX + "/.home.HomeActivity");

@@ -647,7 +647,8 @@ public final class SettingsActivity extends Activity {
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
                         if (isDestroyed() || isFinishing()) {
-                            Prefs.notice(getApplicationContext(), m);
+                            // Only Lehko's home shows notices: with Lehko off this one would pop up, stale, next time.
+                            if (HomeMode.isOn(getApplicationContext())) Prefs.notice(getApplicationContext(), m);
                             return;
                         }
                         setBusy(false);

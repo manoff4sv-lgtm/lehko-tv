@@ -360,8 +360,11 @@ final class HomeMode {
                 if (disablePackage(c, adb, pkg)) turnedOff++;
             }
             writeDeviceState(c, adb);
-            adb.shell("am start -a android.intent.action.MAIN -c android.intent.category.HOME");
-            return turnedOff > 0 ? c.text(R.string.result_on_full, turnedOff) : c.text(R.string.result_on);
+            String done = turnedOff > 0 ? c.text(R.string.result_on_full, turnedOff) : c.text(R.string.result_on);
+            // The settings screen goes behind the new home screen: say it there.
+            c.notice(done);
+            goHome(adb);
+            return done;
         }
     }
 
@@ -369,8 +372,14 @@ final class HomeMode {
     static synchronized String disable(Env c, Progress p) throws IOException {
         try (Adb adb = connect(c, p)) {
             Restored r = restore(c, adb, p);
+            // Anything short of complete stays on the settings screen, where the message is.
+            if (r.homeOk && r.failed.isEmpty()) goHome(adb);
             return r.message(c);
         }
+    }
+
+    private static void goHome(Adb adb) throws IOException {
+        adb.shell("am start -a android.intent.action.MAIN -c android.intent.category.HOME");
     }
 
     static final class Restored {
@@ -413,7 +422,6 @@ final class HomeMode {
             Watchdog.clear(c.prefs());
         }
         writeDeviceState(c, adb);
-        adb.shell("am start -a android.intent.action.MAIN -c android.intent.category.HOME");
         return r;
     }
 
@@ -431,6 +439,7 @@ final class HomeMode {
         try (Adb adb = c.connect(120_000, p == null ? null : approvalOf(p))) {
             adopt(c, adb);
             Restored r = restore(c, adb, p);
+            goHome(adb);
             if (r.homeOk) {
                 String text = c.text(R.string.reverted_crash);
                 if (!r.failed.isEmpty()) text += " " + r.message(c);
