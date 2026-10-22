@@ -68,7 +68,7 @@ final class Rates {
     /** Is a download due? */
     static boolean due(Context c) {
         SharedPreferences p = Prefs.of(c);
-        return fiatEnabled(p) && System.currentTimeMillis() - p.getLong(FIAT_TIME, 0) > FIAT_EVERY_MS;
+        return fiatEnabled(p) && Net.stale(System.currentTimeMillis(), p.getLong(FIAT_TIME, 0), FIAT_EVERY_MS);
     }
 
     // MARK: - Downloading
@@ -77,13 +77,15 @@ final class Rates {
     static void refresh(Context c) throws IOException {
         SharedPreferences p = Prefs.of(c);
         long now = System.currentTimeMillis();
-        if (!fiatEnabled(p) || now - p.getLong(FIAT_TIME, 0) <= FIAT_EVERY_MS) return;
+        if (!fiatEnabled(p) || !Net.stale(now, p.getLong(FIAT_TIME, 0), FIAT_EVERY_MS)) return;
         p.edit().putString(FIAT, fiatJson(fetchFiat(p, now))).putLong(FIAT_TIME, now).apply();
     }
 
     private static List<Fiat> fetchFiat(SharedPreferences p, long now) throws IOException {
         List<Fiat> out = null;
-        if (now >= p.getLong(MONO_PAUSE, 0)) {
+        long pause = p.getLong(MONO_PAUSE, 0);
+        // The pause is over, or ends further off than it lasts: set while the clock was ahead.
+        if (now >= pause || pause - now > MONO_PAUSE_MS) {
             try {
                 out = parseMonobank(Net.get(MONOBANK));
             } catch (Net.HttpError e) {

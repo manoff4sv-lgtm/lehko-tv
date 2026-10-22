@@ -236,7 +236,7 @@ final class Outages {
         SharedPreferences p = Prefs.of(c);
         long street = p.getLong(P_STREET, 0), house = p.getLong(P_HOUSE, 0);
         if (!r.yasno() || street <= 0 || house <= 0) return;
-        if (System.currentTimeMillis() - p.getLong(P_RESOLVED, 0) < 7L * 24 * 3600_000) return;
+        if (!Net.stale(System.currentTimeMillis(), p.getLong(P_RESOLVED, 0), 7L * 24 * 3600_000)) return;
         try {
             String group = groupByAddress(r, street, house);
             synchronized (Outages.class) {

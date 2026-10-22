@@ -95,7 +95,7 @@ final class Weather {
     }
 
     static boolean stale(Context c) {
-        return System.currentTimeMillis() - cacheTime(c) > MAX_AGE_MS;
+        return Net.stale(System.currentTimeMillis(), cacheTime(c), MAX_AGE_MS);
     }
 
     /** The chosen city, or Kyiv on a TV set to the Kyiv time zone, or null (then the card asks to choose a city). */
