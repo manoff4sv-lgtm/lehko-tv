@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /** One process, two low-priority worker threads: the home screen must stay light on a 1 GB TV. */
 public final class App extends Application {
-    /** Network and package-manager work. */
+    /** Package-manager work and app pictures. The network goes on NET. */
     static final ExecutorService IO = Executors.newFixedThreadPool(2, new ThreadFactory() {
         private final AtomicInteger n = new AtomicInteger();
 

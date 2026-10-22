@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.text.InputType;
 import android.view.KeyEvent;
@@ -39,6 +40,7 @@ public final class SettingsActivity extends Activity {
     private final List<int[]> rows = new ArrayList<>();
     private final RowAdapter adapter = new RowAdapter();
     private boolean busy;
+    private long lastClick;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -48,7 +50,11 @@ public final class SettingsActivity extends Activity {
         list.setAdapter(adapter);
         list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                if (!busy && rows.get(position)[0] != HEADER) click(rows.get(position)[0]);
+                // On a slow TV a quick second OK still lands here before the dialog or screen it opened takes focus.
+                long now = SystemClock.uptimeMillis();
+                if (busy || rows.get(position)[0] == HEADER || now - lastClick < 700) return;
+                lastClick = now;
+                click(rows.get(position)[0]);
             }
         });
     }
@@ -361,7 +367,7 @@ public final class SettingsActivity extends Activity {
                         Prefs.setCity(SettingsActivity.this, p.name, p.lat, p.lon);
                         buildRows();
                         final Context app = getApplicationContext();
-                        App.IO.execute(new Runnable() {
+                        App.NET.execute(new Runnable() {
                             @Override public void run() {
                                 try {
                                     Weather.refresh(app);
@@ -543,7 +549,7 @@ public final class SettingsActivity extends Activity {
         buildRows();
         showStatus(getString(R.string.outage_saved, getString(r.label), group), false);
         final Context app = getApplicationContext();
-        App.IO.execute(new Runnable() {
+        App.NET.execute(new Runnable() {
             @Override public void run() {
                 try {
                     Outages.refresh(app);
@@ -628,6 +634,8 @@ public final class SettingsActivity extends Activity {
 
     /** Runs a switch on the ADB thread, showing its steps in the status card; the list is locked meanwhile. */
     private void run(final Task task) {
+        // One at a time, also from a second dialog that was open before the first one's button was pressed.
+        if (busy) return;
         setBusy(true);
         showStatus(getString(R.string.working), false);
         final HomeMode.Progress progress = new HomeMode.Progress() {
@@ -712,7 +720,7 @@ public final class SettingsActivity extends Activity {
     /** Network lookups for the pickers; failures become a toast. */
     private <T> void background(final Work<T> work) {
         showStatus(getString(R.string.loading), false);
-        App.IO.execute(new Runnable() {
+        App.NET.execute(new Runnable() {
             @Override public void run() {
                 T result = null;
                 Exception error = null;
