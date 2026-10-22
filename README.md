@@ -15,22 +15,28 @@
 
 ## Що вміє
 
+- **Спокійний екран.** Годинник стоїть у кільці на 24 години, і це кільце і є графік світла на сьогодні:
+  помаранчеві дуги означають, що світла не буде, точка показує «зараз». Поруч три короткі рядки: світло (є чи нема
+  і до котрої), погода, курси. Натисніть «вгору» з улюблених, і відкриються подробиці: погода по годинах, схід і
+  захід сонця, повні курси, графік на завтра.
 - **Улюблені додатки** з банерами, як на звичайному Android TV. Затисніть OK на додатку, щоб посунути, прибрати або видалити.
 - **Фон під додаток.** Коли вибираєте улюблений додаток, фон плавно набуває темного відтінку його банера. Увечері,
   після заходу сонця, відтінок ще темніший.
 - **Назва вибраного додатка** під рядом улюблених: на банерах її видно не завжди.
-- **Погода** від Open-Meteo: зараз, мінімум і максимум, наступні 5 годин, схід і захід сонця, «дощ з 17:00». Працює
-  без ключів і показує останній прогноз навіть без інтернету.
-- **Курси одним рядком під датою:** долар і євро до гривні (купівля / продаж Монобанку, або офіційний курс НБУ, якщо
-  Монобанк не відповідає), біткоїн і ефір у доларах з Binance зі зміною за добу. Валюти і криптовалюти вмикаються
-  окремо в налаштуваннях; останні значення видно й без інтернету.
-- **Графік відключень світла**: зараз є чи нема, коли відключать або ввімкнуть, смуга на сьогодні й завтра.
+- **Погода** від Open-Meteo: зараз і «дощ з 17:00», а в подробицях мінімум і максимум, наступні 5 годин, схід і
+  захід сонця. Працює без ключів і показує останній прогноз навіть без інтернету.
+- **Курси:** долар і євро до гривні (продаж у Монобанку, або офіційний курс НБУ, якщо Монобанк не відповідає) і
+  біткоїн зі зміною за добу; у подробицях купівля і продаж та ефір. Дані Binance для криптовалют. Валюти і
+  криптовалюти вмикаються окремо в налаштуваннях; останні значення видно й без інтернету.
+- **Графік відключень світла**: зараз є чи нема і до котрої, коли відключать або ввімкнуть, кільце на сьогодні,
+  смуга на завтра в подробицях.
   - Київ (місто): група за вашою адресою (з 2026 року в Києві 60 груп по будинках), дані YASNO, запасне джерело ДТЕК.
   - Київська область та Одеська область: дані ДТЕК.
   - Дніпропетровщина (ДнЕМ і ЦЕК): дані YASNO, група за адресою.
-- **Входи HDMI і ефірне ТБ** в один клік, налаштування телевізора, усі додатки.
+- **Входи HDMI і ефірне ТБ** в один клік, налаштування телевізора, усі додатки: круглі кнопки внизу, назва
+  зʼявляється під рядом улюблених.
 - **Вимкнення зайвих додатків**, щоб звільнити памʼять. Нічого не видаляється, усе вмикається назад однією кнопкою.
-- **Памʼять.** Плитка «Памʼять» показує, скільки вільно. Натискання закриває додатки, які Android тримає у фоні
+- **Памʼять.** Кнопка «Памʼять» показує, скільки вільно. Натискання закриває додатки, які Android тримає у фоні
   (через режим налагодження; без нього звичайним способом Android, який працює до Android 13), і пише, скільки
   звільнилося. Автоочищення робить те саме автоматично, коли памʼяті мало (його можна вимкнути). Закриті додатки наступного
   разу відкриваються трохи довше. У налаштуваннях видно, скільки займає Lehko і скільки займав стандартний лаунчер.
@@ -42,9 +48,9 @@
 - **Безпечно**: стандартний лаунчер лише вимикається, не видаляється. Кнопка «Повернути» поверне все як було.
   Якщо екран Lehko тричі впаде за 5 хвилин, телевізор сам повернеться до стандартного екрана.
 - **Доступність.** Текст контрастний за WCAG AA навіть на кольоровому фоні, фокус завжди обведений білою рамкою,
-  графік відключень читається без розрізнення червоного й зеленого (світло є: тонка лінія, нема: суцільний блок,
-  можливо: контур). З TalkBack пультом можна дійти до погоди й графіка, а сповіщення озвучуються. Якщо в
-  налаштуваннях телевізора вимкнено анімації, камін стоїть нерухомо.
+  графік відключень читається без розрізнення червоного й зеленого (світло є: тонка лінія, нема: товста дуга,
+  можливо: пунктир). TalkBack зачитує погоду, графік і сповіщення. Якщо в налаштуваннях телевізора вимкнено
+  анімації, камін стоїть нерухомо.
 - Українська, англійська і російська мови (як у системі телевізора).
 
 ## Встановлення
@@ -148,21 +154,23 @@ IP телевізора є в **Налаштування → Мережа та �
 ## English
 
 **Lehko** ("light" in Ukrainian) is a light, ad-free home screen for weak Android TV / Google TV sets (made for a
-1 GB Xiaomi TV A, works on any Android TV 8+). It shows the clock, weather (Open-Meteo: now, the next 5 hours,
-sunrise and sunset), your favorite apps with banners, HDMI inputs and, in Ukraine, the planned power outage schedule
-for your building (Kyiv city by address via YASNO, Kyiv region and Odesa region via DTEK, Dnipro region via YASNO).
+1 GB Xiaomi TV A, works on any Android TV 8+). The clock sits in a 24-hour ring that is today's power outage
+schedule for your building (in Ukraine: Kyiv city by address via YASNO, Kyiv region and Odesa region via DTEK,
+Dnipro region via YASNO); beside it, short lines for power, the weather (Open-Meteo) and rates; below, your favorite
+apps with banners and round buttons for HDMI inputs, Live TV and settings. Up from the favorites opens the details:
+the next 5 hours, sunrise and sunset, full rates, tomorrow's schedule.
 
 Also: the background takes on a dark tint of the focused app's banner; a line under the date with the dollar and
-euro in hryvnias (Monobank, or the NBU) and Bitcoin and Ether (Binance); a "Memory" tile that shows free memory and
+euro in hryvnias (Monobank, or the NBU) and Bitcoin and Ether (Binance); a "Memory" button that shows free memory and
 closes cached background apps (through the TV's debugging, or Android's own way up to Android 13), with optional
 automatic cleaning when memory runs low; and a fireplace (bricks, logs, a "Doom fire", a dim clock and the outage
 status, optional quiet crackle) after 5 idle minutes on the home screen, also available as a screensaver. The
 fireplace doesn't keep the screen on.
 
 Accessibility: text passes WCAG AA contrast even on the tinted background, focus always has a white outline, the
-outage bar reads without telling red from green (on: thin line, off: solid block, possible: outline), with TalkBack
-the weather and the schedule can be reached and are read out (notices too), and with animations turned off in the
-TV's settings the fireplace stands still.
+outage ring and bar read without telling red from green (on: thin line, off: thick arc, possible: dashed),
+TalkBack reads the weather, the schedule and notices, and with animations turned off in the TV's settings the
+fireplace stands still.
 
 **Install:** turn on developer options and USB debugging on the TV, install
 [Lehko.apk](https://github.com/manoff4sv-lgtm/lehko-tv/releases/latest/download/Lehko.apk) (with the Downloader app,

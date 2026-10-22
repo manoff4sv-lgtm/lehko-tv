@@ -18,9 +18,14 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
 ## Architecture (app/src/main/java/ua/lehko/tv)
 
 - `App` executors (IO x2, ADB single), REPO_URL, version. `Prefs` SharedPreferences helpers.
-- `HomeActivity` (HOME intent): TextClock clock/date, weather card, outage card (`OutageBar` x2), favorites row
-  (`Tile`s with banners), shortcuts row (HDMI inputs + Live TV via `Inputs`, All apps, TV settings, Lehko settings),
-  one-time notice line. Ticker every minute; weather refresh 30 min; outages 10 min.
+- `HomeActivity` (HOME intent), redesigned 2026-10-22 (Eugene picked a mix of mock-up directions A "quiet glass" and
+  C "dial"; mocks were HTML in the session scratchpad): clock + date inside `DialView` (24-hour ring = today's
+  schedule; plain ring without outages), a focusable `info` panel (power title/detail from `OutageText.headline`,
+  weather line, compact rates) whose `details` (hours, city/max/min/sun, full rates, tomorrow's `OutageBar` without
+  labels) show only while it has focus (Up from favorites), favorites row (`Tile`s 184x104, focus = white ring in
+  `ring_pad` room + tint-coloured shadow on API 28+), focused name line (favorites and buttons), round `IconButton`
+  shortcuts (HDMI inputs + Live TV via `Inputs`, All apps, TV settings, Memory, Lehko settings), one-time notice.
+  Ticker every minute; weather refresh 30 min; outages 10 min.
 - `AllAppsActivity` GridView of tiles; long-press/Menu: open, add/remove favorite, info, uninstall.
 - `Apps` app list (LEANBACK_LAUNCHER first, then LAUNCHER), default favorites, banner/icon LruCache.
 - `Weather` Open-Meteo forecast + geocoding search; cached JSON so it shows offline (outages!). Default city
@@ -98,7 +103,8 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
 v0.9 is feature-complete and reviewed: home screen, weather, outages, on-device home switching with safe mode,
 unneeded-apps screen, uk/en/ru, CI with signed builds (incl. HomeModeTest against `tools/fake_adbd.py --tv`, a
 simulated Google TV). v0.10 (2026-10-22) added the ambient background, hourly weather and sun times, the focused app
-name, the rates line, memory cleaning and measurement, and the fireplace; 62 tests now. Nothing has been run on a
+name, the rates line, memory cleaning and measurement, the fireplace, a design/accessibility pass and the dial
+redesign of the home screen; 71 tests now. Nothing has been run on a
 real TV yet. UI strings live in `tools/strings/strings.py`
 (edit there, then `python3 tools/strings/strings.py app/src/main/res`).
 
