@@ -1,0 +1,59 @@
+plugins {
+    id "com.android.application"
+}
+
+// Release signing comes from environment variables (set by CI from repository secrets).
+// Without them the release build is signed with the debug key, so forks and local builds still work.
+def releaseKeystore = System.getenv("LEHKO_KEYSTORE")
+
+android {
+    namespace "ua.lehko.tv"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "ua.lehko.tv"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    signingConfigs {
+        if (releaseKeystore) {
+            release {
+                storeFile file(releaseKeystore)
+                storePassword System.getenv("LEHKO_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("LEHKO_KEY_ALIAS")
+                keyPassword System.getenv("LEHKO_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            signingConfig releaseKeystore ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    lint {
+        abortOnError false
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
+dependencies {
+    // Tests only: the app itself has no dependencies.
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "org.json:json:20240303"
+}

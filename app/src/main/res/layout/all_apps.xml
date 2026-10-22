@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/safe_h"
+    android:paddingTop="@dimen/safe_v"
+    android:paddingEnd="@dimen/safe_h">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/all_apps"
+        style="@style/Lehko.Title" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="@string/all_apps_hint"
+        android:textColor="@color/text_dim"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/empty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="@string/no_apps"
+        android:textColor="@color/text_secondary"
+        android:visibility="gone" />
+
+    <GridView
+        android:id="@+id/grid"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginStart="-12dp"
+        android:layout_marginEnd="-12dp"
+        android:layout_weight="1"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:drawSelectorOnTop="false"
+        android:gravity="start"
+        android:horizontalSpacing="@dimen/tile_gap"
+        android:numColumns="auto_fit"
+        android:paddingStart="12dp"
+        android:paddingTop="16dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="@dimen/safe_v"
+        android:scrollbars="none"
+        android:stretchMode="none"
+        android:verticalSpacing="@dimen/tile_gap" />
+</LinearLayout>

@@ -1,0 +1,54 @@
+package ua.lehko.tv;
+
+import android.app.Application;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Process;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/** One process, two low-priority worker threads: the home screen must stay light on a 1 GB TV. */
+public final class App extends Application {
+    /** Network and package-manager work. */
+    static final ExecutorService IO = Executors.newFixedThreadPool(2, new ThreadFactory() {
+        private final AtomicInteger n = new AtomicInteger();
+
+        @Override public Thread newThread(final Runnable r) {
+            Thread t = new Thread(new Runnable() {
+                @Override public void run() {
+                    Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
+                    r.run();
+                }
+            }, "lehko-io-" + n.incrementAndGet());
+            t.setDaemon(true);
+            return t;
+        }
+    });
+
+    /** Talking to the TV's debugging port: one switch at a time, never on the UI thread. */
+    static final ExecutorService ADB = Executors.newSingleThreadExecutor(new ThreadFactory() {
+        @Override public Thread newThread(Runnable r) {
+            Thread t = new Thread(r, "lehko-adb");
+            t.setDaemon(true);
+            return t;
+        }
+    });
+
+    static final Handler MAIN = new Handler(Looper.getMainLooper());
+
+    static final String REPO_URL = "https://github.com/manoff4sv-lgtm/lehko-tv";
+
+    /** versionName, read once at start (no generated BuildConfig needed). */
+    static volatile String version = "?";
+
+    @Override public void onCreate() {
+        super.onCreate();
+        try {
+            version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Exception ignored) {}
+        Watchdog.install(this);
+    }
+}
