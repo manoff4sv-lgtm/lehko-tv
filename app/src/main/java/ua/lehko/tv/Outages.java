@@ -137,6 +137,8 @@ final class Outages {
         /** "yyyy-MM-dd" in Kyiv. */
         final String date;
         final byte[] slots = new byte[SLOTS];
+        /** The operator says emergency outages are on this day and there is no schedule (the slots are UNKNOWN). */
+        boolean emergency;
 
         Day(String date, byte fill) {
             this.date = date;
@@ -147,10 +149,12 @@ final class Outages {
     static final class Schedule {
         String group = "";
         final List<Day> days = new ArrayList<>();
-        /** The operator says emergency outages are on and the schedule doesn't apply. */
+        /** Today (as of {@link #asOf}) is an emergency day; {@link Status#emergency} follows the clock. */
         boolean emergency;
-        /** The source has no schedules at all right now (no outage regime). */
+        /** The source had no schedules at all on {@link #asOf} (no outage regime). */
         boolean noSchedules;
+        /** The Kyiv day ("yyyy-MM-dd") the source answered on: the flags above are about that day only. */
+        String asOf = "";
         String source = "";
 
         Day day(String date) {
@@ -326,6 +330,7 @@ final class Outages {
         Schedule s = new Schedule();
         s.group = group;
         s.source = "yasno";
+        s.asOf = today;
         String todayStatus = "";
         for (String key : new String[]{"today", "tomorrow"}) {
             JSONObject d = g.optJSONObject(key);
@@ -337,7 +342,9 @@ final class Outages {
             if (date.equals(today)) todayStatus = status;
             if ("EmergencyShutdowns".equals(status)) {
                 if (date.equals(today)) s.emergency = true;
-                s.days.add(new Day(date, UNKNOWN));
+                Day day = new Day(date, UNKNOWN);
+                day.emergency = true;
+                s.days.add(day);
                 continue;
             }
             if ("NoOutages".equals(status)) {
@@ -374,6 +381,7 @@ final class Outages {
         Schedule s = new Schedule();
         s.group = group;
         s.source = "dtek";
+        s.asOf = dateOf(todayEpoch);
         Object data = fact.opt("data");
         if (!(data instanceof JSONObject)) {
             s.noSchedules = true;
@@ -413,12 +421,14 @@ final class Outages {
 
     static JSONObject toJson(Schedule s) throws JSONException {
         JSONObject o = new JSONObject().put("group", s.group).put("emergency", s.emergency)
-                .put("none", s.noSchedules).put("source", s.source);
+                .put("none", s.noSchedules).put("as_of", s.asOf).put("source", s.source);
         JSONArray days = new JSONArray();
         for (Day d : s.days) {
             StringBuilder b = new StringBuilder(SLOTS);
             for (byte x : d.slots) b.append((char) ('0' + x));
-            days.put(new JSONObject().put("date", d.date).put("slots", b.toString()));
+            JSONObject day = new JSONObject().put("date", d.date).put("slots", b.toString());
+            if (d.emergency) day.put("emergency", true);
+            days.put(day);
         }
         return o.put("days", days);
     }
@@ -428,6 +438,7 @@ final class Outages {
         s.group = o.optString("group", "");
         s.emergency = o.optBoolean("emergency");
         s.noSchedules = o.optBoolean("none");
+        s.asOf = o.optString("as_of", "");
         s.source = o.optString("source", "");
         JSONArray days = o.optJSONArray("days");
         if (days != null) {
@@ -437,6 +448,7 @@ final class Outages {
                 if (slots.length() != SLOTS) continue;
                 Day day = new Day(d.getString("date"), UNKNOWN);
                 for (int k = 0; k < SLOTS; k++) day.slots[k] = (byte) Math.max(0, Math.min(3, slots.charAt(k) - '0'));
+                day.emergency = d.optBoolean("emergency");
                 s.days.add(day);
             }
         }
@@ -460,12 +472,19 @@ final class Outages {
         boolean untilEndOfData;
         /** No outages for the rest of today and all of tomorrow, or no outage regime at all. */
         boolean clearAhead;
+        /** Today is an emergency day: the operator says the schedule doesn't apply. */
+        boolean emergency;
+        /** The source says there are no schedules today (no outage regime). */
+        boolean noSchedules;
     }
 
-    /** What's happening at {@code nowMs} and what comes next, from the cached days. */
+    /**
+     * What's happening at {@code nowMs} and what comes next, from the cached days. The source's flags count only on
+     * their own day: offline after midnight, yesterday's emergency or "no outages" must not stick.
+     */
     static Status status(Schedule s, long nowMs) {
         Status st = new Status();
-        if (s == null || s.emergency) return st;
+        if (s == null) return st;
         Calendar now = Calendar.getInstance(KYIV);
         now.setTimeInMillis(nowMs);
         String today = format(now);
@@ -473,8 +492,13 @@ final class Outages {
         next.add(Calendar.DAY_OF_MONTH, 1);
         String tomorrow = format(next);
         Day d0 = s.day(today), d1 = s.day(tomorrow);
+        st.noSchedules = s.noSchedules && today.equals(s.asOf);
+        if (d0 != null && d0.emergency) {
+            st.emergency = true;
+            return st;
+        }
         if (d0 == null) {
-            if (s.noSchedules) {
+            if (st.noSchedules) {
                 st.state = ON;
                 st.clearAhead = true;
             }
@@ -487,7 +511,7 @@ final class Outages {
         System.arraycopy(d0.slots, 0, ahead, 0, SLOTS);
         if (d1 != null) System.arraycopy(d1.slots, 0, ahead, SLOTS, SLOTS);
         // Clear only when nothing but power lies ahead and tomorrow is known too: an unpublished tomorrow isn't clear.
-        st.clearAhead = st.state == ON && (d1 != null || s.noSchedules);
+        st.clearAhead = st.state == ON && (d1 != null || st.noSchedules);
         for (int k = slot; k < ahead.length && st.clearAhead; k++) if (ahead[k] != ON) st.clearAhead = false;
         for (int k = slot + 1; k < ahead.length; k++) {
             if (ahead[k] == st.state) continue;
