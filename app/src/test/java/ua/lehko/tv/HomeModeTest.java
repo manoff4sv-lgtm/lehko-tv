@@ -3,6 +3,7 @@ package ua.lehko.tv;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
@@ -278,6 +279,47 @@ public class HomeModeTest {
         HomeMode.verify(other);
         assertTrue("nothing done without permission", enabled(state(), LAUNCHERX));
         assertNotNull(other.notice);
+    }
+
+    @Test public void revertFromAComputerSticks() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.enable(e, true, QUIET);
+        e.notice = null;
+        // scripts/revert.sh without --uninstall: everything back and the note removed; Lehko's own records stay.
+        tv("pm enable " + LAUNCHERX);
+        tv("pm enable " + SETUP);
+        tv("cmd package set-home-activity --user 0 " + LAUNCHERX + "/.home.HomeActivity");
+        tv("settings delete global adb_allowed_connection_time");
+        tv("rm -f " + HomeMode.STATE_FILE);
+        HomeMode.verify(e); // the next reboot
+        JSONObject s = state();
+        assertEquals(LAUNCHERX, s.getString("holder"));
+        assertTrue(enabled(s, LAUNCHERX));
+        assertTrue(enabled(s, SETUP));
+        assertFalse(s.getJSONObject("settings").getJSONObject("global").has("adb_allowed_connection_time"));
+        assertFalse(e.prefs.getBoolean(HomeMode.K_ON, false));
+        assertNull(e.notice);
+    }
+
+    @Test public void uninstalledWhileOnIsNotTakenOverAgain() throws Exception {
+        HomeMode.enable(new Env(keys), false, QUIET);
+        // Uninstalled from the TV's settings: Android gives the home screen back, the note still says "on".
+        tv("cmd package set-home-activity --user 0 " + LAUNCHERX + "/.home.HomeActivity");
+        Env fresh = new Env(Files.createTempDirectory("lehko-keys4").toFile());
+        HomeMode.systemState(fresh); // installed again, and the "unneeded apps" screen is the first to connect
+        assertFalse(fresh.prefs.getBoolean(HomeMode.K_ON, false));
+        assertTrue(state().getJSONObject("files").getString(HomeMode.STATE_FILE).contains("on=false"));
+    }
+
+    @Test public void uninstalledInFullModeKeepsTheWayBack() throws Exception {
+        HomeMode.enable(new Env(keys), true, QUIET);
+        // Uninstalled with the stock launcher still off: the TV has no home screen until "Original".
+        tv("cmd role remove-role-holder --user 0 android.app.role.HOME ua.lehko.tv");
+        Env fresh = new Env(Files.createTempDirectory("lehko-keys5").toFile());
+        HomeMode.systemState(fresh);
+        assertTrue(fresh.prefs.getBoolean(HomeMode.K_ON, false));
+        HomeMode.disable(fresh, QUIET);
+        assertEquals(LAUNCHERX, state().getString("holder"));
     }
 
     @Test public void crashSafetyNet() throws Exception {

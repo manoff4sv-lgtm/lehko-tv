@@ -257,16 +257,16 @@ final class HomeMode {
         String state = adb.shell("cat " + STATE_FILE + " 2>/dev/null");
         SharedPreferences.Editor e = p.edit().putBoolean(K_ADOPTED, true);
         Set<String> disabled = disabled(c);
+        boolean on = false, full = false;
+        String home = "";
         for (String line : state.split("\n")) {
             int eq = line.indexOf('=');
             if (eq < 0) continue;
             String key = line.substring(0, eq).trim(), value = line.substring(eq + 1).trim();
             switch (key) {
-                case "on": if ("true".equals(value)) e.putBoolean(K_ON, true); break;
-                case "full": if ("true".equals(value)) e.putBoolean(K_FULL, true); break;
-                case "home":
-                    if (p.getString(K_HOME, "").isEmpty() && validHome(value)) e.putString(K_HOME, value);
-                    break;
+                case "on": on = "true".equals(value); break;
+                case "full": full = "true".equals(value); break;
+                case "home": if (validHome(value)) home = value; break;
                 case "disabled":
                     for (String pkg : value.split(",")) if (PACKAGE.matcher(pkg).matches()) disabled.add(pkg);
                     break;
@@ -278,7 +278,24 @@ final class HomeMode {
                 default: break;
             }
         }
+        // "On" only while the TV agrees: uninstalling Lehko gives the home screen back but leaves the note as it was.
+        boolean stillOn = false;
+        if (on) {
+            stillOn = homeHolder(adb).contains(PKG);
+            if (!stillOn && full) {
+                // Uninstalled in full mode: the stock launcher is still off, and "Original" has to bring it back.
+                Set<String> off = packages(adb, "-d");
+                if (off.isEmpty() && packages(adb, "").isEmpty()) throw new IOException("pm list packages answered nothing");
+                stillOn = off.contains(packageOf(home)) || off.contains(SETUP);
+            }
+        }
+        if (stillOn) {
+            e.putBoolean(K_ON, true);
+            if (full) e.putBoolean(K_FULL, true);
+            if (p.getString(K_HOME, "").isEmpty() && !home.isEmpty()) e.putString(K_HOME, home);
+        }
         e.putStringSet(K_DISABLED, disabled).commit();
+        if (on && !stillOn) writeDeviceState(c, adb);
     }
 
     // MARK: - Switches
@@ -433,6 +450,11 @@ final class HomeMode {
         List<String> fixed = new ArrayList<>();
         try (Adb adb = c.connect(0, null)) {
             adopt(c, adb);
+            if (!noteSaysOn(adb) && !homeHolder(adb).contains(PKG)) {
+                // Given back from a computer (scripts/revert removes the note; a TV update leaves it): accept that.
+                forgetSwitch(c, adb);
+                return;
+            }
             keepDebuggingAllowed(c, adb);
             if (!homeHolder(adb).contains(PKG)) {
                 adb.shell("cmd package set-home-activity --user 0 " + HOME);
@@ -460,6 +482,28 @@ final class HomeMode {
             return;
         }
         if (!fixed.isEmpty()) c.notice(c.text(R.string.verify_fixed, String.join(", ", fixed)));
+    }
+
+    /** Whether the note on the TV still says Lehko is on. */
+    private static boolean noteSaysOn(Adb adb) throws IOException {
+        for (String line : adb.shell("cat " + STATE_FILE + " 2>/dev/null").split("\n")) {
+            if (line.trim().equals("on=true")) return true;
+        }
+        return false;
+    }
+
+    /** The switch was undone from outside and everything is back already: only Lehko's own records go. */
+    private static void forgetSwitch(Env c, Adb adb) throws IOException {
+        if (packages(adb, "").isEmpty()) throw new IOException("pm list packages answered nothing");
+        Set<String> stillOff = disabled(c);
+        stillOff.retainAll(packages(adb, "-d"));
+        c.prefs().edit().putBoolean(K_ON, false).putBoolean(K_FULL, false).remove(K_HOME)
+                .putBoolean(K_SAVER_CHANGED, false).remove(K_SAVER).remove(K_SAVER_ENABLED)
+                .putBoolean(Prefs.SCREENSAVER_LEHKO, false).putBoolean(Prefs.SCREENSAVER_FIRE, false)
+                .putBoolean(K_ADB_TIME_CHANGED, false).remove(K_ADB_TIME)
+                .putStringSet(K_DISABLED, stillOff).commit();
+        Watchdog.clear(c.prefs());
+        writeDeviceState(c, adb);
     }
 
     // MARK: - Memory
