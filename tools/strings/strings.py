@@ -60,6 +60,7 @@ s("wx_storm", "Thunderstorm", "Гроза", "Гроза")
 s("wx_storm_hail", "Thunderstorm with hail", "Гроза з градом", "Гроза с градом")
 
 # FIX-STRINGS-CLEAN (temporary anchor: new strings of the 'clean' fixes go right below)
+s("cleanup_wifi_check_error", "Lehko couldn’t check which apps saved your Wi-Fi network, so it turned nothing off (turning off such an app would make Android forget the network). Try again in a minute.", "Lehko не зміг перевірити, які додатки зберегли вашу мережу Wi-Fi, тому нічого не вимикав (якщо вимкнути такий додаток, Android забуде мережу). Спробуйте ще раз за хвилину.", "Lehko не смог проверить, какие приложения сохранили вашу сеть Wi-Fi, поэтому ничего не выключал (если выключить такое приложение, Android забудет сеть). Попробуйте ещё раз через минуту.")
 
 s("outages", "Power outage schedule", "Графік відключень", "График отключений")
 s("outages_off", "Off", "Вимкнено", "Выключено")

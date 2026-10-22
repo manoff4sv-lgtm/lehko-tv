@@ -51,9 +51,6 @@ public final class CleanupActivity extends Activity {
         int hint;
     }
 
-    /** Null when it couldn't be checked which apps saved Wi-Fi networks: then nothing can be turned off here. */
-    private Set<String> wifiOwners = new HashSet<>();
-
     private ListView list;
     private TextView status;
     private final List<Row> rows = new ArrayList<>();
@@ -85,10 +82,10 @@ public final class CleanupActivity extends Activity {
                 List<Row> found = new ArrayList<>();
                 try {
                     Set<String>[] state = HomeMode.systemState(app);
-                    wifiOwners = state[1];
+                    // Unknown Wi-Fi owners only leave the rows unmarked: turning an app off checks them again.
                     found = candidates(app, state[0], state[1] == null ? new HashSet<String>() : state[1]);
                 } catch (Adb.Failure e) {
-                    error = getString(e.reason == Adb.Failure.PORT_CLOSED ? R.string.cleanup_need_debugging : R.string.adb_rejected);
+                    error = explain(e);
                 } catch (Exception e) {
                     error = getString(R.string.error_generic, e.getMessage());
                 }
@@ -223,8 +220,8 @@ public final class CleanupActivity extends Activity {
     }
 
     private void toggle(final Row r) {
-        if (!r.disabled && (wifiOwners == null || r.wifiOwner)) {
-            status.setText(wifiOwners == null ? getString(R.string.wifi_check_error) : getString(R.string.wifi_owner_error, r.label));
+        if (!r.disabled && r.wifiOwner) {
+            status.setText(getString(R.string.wifi_owner_error, r.label));
             status.setVisibility(View.VISIBLE);
             return;
         }
@@ -258,9 +255,9 @@ public final class CleanupActivity extends Activity {
                 } catch (HomeMode.WifiOwnerException e) {
                     error = getString(R.string.wifi_owner_error, r.label);
                 } catch (HomeMode.WifiCheckException e) {
-                    error = getString(R.string.wifi_check_error);
+                    error = getString(R.string.cleanup_wifi_check_error);
                 } catch (Adb.Failure e) {
-                    error = getString(R.string.adb_rejected);
+                    error = explain(e);
                 } catch (Exception e) {
                     error = getString(R.string.cleanup_failed, r.label);
                 }
@@ -281,6 +278,16 @@ public final class CleanupActivity extends Activity {
                 });
             }
         });
+    }
+
+    /** As in Settings, except that a closed port gets this screen's own advice. */
+    private String explain(Adb.Failure e) {
+        switch (e.reason) {
+            case Adb.Failure.PORT_CLOSED: return getString(R.string.cleanup_need_debugging);
+            case Adb.Failure.NOT_ALLOWED: return getString(R.string.adb_rejected);
+            case Adb.Failure.TLS_ONLY: return getString(R.string.adb_tls);
+            default: return getString(R.string.error_generic, e.getMessage());
+        }
     }
 
     private final class Adapter extends BaseAdapter {
