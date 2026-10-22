@@ -18,7 +18,11 @@ public final class ModeJob extends JobService {
                 .setMinimumLatency(delayMs)
                 .setOverrideDeadline(delayMs + 60_000)
                 .build();
-        js.schedule(job);
+        try {
+            js.schedule(job);
+        } catch (RuntimeException ignored) {
+            // Too many jobs or a vendor quirk: the next start of Lehko checks again.
+        }
     }
 
     @Override public boolean onStartJob(final JobParameters params) {
@@ -26,8 +30,10 @@ public final class ModeJob extends JobService {
         App.ADB.execute(new Runnable() {
             @Override public void run() {
                 try {
-                    if (params.getJobId() == REVERT) HomeMode.revertAfterCrash(app);
+                    if (params.getJobId() == REVERT) HomeMode.revertAfterCrash(app, null);
                     else HomeMode.verify(app);
+                } catch (RuntimeException e) {
+                    // A background check must never take the app down (that would count as a crash).
                 } finally {
                     jobFinished(params, false);
                 }

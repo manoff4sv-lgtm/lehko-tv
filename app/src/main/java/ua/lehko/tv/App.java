@@ -28,6 +28,20 @@ public final class App extends Application {
         }
     });
 
+    /** Weather and outage downloads: one thread, so a slow network never holds up app lists and banners. */
+    static final ExecutorService NET = Executors.newSingleThreadExecutor(new ThreadFactory() {
+        @Override public Thread newThread(final Runnable r) {
+            Thread t = new Thread(new Runnable() {
+                @Override public void run() {
+                    Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
+                    r.run();
+                }
+            }, "lehko-net");
+            t.setDaemon(true);
+            return t;
+        }
+    });
+
     /** Talking to the TV's debugging port: one switch at a time, never on the UI thread. */
     static final ExecutorService ADB = Executors.newSingleThreadExecutor(new ThreadFactory() {
         @Override public Thread newThread(Runnable r) {

@@ -4,15 +4,18 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 /**
- * Safety net: if Lehko crashes 3 times within 5 minutes while it is the home screen, the original home screen comes
- * back by itself (through {@link ModeJob}), so a bug can never leave the TV without a working home screen.
+ * Safety net: if Lehko crashes 3 times within 5 minutes while it is the home screen, it goes into safe mode. In safe
+ * mode the home screen shows only a plain "restoring" message (nothing that could crash again), and the original
+ * home screen is brought back right away on the worker thread, with a scheduled job as a second try. Safe mode ends
+ * when the original home screen is back, or when you turn Lehko on again.
  */
 final class Watchdog {
     private Watchdog() {}
 
-    private static final String KEY = "crashes";
+    private static final String KEY = "crashes", SAFE = "safe_mode";
     private static final long WINDOW_MS = 5 * 60_000L;
     private static final int LIMIT = 3;
+    private static volatile boolean reverting;
 
     static void install(final Context app) {
         final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
@@ -34,9 +37,14 @@ final class Watchdog {
         p.edit().putString(KEY, (list.isEmpty() ? "" : list + ",") + System.currentTimeMillis()).commit();
     }
 
-    /** At start: too many recent crashes while Lehko is the home screen? Then switch back to the original one. */
+    /** At start: too many recent crashes while Lehko is the home screen? Then safe mode and switch back. */
     private static void check(Context c) {
         SharedPreferences p = Prefs.of(c);
+        if (p.getBoolean(SAFE, false)) {
+            // Still in safe mode (the last try didn't finish, or the process was killed): try again.
+            revertInBackground(c);
+            return;
+        }
         String list = p.getString(KEY, "");
         if (list.isEmpty()) return;
         long now = System.currentTimeMillis();
@@ -51,14 +59,43 @@ final class Watchdog {
                 }
             } catch (NumberFormatException ignored) {}
         }
-        p.edit().putString(KEY, keep.toString()).apply();
         if (recent >= LIMIT && HomeMode.isOn(c)) {
-            clear(c);
-            ModeJob.schedule(c, ModeJob.REVERT, 0);
+            p.edit().putBoolean(SAFE, true).remove(KEY).commit();
+            revertInBackground(c);
+            ModeJob.schedule(c, ModeJob.REVERT, 60_000);
+        } else {
+            p.edit().putString(KEY, keep.toString()).apply();
         }
     }
 
-    static void clear(Context c) {
-        Prefs.of(c).edit().remove(KEY).commit();
+    static void revertInBackground(final Context c) {
+        if (reverting) return;
+        reverting = true;
+        App.ADB.execute(new Runnable() {
+            @Override public void run() {
+                try {
+                    HomeMode.revertAfterCrash(c.getApplicationContext(), null);
+                } finally {
+                    reverting = false;
+                }
+            }
+        });
+    }
+
+    static boolean isReverting() {
+        return reverting;
+    }
+
+    static boolean safeMode(Context c) {
+        return safeMode(Prefs.of(c));
+    }
+
+    static boolean safeMode(SharedPreferences p) {
+        return p.getBoolean(SAFE, false);
+    }
+
+    /** Fresh start: no crash history, no safe mode (after turning Lehko on, or once the original home is back). */
+    static void clear(SharedPreferences p) {
+        p.edit().remove(KEY).remove(SAFE).commit();
     }
 }

@@ -69,7 +69,7 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
 
 ## Status / TODO (in order)
 
-1. [ ] `SettingsActivity` (layouts settings.xml, settings_row.xml, enable_dialog.xml exist): ListView rows:
+1. [x] `SettingsActivity` (layouts settings.xml, settings_row.xml, enable_dialog.xml exist): ListView rows:
    home screen (enable dialog with dev-options / USB-debugging status from Settings.Global DEVELOPMENT_SETTINGS_ENABLED
    / ADB_ENABLED, buttons to open ACTION_DEVICE_INFO_SETTINGS / ACTION_APPLICATION_DEVELOPMENT_SETTINGS, "full mode"
    checkbox; disable with confirm), preview home (only when off), weather city (EditText search dialog -> results),
@@ -77,17 +77,17 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
    mirror regions: pick group from list), screensaver (system / Lehko clock, via HomeMode.setScreensaver),
    unneeded apps -> CleanupActivity, about (version, repo URL, privacy, "switch back to Original before uninstalling").
    Map errors: Adb.Failure PORT_CLOSED / NOT_ALLOWED / TLS_ONLY / PROTOCOL, HomeMode.WifiOwnerException, Refused.
-2. [ ] `CleanupActivity`: list launchable apps + a few known optional system pkgs (play.games, youtube.tvmusic,
+2. [x] `CleanupActivity`: list launchable apps + a few known optional system pkgs (play.games, youtube.tvmusic,
    tvrecommendations, katniss with mic warning), excluding HomeMode.isProtected and Wi-Fi owners; toggle via
    HomeMode.setAppEnabled on App.ADB; needs QUERY_ALL_PACKAGES in the manifest for labels of disabled apps.
-3. [ ] Strings: values (en), values-uk, values-ru. Every R.string referenced in code/layouts must exist in all three.
-4. [ ] Build green with tools/quick-build.sh, then unit tests (app/src/test): Outages.parseYasno/parseMirror/status,
+3. [x] Strings: values (en), values-uk, values-ru. Every R.string referenced in code/layouts must exist in all three.
+4. [x] Build green with tools/quick-build.sh, then unit tests (app/src/test): Outages.parseYasno/parseMirror/status,
    Weather.parse, Adb.sign (compare with JDK Signature "NONEwithRSA" over SHA1 prefix+token), Adb.publicKeyBlob.
-5. [ ] `.github/workflows/build.yml`: build + test on push/PR, upload APK artifact; on tag v* attach
+5. [x] `.github/workflows/build.yml`: build + test on push/PR, upload APK artifact; on tag v* attach
    `Lehko-<version>.apk` to a GitHub Release (stable URL releases/latest/download/Lehko.apk).
-6. [ ] `scripts/install.sh|.bat` (adb connect IP:5555, install APK, open settings) and `scripts/revert.sh|.bat`
+6. [x] `scripts/install.sh|.bat` (adb connect IP:5555, install APK, open settings) and `scripts/revert.sh|.bat`
    (read /data/local/tmp/lehko_state, pm enable listed pkgs, set-home-activity original, optional uninstall).
-7. [ ] README.md (Ukrainian first, then English): what it is, screenshots later, install without PC (Downloader app
+7. [x] README.md (Ukrainian first, then English): what it is, screenshots later, install without PC (Downloader app
    + URL) and with PC, enabling debugging, going back, what it changes, privacy (Open-Meteo, YASNO, GitHub mirror;
    no analytics), outage regions supported, credits, MIT LICENSE.
-8. [ ] Independent review of HomeMode/Adb by a fresh agent before tagging v1.0.0.
+8. [x] Independent review (done 2026-10-22; all must-fix and should-fix items addressed, see git log) of HomeMode/Adb by a fresh agent before tagging v1.0.0.

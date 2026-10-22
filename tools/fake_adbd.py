@@ -30,6 +30,178 @@ if os.environ.get("FAKE_ADBD_ANSWERS"):
     ANSWERS.update(json.load(open(os.environ["FAKE_ADBD_ANSWERS"])))
 
 
+# ---------------------------------------------------------------------------------------------------------------
+# A simulated Google TV for HomeMode tests (python3 fake_adbd.py PORT --tv). It keeps state across connections and
+# behaves like Android where it matters: turning off an app deletes the Wi-Fi networks it saved, a disabled home
+# app stops being a HOME candidate, the HOME role falls back to another candidate, settings and files persist.
+# Test-only commands: "fake:reset", "fake:flag NAME 1|0", "fake:networks owner1,owner2", "fake:state" (JSON).
+# ---------------------------------------------------------------------------------------------------------------
+import json
+import re
+
+LAUNCHERX = "com.google.android.apps.tv.launcherx"
+SETUP = "com.google.android.tungsten.setupwraith"
+LEHKO = "ua.lehko.tv"
+
+
+class TV:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.reset()
+
+    def reset(self):
+        self.pkgs = {p: True for p in [
+            LAUNCHERX, SETUP, LEHKO, "com.google.android.apps.tv.dreamx", "com.google.android.katniss",
+            "com.google.android.youtube.tv", "com.netflix.ninja", "com.android.tv.settings",
+            "com.google.android.gms", "com.android.vending", "com.google.android.play.games"]}
+        self.homes = {
+            LAUNCHERX: LAUNCHERX + "/.home.HomeActivity",
+            SETUP: SETUP + "/.RecoveryActivity",
+            LEHKO: LEHKO + "/.HomeActivity",
+            "com.android.tv.settings": "com.android.tv.settings/.FallbackHome",
+        }
+        self.holder = LAUNCHERX
+        self.settings = {"secure": {"screensaver_components": "com.google.android.apps.tv.dreamx/.service.Backdrop",
+                                    "screensaver_enabled": "1"}, "global": {}}
+        self.networks = [("HomeWiFi", "com.android.tv.settings")]
+        self.files = {}
+        self.flags = {}
+        self.log = []
+
+    def candidates(self):
+        return [c for p, c in self.homes.items() if self.pkgs.get(p)]
+
+    def fallback_holder(self, exclude=None):
+        for p, c in self.homes.items():
+            if self.pkgs.get(p) and p != exclude and "FallbackHome" not in c:
+                return p
+        return ""
+
+    def run(self, cmd):
+        with self.lock:
+            self.log.append(cmd)
+            if "; " in cmd and cmd.startswith("echo "):
+                return "".join(self.run_one(part) for part in cmd.split("; "))
+            return self.run_one(cmd)
+
+    def run_one(self, cmd):
+        m = re.fullmatch(r"echo '(.*)' (>>?) (\S+)", cmd)
+        if m:
+            text, op, path = m.groups()
+            self.files[path] = (self.files.get(path, "") if op == ">>" else "") + text + "\n"
+            return ""
+        if cmd == "fake:reset":
+            self.reset()
+            return "ok\n"
+        if cmd.startswith("fake:flag "):
+            _, name, value = cmd.split(" ")
+            self.flags[name] = value == "1"
+            return "ok\n"
+        if cmd.startswith("fake:networks "):
+            owners = cmd.split(" ", 1)[1]
+            self.networks = [("Net%d" % i, o) for i, o in enumerate(owners.split(",")) if o]
+            return "ok\n"
+        if cmd == "fake:state":
+            return json.dumps({"pkgs": self.pkgs, "holder": self.holder, "settings": self.settings,
+                               "networks": self.networks, "files": self.files}) + "\n"
+        m = re.fullmatch(r"cat (\S+)( 2>/dev/null)?", cmd)
+        if m:
+            return self.files.get(m.group(1), "")
+        m = re.fullmatch(r"rm -f (\S+)", cmd)
+        if m:
+            self.files.pop(m.group(1), None)
+            return ""
+        m = re.fullmatch(r"pm list packages ?(-d)?", cmd)
+        if m:
+            if self.flags.get("pm_broken"):
+                return "Error: could not access the Package Manager.  Is the system running?\n"
+            only_off = m.group(1) == "-d"
+            return "".join("package:%s\n" % p for p, on in self.pkgs.items() if (not on) == only_off or not only_off)
+        m = re.fullmatch(r"pm (disable-user --user 0|enable) (\S+)", cmd)
+        if m:
+            action, p = m.groups()
+            if p not in self.pkgs:
+                return "Error: java.lang.IllegalArgumentException: Unknown package: %s\n" % p
+            if self.flags.get("pm_disable_fails") and action != "enable":
+                return "Error: java.lang.SecurityException: Shell cannot change component state\n"
+            on = action == "enable"
+            self.pkgs[p] = on
+            if not on:
+                # Android 11+: networks saved by a turned-off app are removed.
+                self.networks = [n for n in self.networks if n[1] != p]
+                if self.holder == p:
+                    self.holder = self.fallback_holder(exclude=p)
+            return "Package %s new state: %s\n" % (p, "enabled" if on else "disabled-user")
+        m = re.fullmatch(r"pm path (\S+)", cmd)
+        if m:
+            return "package:/data/app/%s/base.apk\n" % m.group(1) if m.group(1) in self.pkgs else ""
+        m = re.fullmatch(r"pm uninstall (\S+)", cmd)
+        if m:
+            p = m.group(1)
+            if p in self.pkgs:
+                del self.pkgs[p]
+                if self.holder == p:
+                    self.holder = self.fallback_holder(exclude=p)
+                return "Success\n"
+            return "Failure [DELETE_FAILED_INTERNAL_ERROR]\n"
+        if cmd == "cmd role get-role-holders --user 0 android.app.role.HOME":
+            return self.holder + "\n" if self.holder else "\n"
+        m = re.fullmatch(r"cmd role (add|remove)-role-holder --user 0 android\.app\.role\.HOME (\S+)", cmd)
+        if m:
+            op, p = m.groups()
+            if op == "add" and self.pkgs.get(p) and p in self.homes:
+                self.holder = p
+            elif op == "remove" and self.holder == p:
+                self.holder = self.fallback_holder(exclude=p)
+            return ""
+        if cmd.startswith("cmd package resolve-activity --brief") and "category.HOME" in cmd:
+            if self.holder:
+                return "priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true\n%s\n" % self.homes[self.holder]
+            return "priority=0 preferredOrder=0 match=0x0 specificIndex=-1 isDefault=false\nandroid/com.android.internal.app.ResolverActivity\n"
+        if cmd.startswith("cmd package query-activities --brief") and "category.HOME" in cmd:
+            c = self.candidates()
+            out = "%d activities found:\n" % len(c)
+            for i, comp in enumerate(c):
+                out += "  Activity #%d:\n    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true\n    %s\n" % (i, comp)
+            return out
+        m = re.fullmatch(r"cmd package set-home-activity --user 0 (\S+)", cmd)
+        if m:
+            comp = m.group(1)
+            p = comp.split("/")[0]
+            if self.pkgs.get(p) and self.homes.get(p) == comp:
+                self.holder = p
+                return "Success\n"
+            return "Error: Failed to set the home activity\n"
+        m = re.fullmatch(r"settings (get|put|delete) (secure|global) (\S+) ?(\S+)?", cmd)
+        if m:
+            op, ns, key, value = m.groups()
+            if op == "get":
+                return self.settings[ns].get(key, "null") + "\n"
+            if op == "put":
+                self.settings[ns][key] = value
+            else:
+                self.settings[ns].pop(key, None)
+            return ""
+        if cmd.startswith("dumpsys wifi | grep"):
+            if self.flags.get("dumpsys_broken"):
+                return ""
+            return "WifiConfigManager\n" + "".join("cname=%s\n" % o for _, o in self.networks)
+        if cmd == "cmd wifi list-networks 2>&1":
+            if self.flags.get("list_unsupported"):
+                return "Unknown command: list-networks\n"
+            if not self.networks:
+                return "No networks\n"
+            return "Network Id      SSID                         Security type\n" + "".join(
+                "%d            %s                      wpa2-psk\n" % (i, n[0]) for i, n in enumerate(self.networks))
+        if cmd.startswith("am start"):
+            return "Starting: Intent { act=android.intent.action.MAIN cat=[android.intent.category.HOME] }\n"
+        return "/system/bin/sh: %s: inaccessible or not found\n" % cmd.split(" ")[0]
+
+
+TV_MODE = "--tv" in sys.argv
+THE_TV = TV()
+
+
 def parse_pubkey(blob: bytes):
     raw = base64.b64decode(blob.split(b" ")[0].rstrip(b"\0"))
     words = struct.unpack_from("<I", raw, 0)[0]
@@ -110,7 +282,7 @@ class Conn:
                 command = service[6:]
                 LOG.append("shell: " + command)
                 self.send(OKAY, remote, local)
-                out = ANSWERS.get(command, "")
+                out = THE_TV.run(command) if TV_MODE else ANSWERS.get(command, "")
                 if command.startswith("big"):
                     out = "x" * 100000 + "\n"
                 for i in range(0, len(out.encode()), 4096):
@@ -151,4 +323,5 @@ def serve(port):
 
 
 if __name__ == "__main__":
-    serve(int(sys.argv[1]) if len(sys.argv) > 1 else 5555)
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    serve(int(args[0]) if args else 5555)

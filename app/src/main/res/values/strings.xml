@@ -108,7 +108,7 @@
     <string name="step_adb">Turn on “USB debugging”: Settings → System → Developer options.</string>
     <string name="step_allow">3.  Press “Turn on” and allow debugging in the window that appears (tick “Always allow”).</string>
     <string name="enable_full">Also turn off the stock launcher</string>
-    <string name="enable_full_hint">Frees the most memory and removes its ads. It isn’t deleted and comes back when you switch back.</string>
+    <string name="enable_full_hint">Frees the most memory and removes its ads. It isn’t deleted and comes back when you switch back. Try without it first; if the Home button still opens the stock screen, turn it on. With it on, always switch back before uninstalling Lehko.</string>
     <string name="enable_button">Turn on</string>
     <string name="open_about">Open “About”</string>
     <string name="open_developer">Open developer options</string>
@@ -147,4 +147,16 @@
     <string name="cleanup_hint_ambient">Google’s screensaver</string>
     <string name="state_on">On</string>
     <string name="state_off">Off</string>
+    <string name="safe_mode_text">Lehko’s home screen stopped working, so the TV’s own home screen is coming back…
+
+If the TV asks “Allow USB debugging?”, press OK.</string>
+    <string name="safe_mode_retry">Try again</string>
+    <string name="result_home_failed">Couldn’t give the home screen back to the TV. Try again, or run scripts/revert from a computer.</string>
+    <string name="result_still_off">Still turned off: %s</string>
+    <string name="verify_no_debugging">“USB debugging” is off, so Lehko can’t check itself after TV updates. Turn it back on in Developer options.</string>
+    <string name="verify_no_permission">The TV forgot Lehko’s debugging permission. Open Lehko settings, press “Home screen” and allow debugging again.</string>
+    <string name="wifi_check_error">Lehko couldn’t check which apps saved your Wi-Fi network, so it turned nothing off (turning off such an app would make Android forget the network). Try again in a minute, or turn Lehko on without turning off the stock launcher.</string>
+    <string name="cleanup_system_warning">This is a system app of your TV. Turning it off is safe to undo here, but some TV features may stop working until you turn it back on.</string>
+    <string name="cleanup_turn_off">Turn off</string>
+    <string name="cleanup_system">system</string>
 </resources>

@@ -7,6 +7,9 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.provider.Settings;
@@ -172,16 +175,35 @@ final class Apps {
 
     // MARK: - Pictures
 
-    /** Banners and icons of the apps on screen. Small on purpose: about 30 tiles' worth. */
-    private static final LruCache<String, Drawable> PICTURES = new LruCache<>(32);
+    /**
+     * Banners and icons of the apps on screen, already scaled down to tile size (some apps ship 1280x720+ banners).
+     * Sized by memory: about 8 MB, roughly 30 tiles.
+     */
+    private static final LruCache<String, Drawable> PICTURES = new LruCache<String, Drawable>(8 * 1024) {
+        @Override protected int sizeOf(String key, Drawable d) {
+            if (d instanceof BitmapDrawable && ((BitmapDrawable) d).getBitmap() != null) {
+                return Math.max(1, ((BitmapDrawable) d).getBitmap().getByteCount() / 1024);
+            }
+            return 64;
+        }
+    };
+    private static final Map<String, Boolean> BANNER = Collections.synchronizedMap(new HashMap<String, Boolean>());
 
     /** A cached banner or icon, or null if it hasn't been loaded yet. */
     static Drawable cached(Entry a) {
         return PICTURES.get(a.pkg);
     }
 
-    /** The app's TV banner, or its icon (then {@code banner[0]} is false). Call off the UI thread. */
-    static Drawable picture(Context c, Entry a, boolean[] banner) {
+    static boolean cachedIsBanner(Entry a) {
+        Boolean b = BANNER.get(a.pkg);
+        return b != null && b;
+    }
+
+    /**
+     * The app's TV banner scaled to {@code w x h}, or its icon (then {@code banner[0]} is false), as a small bitmap.
+     * Call off the UI thread.
+     */
+    static Drawable picture(Context c, Entry a, boolean[] banner, int w, int h) {
         PackageManager pm = c.getPackageManager();
         Drawable d = null;
         try {
@@ -194,15 +216,31 @@ final class Apps {
             banner[0] = false;
         }
         if (d == null) d = pm.getDefaultActivityIcon();
-        return d;
+        int icon = Math.round(48 * c.getResources().getDisplayMetrics().density);
+        try {
+            Bitmap b = banner[0] ? render(d, w, h, true) : render(d, icon, icon, false);
+            return new BitmapDrawable(c.getResources(), b);
+        } catch (RuntimeException | OutOfMemoryError e) {
+            return d;
+        }
     }
 
-    static boolean cachedIsBanner(Entry a) {
-        Boolean b = BANNER.get(a.pkg);
-        return b != null && b;
+    /** Draws {@code d} into a w x h bitmap: cropped to fill (banners) or fitted inside (icons). */
+    private static Bitmap render(Drawable d, int w, int h, boolean crop) {
+        Bitmap b = Bitmap.createBitmap(Math.max(1, w), Math.max(1, h), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(b);
+        int iw = d.getIntrinsicWidth(), ih = d.getIntrinsicHeight();
+        if (iw <= 0 || ih <= 0) {
+            d.setBounds(0, 0, w, h);
+        } else {
+            float scale = crop ? Math.max(w / (float) iw, h / (float) ih) : Math.min(w / (float) iw, h / (float) ih);
+            int dw = Math.round(iw * scale), dh = Math.round(ih * scale);
+            int left = (w - dw) / 2, top = (h - dh) / 2;
+            d.setBounds(left, top, left + dw, top + dh);
+        }
+        d.draw(canvas);
+        return b;
     }
-
-    private static final Map<String, Boolean> BANNER = Collections.synchronizedMap(new HashMap<String, Boolean>());
 
     static void remember(Entry a, Drawable d, boolean banner) {
         PICTURES.put(a.pkg, d);

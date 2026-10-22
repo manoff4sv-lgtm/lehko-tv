@@ -106,7 +106,7 @@
     <string name="step_adb">Включите «Отладка по USB»: Настройки → Система → Для разработчиков.</string>
     <string name="step_allow">3.  Нажмите «Включить» и разрешите отладку в появившемся окне (отметьте «Всегда разрешать»).</string>
     <string name="enable_full">Также выключить стандартный лаунчер</string>
-    <string name="enable_full_hint">Освобождает больше всего памяти и убирает его рекламу. Он не удаляется и вернётся, когда вернёте стандартный экран.</string>
+    <string name="enable_full_hint">Освобождает больше всего памяти и убирает его рекламу. Он не удаляется и вернётся, когда вернёте стандартный экран. Сначала попробуйте без этого; если кнопка Home всё равно открывает стандартный экран, включите. В этом режиме всегда возвращайте стандартный экран перед удалением Lehko.</string>
     <string name="enable_button">Включить</string>
     <string name="open_about">Открыть «Об устройстве»</string>
     <string name="open_developer">Открыть параметры разработчика</string>
@@ -145,4 +145,16 @@
     <string name="cleanup_hint_ambient">заставка Google</string>
     <string name="state_on">Включено</string>
     <string name="state_off">Выключено</string>
+    <string name="safe_mode_text">Экран Lehko перестал работать, поэтому возвращаю стандартный экран телевизора…
+
+Если телевизор спросит «Разрешить отладку по USB?», нажмите OK.</string>
+    <string name="safe_mode_retry">Попробовать ещё раз</string>
+    <string name="result_home_failed">Не удалось вернуть стандартный экран. Попробуйте ещё раз или запустите scripts/revert с компьютера.</string>
+    <string name="result_still_off">Всё ещё выключено: %s</string>
+    <string name="verify_no_debugging">«Отладка по USB» выключена, поэтому Lehko не может проверить себя после обновлений телевизора. Включите её снова в параметрах разработчика.</string>
+    <string name="verify_no_permission">Телевизор забыл разрешение отладки для Lehko. Откройте настройки Lehko, нажмите «Главный экран» и разрешите отладку снова.</string>
+    <string name="wifi_check_error">Lehko не смог проверить, какие приложения сохранили вашу сеть Wi-Fi, поэтому ничего не выключал (если выключить такое приложение, Android забудет сеть). Попробуйте через минуту или включите Lehko без выключения стандартного лаунчера.</string>
+    <string name="cleanup_system_warning">Это системное приложение телевизора. Выключение можно отменить здесь же, но некоторые функции телевизора могут не работать, пока не включите его обратно.</string>
+    <string name="cleanup_turn_off">Выключить</string>
+    <string name="cleanup_system">системное</string>
 </resources>

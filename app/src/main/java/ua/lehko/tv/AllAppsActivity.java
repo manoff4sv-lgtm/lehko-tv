@@ -191,7 +191,7 @@ public final class AllAppsActivity extends Activity {
                 App.IO.execute(new Runnable() {
                     @Override public void run() {
                         final boolean[] banner = new boolean[1];
-                        final Drawable pic = Apps.picture(app, a, banner);
+                        final Drawable pic = Apps.picture(app, a, banner, tileW, tileH);
                         Apps.remember(a, pic, banner[0]);
                         App.MAIN.post(new Runnable() {
                             @Override public void run() {

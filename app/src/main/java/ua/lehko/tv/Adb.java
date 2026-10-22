@@ -81,7 +81,10 @@ final class Adb implements Closeable {
         out = socket.getOutputStream();
     }
 
-    /** Connects and authenticates; if the TV doesn't know Lehko's key yet, waits up to {@code approvalMs} for you. */
+    /**
+     * Connects and authenticates; if the TV doesn't know Lehko's key yet, waits up to {@code approvalMs} for you.
+     * {@code approvalMs <= 0}: never ask, fail with NOT_ALLOWED instead (for background checks).
+     */
     static Adb connect(Context c, int approvalMs, Approval approval) throws IOException {
         return connect(c.getNoBackupFilesDir(), "127.0.0.1", PORT, approvalMs, approval);
     }
@@ -115,6 +118,10 @@ final class Adb implements Closeable {
                 } catch (SocketTimeoutException e) {
                     throw offered ? new Failure(Failure.NOT_ALLOWED, "debugging was not allowed on the TV")
                             : new Failure(Failure.PROTOCOL, "the TV's debugging service didn't answer");
+                } catch (java.io.EOFException e) {
+                    // adbd may simply hang up when "Deny" is pressed.
+                    throw offered ? new Failure(Failure.NOT_ALLOWED, "debugging was not allowed on the TV")
+                            : new Failure(Failure.PROTOCOL, "the TV's debugging service closed the connection");
                 }
                 if (m.command == CNXN) {
                     s.setSoTimeout(30_000);
@@ -125,6 +132,9 @@ final class Adb implements Closeable {
                 if (!signed) {
                     adb.send(AUTH, AUTH_SIGNATURE, 0, sign((RSAPrivateKey) keys.getPrivate(), m.data));
                     signed = true;
+                } else if (approvalMs <= 0) {
+                    // Background checks never pop up "Allow USB debugging?" out of the blue.
+                    throw new Failure(Failure.NOT_ALLOWED, "the TV doesn't know Lehko's key any more");
                 } else if (!offered) {
                     // The TV doesn't know the key: offer it, the TV shows "Allow USB debugging?".
                     adb.send(AUTH, AUTH_RSAPUBLICKEY, 0, publicKeyBlob((RSAPublicKey) keys.getPublic()));

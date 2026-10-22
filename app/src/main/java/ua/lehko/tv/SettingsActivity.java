@@ -507,7 +507,7 @@ public final class SettingsActivity extends Activity {
                 final boolean err = error;
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
-                        if (isDestroyed()) {
+                        if (isDestroyed() || isFinishing()) {
                             Prefs.notice(getApplicationContext(), m);
                             return;
                         }
@@ -530,6 +530,7 @@ public final class SettingsActivity extends Activity {
             }
         }
         if (e instanceof HomeMode.WifiOwnerException) return getString(R.string.wifi_owner_error, e.getMessage());
+        if (e instanceof HomeMode.WifiCheckException) return getString(R.string.wifi_check_error);
         if (e instanceof HomeMode.Refused) return getString(R.string.home_not_accepted);
         return getString(R.string.error_generic, e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
     }
@@ -567,7 +568,7 @@ public final class SettingsActivity extends Activity {
                 final Exception err = error;
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
-                        if (isDestroyed()) return;
+                        if (isDestroyed() || isFinishing()) return;
                         status.setVisibility(View.GONE);
                         if (err != null) {
                             Toast.makeText(SettingsActivity.this, getString(R.string.network_error), Toast.LENGTH_LONG).show();
@@ -605,7 +606,9 @@ public final class SettingsActivity extends Activity {
     private void submitOnEnter(final AlertDialog d, EditText input, final Runnable submit) {
         input.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-                submit.run();
+                // A hardware Enter sends both a down and an up event: act once.
+                if (event != null && event.getAction() != KeyEvent.ACTION_DOWN) return true;
+                if (d.isShowing()) submit.run();
                 return true;
             }
         });

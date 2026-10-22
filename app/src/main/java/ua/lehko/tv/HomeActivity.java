@@ -39,7 +39,13 @@ public final class HomeActivity extends Activity {
 
     private List<Apps.Entry> apps = new ArrayList<>();
     private List<Inputs.Input> inputs = new ArrayList<>();
-    private boolean appsDirty = true, resumed, weatherLoading, outageLoading;
+    private boolean appsDirty = true, resumed, weatherLoading, outageLoading, appsLoaded, focusedOnce;
+    /** Safe mode (see Watchdog): this activity shows only a plain message and does nothing else. */
+    private boolean safe;
+    private TextView safeText;
+    /** After a failed download, wait a while before trying again (offline during an outage, for example). */
+    private static final long RETRY_AFTER_FAILURE_MS = 5 * 60_000L;
+    private long weatherFailedAt, outageFailedAt;
     private Outages.Schedule schedule;
     private int tileW, tileH, smallW, smallH, gap;
     private String focusPkgAfterRebuild;
@@ -47,11 +53,7 @@ public final class HomeActivity extends Activity {
     private final Runnable ticker = new Runnable() {
         @Override public void run() {
             showOutage();
-            if (Weather.stale(HomeActivity.this)) refreshWeather();
-            if (Outages.enabled(HomeActivity.this)
-                    && System.currentTimeMillis() - Outages.fetchedAt(HomeActivity.this) > OUTAGE_MAX_AGE_MS) {
-                refreshOutage();
-            }
+            maybeRefresh();
             long now = System.currentTimeMillis();
             App.MAIN.postDelayed(this, 60_000 - now % 60_000 + 200);
         }
@@ -94,6 +96,11 @@ public final class HomeActivity extends Activity {
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        if (Watchdog.safeMode(this)) {
+            safe = true;
+            showSafeMode();
+            return;
+        }
         setContentView(R.layout.home);
         favoritesRow = findViewById(R.id.favorites);
         favoritesScroll = findViewById(R.id.favorites_scroll);
@@ -133,21 +140,27 @@ public final class HomeActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
-        LauncherApps la = (LauncherApps) getSystemService(Context.LAUNCHER_APPS_SERVICE);
-        if (la != null) la.unregisterCallback(packages);
+        App.MAIN.removeCallbacks(safeWatch);
+        if (!safe) {
+            LauncherApps la = (LauncherApps) getSystemService(Context.LAUNCHER_APPS_SERVICE);
+            if (la != null) la.unregisterCallback(packages);
+            App.MAIN.removeCallbacks(hideNotice);
+            App.MAIN.removeCallbacks(ticker);
+        }
         super.onDestroy();
     }
 
     @Override protected void onResume() {
         super.onResume();
+        if (safe) return;
         resumed = true;
         if (appsDirty) loadApps();
+        else if (appsLoaded) buildFavorites(); // favorites may have changed in All apps
         loadInputs();
         showWeather(Weather.cached(this));
-        if (Weather.stale(this)) refreshWeather();
         schedule = Outages.cached(this);
         showOutage();
-        if (Outages.enabled(this) && System.currentTimeMillis() - Outages.fetchedAt(this) > OUTAGE_MAX_AGE_MS) refreshOutage();
+        maybeRefresh();
         App.MAIN.removeCallbacks(ticker);
         App.MAIN.postDelayed(ticker, 60_000 - System.currentTimeMillis() % 60_000 + 200);
         String n = Prefs.takeNotice(this);
@@ -160,6 +173,10 @@ public final class HomeActivity extends Activity {
     }
 
     @Override protected void onPause() {
+        if (safe) {
+            super.onPause();
+            return;
+        }
         resumed = false;
         App.MAIN.removeCallbacks(ticker);
         super.onPause();
@@ -168,6 +185,7 @@ public final class HomeActivity extends Activity {
     /** Home pressed while already home: back to the first favorite. */
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        if (safe) return;
         favoritesScroll.smoothScrollTo(0, 0);
         if (favoritesRow.getChildCount() > 0) favoritesRow.getChildAt(0).requestFocus();
     }
@@ -189,6 +207,7 @@ public final class HomeActivity extends Activity {
                     @Override public void run() {
                         if (isDestroyed()) return;
                         apps = all;
+                        appsLoaded = true;
                         buildFavorites();
                     }
                 });
@@ -231,9 +250,11 @@ public final class HomeActivity extends Activity {
         addWithGap(favoritesRow, add);
         if (toFocus != null) {
             toFocus.requestFocus();
-        } else if (getCurrentFocus() == null || hadFocus) {
+        } else if (getCurrentFocus() == null || hadFocus || !focusedOnce) {
+            // On a cold start the shortcuts row exists first; the first favorite is where people expect to be.
             favoritesRow.getChildAt(0).requestFocus();
         }
+        focusedOnce = true;
     }
 
     private Tile appTile(final Apps.Entry a, int w, int h) {
@@ -248,7 +269,7 @@ public final class HomeActivity extends Activity {
             App.IO.execute(new Runnable() {
                 @Override public void run() {
                     final boolean[] banner = new boolean[1];
-                    final Drawable pic = Apps.picture(app, a, banner);
+                    final Drawable pic = Apps.picture(app, a, banner, w, h);
                     Apps.remember(a, pic, banner[0]);
                     App.MAIN.post(new Runnable() {
                         @Override public void run() {
@@ -288,6 +309,7 @@ public final class HomeActivity extends Activity {
     }
 
     private void favoriteMenu(final Apps.Entry a) {
+        if (isFinishing() || isDestroyed()) return;
         final List<String> favs = Prefs.favorites(this);
         final int index = favs.indexOf(a.pkg);
         final List<Integer> actions = new ArrayList<>();
@@ -397,11 +419,21 @@ public final class HomeActivity extends Activity {
 
     // MARK: - Weather
 
+    /** Downloads what is stale, but not again within a few minutes of a failure. */
+    private void maybeRefresh() {
+        long now = System.currentTimeMillis();
+        if (Weather.stale(this) && now - weatherFailedAt > RETRY_AFTER_FAILURE_MS) refreshWeather();
+        if (Outages.enabled(this) && now - Outages.fetchedAt(this) > OUTAGE_MAX_AGE_MS
+                && now - outageFailedAt > RETRY_AFTER_FAILURE_MS) {
+            refreshOutage();
+        }
+    }
+
     private void refreshWeather() {
         if (weatherLoading || Weather.place(this) == null) return;
         weatherLoading = true;
         final Context app = getApplicationContext();
-        App.IO.execute(new Runnable() {
+        App.NET.execute(new Runnable() {
             @Override public void run() {
                 Weather.Data d = null;
                 try {
@@ -413,6 +445,7 @@ public final class HomeActivity extends Activity {
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
                         weatherLoading = false;
+                        if (result == null) weatherFailedAt = System.currentTimeMillis();
                         if (!isDestroyed()) showWeather(result != null ? result : Weather.cached(HomeActivity.this));
                     }
                 });
@@ -462,7 +495,7 @@ public final class HomeActivity extends Activity {
         if (outageLoading) return;
         outageLoading = true;
         final Context app = getApplicationContext();
-        App.IO.execute(new Runnable() {
+        App.NET.execute(new Runnable() {
             @Override public void run() {
                 Outages.Schedule s = null;
                 try {
@@ -474,6 +507,7 @@ public final class HomeActivity extends Activity {
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
                         outageLoading = false;
+                        if (result == null) outageFailedAt = System.currentTimeMillis();
                         if (isDestroyed()) return;
                         if (result != null) schedule = result;
                         showOutage();
@@ -510,4 +544,60 @@ public final class HomeActivity extends Activity {
             if (tomorrow != null) tomorrowBar.set(tomorrow.slots, -1);
         }
     }
+
+    // MARK: - Safe mode
+
+    /** A plain screen while the original home screen is being brought back after repeated crashes. */
+    private void showSafeMode() {
+        android.widget.LinearLayout box = new android.widget.LinearLayout(this);
+        box.setOrientation(android.widget.LinearLayout.VERTICAL);
+        box.setGravity(android.view.Gravity.CENTER);
+        int pad = Math.round(48 * getResources().getDisplayMetrics().density);
+        box.setPadding(pad, pad, pad, pad);
+        safeText = new TextView(this);
+        safeText.setTextSize(18);
+        safeText.setTextColor(0xFFF2F4F7);
+        safeText.setGravity(android.view.Gravity.CENTER);
+        safeText.setText(R.string.safe_mode_text);
+        box.addView(safeText);
+        android.widget.Button retry = new android.widget.Button(this);
+        retry.setText(R.string.safe_mode_retry);
+        retry.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                safeText.setText(R.string.safe_mode_text);
+                Watchdog.revertInBackground(getApplicationContext());
+            }
+        });
+        android.widget.Button settings = new android.widget.Button(this);
+        settings.setText(R.string.tv_settings);
+        settings.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Apps.start(HomeActivity.this, new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            }
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = pad / 2;
+        box.addView(retry, lp);
+        box.addView(settings, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        box.setBackgroundColor(0xFF0B0D11);
+        setContentView(box);
+        retry.requestFocus();
+        Watchdog.revertInBackground(getApplicationContext());
+        App.MAIN.postDelayed(safeWatch, 3_000);
+    }
+
+    /** Follows the switch back: gone when it worked, a hint when it didn't. */
+    private final Runnable safeWatch = new Runnable() {
+        @Override public void run() {
+            if (isDestroyed()) return;
+            if (!Watchdog.safeMode(HomeActivity.this)) {
+                finish();
+                return;
+            }
+            if (!Watchdog.isReverting()) safeText.setText(R.string.reverted_crash_failed);
+            App.MAIN.postDelayed(this, 3_000);
+        }
+    };
 }

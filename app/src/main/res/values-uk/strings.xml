@@ -106,7 +106,7 @@
     <string name="step_adb">Увімкніть «Налагодження USB»: Налаштування → Система → Параметри розробника.</string>
     <string name="step_allow">3.  Натисніть «Увімкнути» і дозвольте налагодження у вікні, що зʼявиться (позначте «Завжди дозволяти»).</string>
     <string name="enable_full">Також вимкнути стандартний лаунчер</string>
-    <string name="enable_full_hint">Звільняє найбільше памʼяті й прибирає його рекламу. Він не видаляється і повернеться, коли повернете стандартний екран.</string>
+    <string name="enable_full_hint">Звільняє найбільше памʼяті й прибирає його рекламу. Він не видаляється і повернеться, коли повернете стандартний екран. Спершу спробуйте без цього; якщо кнопка Home все одно відкриває стандартний екран, увімкніть. З цим режимом завжди повертайте стандартний екран перед видаленням Lehko.</string>
     <string name="enable_button">Увімкнути</string>
     <string name="open_about">Відкрити «Про пристрій»</string>
     <string name="open_developer">Відкрити параметри розробника</string>
@@ -145,4 +145,16 @@
     <string name="cleanup_hint_ambient">заставка Google</string>
     <string name="state_on">Увімкнено</string>
     <string name="state_off">Вимкнено</string>
+    <string name="safe_mode_text">Екран Lehko перестав працювати, тому повертаю стандартний екран телевізора…
+
+Якщо телевізор спитає «Дозволити налагодження USB?», натисніть OK.</string>
+    <string name="safe_mode_retry">Спробувати ще раз</string>
+    <string name="result_home_failed">Не вдалося повернути стандартний екран. Спробуйте ще раз або запустіть scripts/revert з компʼютера.</string>
+    <string name="result_still_off">Досі вимкнено: %s</string>
+    <string name="verify_no_debugging">«Налагодження USB» вимкнене, тому Lehko не може перевірити себе після оновлень телевізора. Увімкніть його знову в Параметрах розробника.</string>
+    <string name="verify_no_permission">Телевізор забув дозвіл налагодження для Lehko. Відкрийте налаштування Lehko, натисніть «Головний екран» і дозвольте налагодження знову.</string>
+    <string name="wifi_check_error">Lehko не зміг перевірити, які додатки зберегли вашу мережу Wi-Fi, тому нічого не вимикав (якщо вимкнути такий додаток, Android забуде мережу). Спробуйте за хвилину або ввімкніть Lehko без вимкнення стандартного лаунчера.</string>
+    <string name="cleanup_system_warning">Це системний додаток телевізора. Вимкнення можна скасувати тут же, але деякі функції телевізора можуть не працювати, доки не ввімкнете його назад.</string>
+    <string name="cleanup_turn_off">Вимкнути</string>
+    <string name="cleanup_system">системний</string>
 </resources>
