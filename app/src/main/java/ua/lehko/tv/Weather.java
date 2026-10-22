@@ -63,7 +63,8 @@ final class Weather {
     static String url(double lat, double lon, boolean fahrenheit) {
         return "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon
                 + "&current=temperature_2m,weather_code,is_day"
-                + "&hourly=temperature_2m,weather_code,is_day&forecast_hours=6"
+                // The current hour and six more: five still to come for the whole half hour until the next download.
+                + "&hourly=temperature_2m,weather_code,is_day&forecast_hours=7"
                 + "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset"
                 + "&minutely_15=precipitation&forecast_minutely_15=16&forecast_days=2&timezone=auto"
                 + (fahrenheit ? "&temperature_unit=fahrenheit" : "");
