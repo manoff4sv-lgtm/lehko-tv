@@ -164,6 +164,7 @@ s("about_text",
   "Lehko бесплатный и с открытым кодом: %s\\n\\nПогода от Open-Meteo, графики отключений от YASNO и ДТЭК (через проект outage-data-ua), курсы валют от Монобанка и НБУ. Без аккаунтов, рекламы и слежки.\\n\\nПеред удалением Lehko верните стандартный главный экран, иначе телевизор может остаться без него.")
 
 # FIX-STRINGS-HOME (temporary anchor: new strings of the 'home' fixes go right below)
+s("weather_offline", "No weather yet · no connection", "Погоди поки немає · немає зʼєднання", "Погоды пока нет · нет соединения")
 
 s("enable_title", "Make Lehko the home screen", "Зробити Lehko головним екраном", "Сделать Lehko главным экраном")
 s("enable_intro", "Android TV lets only its debugging mode change the home screen. Lehko uses it on the TV itself, no computer needed.", "Змінити головний екран на Android TV можна лише через режим налагодження. Lehko користується ним прямо на телевізорі, компʼютер не потрібен.", "Сменить главный экран на Android TV можно только через режим отладки. Lehko пользуется им прямо на телевизоре, компьютер не нужен.")

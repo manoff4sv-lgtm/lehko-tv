@@ -13,6 +13,7 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.media.tv.TvInputInfo;
 import android.media.tv.TvInputManager;
+import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.os.UserHandle;
@@ -21,6 +22,7 @@ import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
+import android.text.format.DateUtils;
 import android.text.style.ForegroundColorSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -44,6 +46,8 @@ import java.util.Locale;
  */
 public final class HomeActivity extends Activity {
     private static final long OUTAGE_MAX_AGE_MS = 10 * 60_000L;
+    /** No successful refresh for this long (offline in an outage): the schedule may be out of date, the line says so. */
+    private static final long OUTAGE_OLD_MS = 2 * 3600_000L;
 
     private LinearLayout favoritesRow, quickRow, weatherHours, info;
     private View details, tomorrowBox, header, quickScroll;
@@ -830,6 +834,9 @@ public final class HomeActivity extends Activity {
 
     /** Downloads what is stale, but not again within a few minutes of a failure. */
     private void maybeRefresh() {
+        // No network yet (just booted or woken, the router still starting): a try would fail at once and hold the
+        // next one off for minutes. The minute ticker tries again.
+        if (!online()) return;
         long now = System.currentTimeMillis();
         if (Weather.stale(this) && now - weatherFailedAt > RETRY_AFTER_FAILURE_MS) refreshWeather();
         if (Rates.due(this) && now - ratesFailedAt > RETRY_AFTER_FAILURE_MS) refreshRates();
@@ -837,6 +844,23 @@ public final class HomeActivity extends Activity {
                 && now - outageFailedAt > RETRY_AFTER_FAILURE_MS) {
             refreshOutage();
         }
+    }
+
+    private boolean online() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        return cm == null || cm.getActiveNetwork() != null;
+    }
+
+    /** A past moment for "no update since": the time if it was today, else the date too. In the TV's 12/24-hour style. */
+    private String since(long t) {
+        if (DateUtils.isToday(t)) return DateFormat.getTimeFormat(this).format(t);
+        return DateUtils.formatDateTime(this, t,
+                DateUtils.FORMAT_SHOW_DATE | DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_ABBREV_MONTH);
+    }
+
+    /** For a hint that follows other text after a comma or a dot. */
+    private static String lowerFirst(String s) {
+        return s.substring(0, 1).toLowerCase(Locale.getDefault()) + s.substring(1);
     }
 
     private void refreshWeather() {
@@ -855,7 +879,7 @@ public final class HomeActivity extends Activity {
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
                         weatherLoading = false;
-                        if (result == null) weatherFailedAt = System.currentTimeMillis();
+                        weatherFailedAt = result == null ? System.currentTimeMillis() : 0;
                         if (!isDestroyed()) showWeather(result != null ? result : Weather.cached(HomeActivity.this));
                     }
                 });
@@ -869,7 +893,10 @@ public final class HomeActivity extends Activity {
         if (Weather.place(this) == null || d == null) {
             weatherIcon.setImageDrawable(null);
             weatherTemp.setText("");
-            weatherText.setText(d == null && Weather.place(this) != null ? R.string.weather_loading : R.string.weather_pick_city);
+            if (Weather.place(this) == null) weatherText.setText(R.string.weather_pick_city);
+            // Nothing cached yet: "loading" only while a download can still come.
+            else if (!weatherLoading && (weatherFailedAt != 0 || !online())) weatherText.setText(R.string.weather_offline);
+            else weatherText.setText(R.string.weather_loading);
             weatherHours.setVisibility(View.GONE);
             weatherSun.setVisibility(View.GONE);
             return;
@@ -880,7 +907,7 @@ public final class HomeActivity extends Activity {
         String hint = null;
         long age = System.currentTimeMillis() - Weather.cacheTime(this);
         if (age > 3 * 3600_000L) {
-            hint = getString(R.string.weather_old, DateFormat.getTimeFormat(this).format(Weather.cacheTime(this)));
+            hint = getString(R.string.weather_old, since(Weather.cacheTime(this)));
         } else if (d.precipAt != null) {
             hint = getString(d.precipSnow ? R.string.weather_snow_at : R.string.weather_rain_at, d.precipAt);
         }
@@ -888,7 +915,7 @@ public final class HomeActivity extends Activity {
         if (hint == null) {
             weatherText.setText(sky);
         } else {
-            String h = hint.substring(0, 1).toLowerCase(Locale.getDefault()) + hint.substring(1);
+            String h = lowerFirst(hint);
             SpannableString t = new SpannableString(sky + ", " + h);
             t.setSpan(new ForegroundColorSpan(getColor(R.color.accent)), sky.length() + 2, t.length(),
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -1036,8 +1063,11 @@ public final class HomeActivity extends Activity {
             return;
         }
         long now = System.currentTimeMillis();
+        long fetched = Outages.fetchedAt(this);
+        boolean old = schedule != null && fetched > 0 && now - fetched > OUTAGE_OLD_MS;
         Outages.Status st = Outages.status(schedule, now);
-        String[] lines = OutageText.lines(this, schedule, st, Outages.chosenGroup(this));
+        // An old schedule says since when in place of the group (the line has room for one of them).
+        String[] lines = OutageText.lines(this, schedule, st, old ? null : Outages.chosenGroup(this));
         // "Power is on  until 22:00": the state large, the time smaller and lighter. No power is ember, maybe amber.
         SpannableString title = new SpannableString(lines[1] == null ? lines[0] : lines[0] + "  " + lines[1]);
         int color = getColor(st.state == Outages.OFF ? R.color.ember : st.state == Outages.MAYBE ? R.color.power_maybe
@@ -1051,8 +1081,18 @@ public final class HomeActivity extends Activity {
         }
         powerTitle.setText(title);
         powerTitle.setVisibility(View.VISIBLE);
-        powerDetail.setText(lines[2]);
-        powerDetail.setVisibility(lines[2] == null ? View.GONE : View.VISIBLE);
+        CharSequence detail = lines[2];
+        if (old) {
+            // "Outage in 2 h · no update since 09:00", the warning in amber like the weather's.
+            String h = getString(R.string.weather_old, since(fetched));
+            if (lines[2] != null) h = lowerFirst(h);
+            SpannableString t = new SpannableString(lines[2] == null ? h : lines[2] + " · " + h);
+            t.setSpan(new ForegroundColorSpan(getColor(R.color.accent)), t.length() - h.length(), t.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            detail = t;
+        }
+        powerDetail.setText(detail);
+        powerDetail.setVisibility(detail == null ? View.GONE : View.VISIBLE);
 
         Calendar k = Calendar.getInstance(Outages.KYIV);
         int kyivMinute = k.get(Calendar.HOUR_OF_DAY) * 60 + k.get(Calendar.MINUTE);
@@ -1060,7 +1100,7 @@ public final class HomeActivity extends Activity {
         Outages.Day tomorrow = schedule == null ? null : schedule.day(Outages.tomorrow());
         dial.set(today == null ? null : today.slots, kyivMinute);
         // Screen readers get today's ring in words with the second line.
-        if (today != null && lines[2] != null) powerDetail.setContentDescription(lines[2] + ". " + OutageText.describe(this, today.slots));
+        if (today != null && detail != null) powerDetail.setContentDescription(detail + ". " + OutageText.describe(this, today.slots));
         else powerDetail.setContentDescription(null);
         tomorrowBox.setVisibility(tomorrow != null ? View.VISIBLE : View.GONE);
         if (tomorrow != null) {
