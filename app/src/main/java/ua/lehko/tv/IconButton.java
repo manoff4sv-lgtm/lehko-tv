@@ -50,6 +50,7 @@ final class IconButton extends FrameLayout {
         int pad = Math.round(7 * getResources().getDisplayMetrics().density);
         LayoutParams bp = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.END | Gravity.BOTTOM);
         bp.setMargins(0, 0, pad, pad - Math.round(getResources().getDisplayMetrics().density));
+        badge.setVisibility(GONE);
         addView(badge, bp);
         setName(name);
         setFocusable(true);
@@ -62,15 +63,18 @@ final class IconButton extends FrameLayout {
         });
     }
 
-    /** The name (read aloud and shown under the favorites); a trailing number becomes the badge. */
+    /** The name, read aloud and shown under the favorites. */
     void setName(CharSequence name) {
         setContentDescription(name);
-        String b = badgeOf(name == null ? "" : name.toString());
+    }
+
+    /** The small number in the corner (an input's port), or "" for none. */
+    void setBadge(String b) {
         badge.setText(b);
         badge.setVisibility(b.isEmpty() ? GONE : VISIBLE);
     }
 
-    /** "HDMI 2" gives "2"; a name without a number at the end gives "". */
+    /** The badge for a TV's input name: "HDMI 2" gives "2"; a name without a number at the end gives "". */
     static String badgeOf(String name) {
         int end = name.length(), i = end;
         while (i > 0 && Character.isDigit(name.charAt(i - 1))) i--;

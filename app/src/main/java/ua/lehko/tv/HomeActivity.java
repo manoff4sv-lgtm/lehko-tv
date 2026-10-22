@@ -10,6 +10,8 @@ import android.content.Intent;
 import android.content.pm.LauncherApps;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.media.tv.TvInputInfo;
+import android.media.tv.TvInputManager;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.os.UserHandle;
@@ -159,6 +161,37 @@ public final class HomeActivity extends Activity {
         }
     };
 
+    /** Inputs that show up late (after a boot the HDMI service may still be starting) or change: the buttons follow. */
+    private final TvInputManager.TvInputCallback inputWatch = new TvInputManager.TvInputCallback() {
+        @Override public void onInputAdded(String id) {
+            changed();
+        }
+
+        @Override public void onInputRemoved(String id) {
+            changed();
+        }
+
+        @Override public void onInputUpdated(String id) {
+            changed();
+        }
+
+        @Override public void onTvInputInfoUpdated(TvInputInfo info) {
+            changed();
+        }
+
+        private void changed() {
+            // At boot they come one per port: one reload after the burst. Away from home, onResume reloads anyway.
+            App.MAIN.removeCallbacks(reloadInputs);
+            App.MAIN.postDelayed(reloadInputs, 1_000);
+        }
+    };
+
+    private final Runnable reloadInputs = new Runnable() {
+        @Override public void run() {
+            if (resumed) loadInputs();
+        }
+    };
+
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         if (Watchdog.safeMode(this)) {
@@ -222,6 +255,8 @@ public final class HomeActivity extends Activity {
 
         LauncherApps la = (LauncherApps) getSystemService(Context.LAUNCHER_APPS_SERVICE);
         if (la != null) la.registerCallback(packages, App.MAIN);
+        TvInputManager tim = tvInputs();
+        if (tim != null) tim.registerCallback(inputWatch, App.MAIN);
 
         buildQuickRow();
         showWeather(Weather.cached(this));
@@ -235,6 +270,9 @@ public final class HomeActivity extends Activity {
         if (!safe) {
             LauncherApps la = (LauncherApps) getSystemService(Context.LAUNCHER_APPS_SERVICE);
             if (la != null) la.unregisterCallback(packages);
+            TvInputManager tim = tvInputs();
+            if (tim != null) tim.unregisterCallback(inputWatch);
+            App.MAIN.removeCallbacks(reloadInputs);
             App.MAIN.removeCallbacks(hideNotice);
             App.MAIN.removeCallbacks(ticker);
             App.MAIN.removeCallbacks(idle);
@@ -607,6 +645,11 @@ public final class HomeActivity extends Activity {
         });
     }
 
+    /** The application's manager, so a recreated screen doesn't add another one to the system. Null without TV inputs. */
+    private TvInputManager tvInputs() {
+        return (TvInputManager) getApplicationContext().getSystemService(Context.TV_INPUT_SERVICE);
+    }
+
     private boolean sameInputs(List<Inputs.Input> list) {
         if (list.size() != inputs.size()) return false;
         for (int i = 0; i < list.size(); i++) {
@@ -621,6 +664,7 @@ public final class HomeActivity extends Activity {
         quickRow.removeAllViews();
         for (final Inputs.Input in : inputs) {
             IconButton t = shortcut("input:" + in.id, in.tuner ? R.drawable.ic_live_tv : R.drawable.ic_input, in.label);
+            t.setBadge(in.badge);
             t.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
                     Inputs.open(HomeActivity.this, in);
