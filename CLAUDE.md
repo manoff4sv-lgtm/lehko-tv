@@ -28,7 +28,8 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   (goes by itself; a key press puts it away once it has been readable; memory result 6 s). Both rows are `ScrollRow`s
   running edge to edge: the fading edge length is only the scroll margin, no fade layer is drawn (on the TV the faded,
   unclipped row ends looked "melted"). Round buttons are opaque. Ticker every minute; weather 30 min; outages 10 min.
-- `AllAppsActivity` GridView of tiles; long-press/Menu: open, add/remove favorite, info, uninstall.
+- `AllAppsActivity` GridView of tiles; long-press/Menu: open, add/remove favorite, info, uninstall. The grid runs
+  edge to edge like the home rows; its root must not clip to its padding (that cut the first column's ring).
 - `Apps` app list (LEANBACK_LAUNCHER first, then LAUNCHER), default favorites, banner/icon LruCache.
 - `Weather` Open-Meteo forecast + geocoding search; cached JSON so it shows offline (outages!). Default city
   Kyiv if TZ is Europe/Kiev.
