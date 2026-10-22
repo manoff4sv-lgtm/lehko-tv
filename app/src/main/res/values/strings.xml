@@ -98,11 +98,15 @@
     <string name="screensaver">Screensaver</string>
     <string name="screensaver_system">The TV’s own</string>
     <string name="screensaver_lehko">Lehko clock</string>
+    <string name="rates_fiat">Exchange rates</string>
+    <string name="rates_fiat_on">Dollar and euro to hryvnia · Monobank, NBU</string>
+    <string name="rates_crypto">Cryptocurrencies</string>
+    <string name="rates_crypto_on">Bitcoin and Ether in dollars · Binance</string>
     <string name="cleanup">Unneeded apps</string>
     <string name="cleanup_summary">Turn off apps you don’t use to free memory</string>
     <string name="about">About Lehko</string>
     <string name="about_summary">Version %1$s · %2$s</string>
-    <string name="about_text">Lehko is free and open source: %s\n\nWeather comes from Open-Meteo, outage schedules from YASNO and DTEK (through the outage-data-ua project). No accounts, ads or tracking.\n\nBefore uninstalling Lehko, switch the home screen back to the TV’s own, or the TV may be left without one.</string>
+    <string name="about_text">Lehko is free and open source: %s\n\nWeather comes from Open-Meteo, outage schedules from YASNO and DTEK (through the outage-data-ua project), exchange rates from Monobank and the NBU, crypto prices from Binance. No accounts, ads or tracking.\n\nBefore uninstalling Lehko, switch the home screen back to the TV’s own, or the TV may be left without one.</string>
     <string name="enable_title">Make Lehko the home screen</string>
     <string name="enable_intro">Android TV lets only its debugging mode change the home screen. Lehko uses it on the TV itself, no computer needed.</string>
     <string name="step_dev">Turn on developer mode: Settings → System → About → press “Android TV OS build” 7 times.</string>

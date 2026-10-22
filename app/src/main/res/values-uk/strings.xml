@@ -96,11 +96,15 @@
     <string name="screensaver">Заставка</string>
     <string name="screensaver_system">Стандартна</string>
     <string name="screensaver_lehko">Годинник Lehko</string>
+    <string name="rates_fiat">Курс валют</string>
+    <string name="rates_fiat_on">Долар і євро до гривні · Монобанк, НБУ</string>
+    <string name="rates_crypto">Криптовалюти</string>
+    <string name="rates_crypto_on">Біткоїн та ефір у доларах · Binance</string>
     <string name="cleanup">Зайві додатки</string>
     <string name="cleanup_summary">Вимкніть те, чим не користуєтесь, щоб звільнити памʼять</string>
     <string name="about">Про Lehko</string>
     <string name="about_summary">Версія %1$s · %2$s</string>
-    <string name="about_text">Lehko безкоштовний і з відкритим кодом: %s\n\nПогода від Open-Meteo, графіки відключень від YASNO і ДТЕК (через проєкт outage-data-ua). Без акаунтів, реклами і стеження.\n\nПеред видаленням Lehko поверніть стандартний головний екран, інакше телевізор може залишитися без нього.</string>
+    <string name="about_text">Lehko безкоштовний і з відкритим кодом: %s\n\nПогода від Open-Meteo, графіки відключень від YASNO і ДТЕК (через проєкт outage-data-ua), курси валют від Монобанку і НБУ, криптовалюти від Binance. Без акаунтів, реклами і стеження.\n\nПеред видаленням Lehko поверніть стандартний головний екран, інакше телевізор може залишитися без нього.</string>
     <string name="enable_title">Зробити Lehko головним екраном</string>
     <string name="enable_intro">Змінити головний екран на Android TV можна лише через режим налагодження. Lehko користується ним прямо на телевізорі, компʼютер не потрібен.</string>
     <string name="step_dev">Увімкніть режим розробника: Налаштування → Система → Про пристрій → 7 разів натисніть «Збірка ОС Android TV».</string>

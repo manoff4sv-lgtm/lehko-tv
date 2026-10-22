@@ -13,8 +13,11 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.UserHandle;
 import android.provider.Settings;
+import android.text.SpannableString;
+import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
+import android.text.style.ForegroundColorSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -40,7 +43,7 @@ public final class HomeActivity extends Activity {
     private HorizontalScrollView favoritesScroll;
     private ImageView weatherIcon;
     private TextView weatherTemp, weatherText, weatherExtra, weatherSun, outageStatus, outageGroup, notice, focusName,
-            favoritesLabel;
+            favoritesLabel, ratesLine;
     /** The next hours under the current weather. */
     private static final int HOURS = 5;
     private final TextView[] hourTime = new TextView[HOURS], hourTemp = new TextView[HOURS];
@@ -58,7 +61,8 @@ public final class HomeActivity extends Activity {
     private TextView safeText;
     /** After a failed download, wait a while before trying again (offline during an outage, for example). */
     private static final long RETRY_AFTER_FAILURE_MS = 5 * 60_000L;
-    private long weatherFailedAt, outageFailedAt;
+    private long weatherFailedAt, outageFailedAt, ratesFailedAt;
+    private boolean ratesLoading;
     private Outages.Schedule schedule;
     private int tileW, tileH, smallW, smallH, gap;
     private String focusPkgAfterRebuild;
@@ -153,6 +157,7 @@ public final class HomeActivity extends Activity {
         notice = findViewById(R.id.notice);
         focusName = findViewById(R.id.focus_name);
         favoritesLabel = findViewById(R.id.favorites_label);
+        ratesLine = findViewById(R.id.rates);
 
         bgTop = getColor(R.color.bg_top);
         bgBottom = getColor(R.color.bg_bottom);
@@ -184,6 +189,7 @@ public final class HomeActivity extends Activity {
 
         buildQuickRow();
         showWeather(Weather.cached(this));
+        showRates();
         schedule = Outages.cached(this);
         showOutage();
     }
@@ -209,6 +215,7 @@ public final class HomeActivity extends Activity {
         else if (appsLoaded) buildFavorites(); // favorites may have changed in All apps
         loadInputs();
         showWeather(Weather.cached(this));
+        showRates();
         schedule = Outages.cached(this);
         showOutage();
         maybeRefresh();
@@ -523,6 +530,7 @@ public final class HomeActivity extends Activity {
     private void maybeRefresh() {
         long now = System.currentTimeMillis();
         if (Weather.stale(this) && now - weatherFailedAt > RETRY_AFTER_FAILURE_MS) refreshWeather();
+        if (Rates.due(this) && now - ratesFailedAt > RETRY_AFTER_FAILURE_MS) refreshRates();
         if (Outages.enabled(this) && now - Outages.fetchedAt(this) > OUTAGE_MAX_AGE_MS
                 && now - outageFailedAt > RETRY_AFTER_FAILURE_MS) {
             refreshOutage();
@@ -636,6 +644,52 @@ public final class HomeActivity extends Activity {
         t.setIncludeFontPadding(false);
         t.setMaxLines(1);
         return t;
+    }
+
+    // MARK: - Rates
+
+    private void refreshRates() {
+        if (ratesLoading) return;
+        ratesLoading = true;
+        final Context app = getApplicationContext();
+        App.NET.execute(new Runnable() {
+            @Override public void run() {
+                boolean ok = true;
+                try {
+                    Rates.refresh(app);
+                } catch (Exception e) {
+                    ok = false; // offline or refused: the cached line stays
+                }
+                final boolean done = ok;
+                App.MAIN.post(new Runnable() {
+                    @Override public void run() {
+                        ratesLoading = false;
+                        if (!done) ratesFailedAt = System.currentTimeMillis();
+                        if (!isDestroyed()) showRates();
+                    }
+                });
+            }
+        });
+    }
+
+    /** One line under the date; the 24-hour changes in green (up) or red (down). Hidden when there's nothing. */
+    private void showRates() {
+        String line = Rates.line(this);
+        if (line == null) {
+            ratesLine.setVisibility(View.GONE);
+            return;
+        }
+        SpannableString s = new SpannableString(line);
+        int up = getColor(R.color.power_on), down = getColor(R.color.power_off);
+        for (int i = 0; i < line.length(); i++) {
+            char ch = line.charAt(i);
+            if (ch != '▲' && ch != '▼') continue;
+            int end = line.indexOf('%', i);
+            s.setSpan(new ForegroundColorSpan(ch == '▲' ? up : down), i, end < 0 ? line.length() : end + 1,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        ratesLine.setText(s);
+        ratesLine.setVisibility(View.VISIBLE);
     }
 
     // MARK: - Outages

@@ -29,7 +29,8 @@ import java.util.Locale;
 
 /** Lehko's settings: the "Lehko" tile in the app list and the last tile on the home screen. */
 public final class SettingsActivity extends Activity {
-    private static final int HOME = 1, PREVIEW = 2, CITY = 3, OUTAGES = 4, SAVER = 5, CLEANUP = 6, ABOUT = 7;
+    private static final int HOME = 1, PREVIEW = 2, CITY = 3, OUTAGES = 4, SAVER = 5, CLEANUP = 6, ABOUT = 7,
+            RATES = 8, CRYPTO = 9;
 
     private ListView list;
     private TextView status;
@@ -62,6 +63,8 @@ public final class SettingsActivity extends Activity {
         if (!HomeMode.isOn(this)) rows.add(new int[]{PREVIEW});
         rows.add(new int[]{CITY});
         rows.add(new int[]{OUTAGES});
+        rows.add(new int[]{RATES});
+        rows.add(new int[]{CRYPTO});
         rows.add(new int[]{SAVER});
         rows.add(new int[]{CLEANUP});
         rows.add(new int[]{ABOUT});
@@ -74,6 +77,8 @@ public final class SettingsActivity extends Activity {
             case PREVIEW: return getString(R.string.preview_home);
             case CITY: return getString(R.string.weather_city);
             case OUTAGES: return getString(R.string.outages);
+            case RATES: return getString(R.string.rates_fiat);
+            case CRYPTO: return getString(R.string.rates_crypto);
             case SAVER: return getString(R.string.screensaver);
             case CLEANUP: return getString(R.string.cleanup);
             default: return getString(R.string.about);
@@ -97,6 +102,8 @@ public final class SettingsActivity extends Activity {
                 String address = Prefs.of(this).getString(Outages.P_ADDRESS, "");
                 return address.isEmpty() ? s : s + " · " + address;
             }
+            case RATES: return getString(Rates.fiatEnabled(this) ? R.string.rates_fiat_on : R.string.state_off);
+            case CRYPTO: return getString(Rates.cryptoEnabled(this) ? R.string.rates_crypto_on : R.string.state_off);
             case SAVER:
                 return getString(Prefs.of(this).getBoolean(Prefs.SCREENSAVER_LEHKO, false)
                         ? R.string.screensaver_lehko : R.string.screensaver_system);
@@ -118,6 +125,14 @@ public final class SettingsActivity extends Activity {
                 break;
             case OUTAGES:
                 outageRegion();
+                break;
+            case RATES:
+                Prefs.of(this).edit().putBoolean(Rates.P_FIAT, !Rates.fiatEnabled(this)).apply();
+                buildRows();
+                break;
+            case CRYPTO:
+                Prefs.of(this).edit().putBoolean(Rates.P_CRYPTO, !Rates.cryptoEnabled(this)).apply();
+                buildRows();
                 break;
             case SAVER:
                 screensaver();

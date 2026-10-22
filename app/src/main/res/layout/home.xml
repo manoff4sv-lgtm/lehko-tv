@@ -40,6 +40,18 @@
                 android:layout_marginTop="2dp"
                 android:textColor="@color/text_secondary"
                 android:textSize="17sp" />
+
+            <!-- Dollar and euro (Monobank or NBU), Bitcoin and Ether (Binance). -->
+            <TextView
+                android:id="@+id/rates"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp"
+                android:visibility="gone" />
         </LinearLayout>
 
         <LinearLayout

@@ -29,12 +29,22 @@ final class Net {
             c.setRequestProperty("Accept", "application/json");
             for (int i = 0; i + 1 < headers.length; i += 2) c.setRequestProperty(headers[i], headers[i + 1]);
             int code = c.getResponseCode();
-            if (code < 200 || code >= 300) throw new IOException("HTTP " + code);
+            if (code < 200 || code >= 300) throw new HttpError(code);
             try (InputStream in = c.getInputStream()) {
                 return read(in, 2 * 1024 * 1024);
             }
         } finally {
             c.disconnect();
+        }
+    }
+
+    /** The server answered, but not with 2xx (429 means "too many requests": back off). */
+    static final class HttpError extends IOException {
+        final int code;
+
+        HttpError(int code) {
+            super("HTTP " + code);
+            this.code = code;
         }
     }
 
