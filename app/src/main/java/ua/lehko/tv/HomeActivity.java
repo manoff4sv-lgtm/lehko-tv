@@ -7,6 +7,7 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.LauncherApps;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -45,7 +46,7 @@ public final class HomeActivity extends Activity {
     private static final long OUTAGE_MAX_AGE_MS = 10 * 60_000L;
 
     private LinearLayout favoritesRow, quickRow, weatherHours, info;
-    private View details, tomorrowBox;
+    private View details, tomorrowBox, header, quickScroll;
     private ScrollRow favoritesScroll;
     private ImageView weatherIcon;
     private TextView weatherTemp, weatherText, weatherSun, powerTitle, powerDetail, notice, focusName, ratesLine;
@@ -132,6 +133,16 @@ public final class HomeActivity extends Activity {
     /** Until when (uptime) a key press leaves the notice up: it has to be readable first. */
     private long noticeKeepUntil;
 
+    /** Notices written while the home screen is up (the check after a boot, a group change) show at once. */
+    private final SharedPreferences.OnSharedPreferenceChangeListener noticeWatch =
+            new SharedPreferences.OnSharedPreferenceChangeListener() {
+        @Override public void onSharedPreferenceChanged(SharedPreferences p, String key) {
+            if (!resumed || !Prefs.NOTICE.equals(key)) return;
+            String n = Prefs.takeNotice(HomeActivity.this);
+            if (n != null) showNotice(n);
+        }
+    };
+
     private final LauncherApps.Callback packages = new LauncherApps.Callback() {
         @Override public void onPackageRemoved(String pkg, UserHandle user) {
             Apps.forget(pkg);
@@ -203,6 +214,8 @@ public final class HomeActivity extends Activity {
         favoritesRow = findViewById(R.id.favorites);
         favoritesScroll = findViewById(R.id.favorites_scroll);
         quickRow = findViewById(R.id.quick);
+        quickScroll = findViewById(R.id.quick_scroll);
+        header = findViewById(R.id.header);
         weatherIcon = findViewById(R.id.weather_icon);
         weatherTemp = findViewById(R.id.weather_temp);
         weatherText = findViewById(R.id.weather_text);
@@ -300,6 +313,8 @@ public final class HomeActivity extends Activity {
         App.MAIN.postDelayed(ticker, 60_000 - System.currentTimeMillis() % 60_000 + 200);
         String n = Prefs.takeNotice(this);
         if (n != null) showNotice(n);
+        // Held weakly by the preferences: a field.
+        Prefs.of(this).registerOnSharedPreferenceChangeListener(noticeWatch);
         updateMemoryTile();
         Memory.maybeAutoClean(this);
         scheduleIdle();
@@ -334,11 +349,24 @@ public final class HomeActivity extends Activity {
     private void showNotice(String text, long ms, long readMs) {
         notice.setText(text);
         notice.setVisibility(View.VISIBLE);
-        // The notice borrows the name line's room, so the buttons stay inside the screen's safe area.
-        focusName.setVisibility(View.GONE);
+        // The notice takes the free room above the favorites, so nothing moves. When that is too small (a long notice)
+        // it borrows the name line's room as well, so the buttons stay inside the screen's safe area.
+        focusName.setVisibility(noticeFits() ? View.VISIBLE : View.GONE);
         noticeKeepUntil = SystemClock.uptimeMillis() + readMs;
         App.MAIN.removeCallbacks(hideNotice);
         App.MAIN.postDelayed(hideNotice, ms);
+    }
+
+    /** Whether the notice fits between the header and the favorites with the name line still in its place. */
+    private boolean noticeFits() {
+        View root = (View) notice.getParent();
+        int w = root.getWidth() - root.getPaddingLeft() - root.getPaddingRight();
+        if (w <= 0) return false; // not laid out yet: take the name line's room to be safe
+        int any = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
+        notice.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), any);
+        focusName.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), any);
+        int room = quickScroll.getTop() - header.getBottom() - favoritesScroll.getHeight() - focusName.getMeasuredHeight();
+        return notice.getMeasuredHeight() + ((ViewGroup.MarginLayoutParams) notice.getLayoutParams()).bottomMargin <= room;
     }
 
     @Override protected void onPause() {
@@ -347,6 +375,7 @@ public final class HomeActivity extends Activity {
             return;
         }
         resumed = false;
+        Prefs.of(this).unregisterOnSharedPreferenceChangeListener(noticeWatch);
         App.MAIN.removeCallbacks(ticker);
         App.MAIN.removeCallbacks(idle);
         super.onPause();
@@ -718,7 +747,8 @@ public final class HomeActivity extends Activity {
     private void updateMemoryTile() {
         if (memoryButton == null) return;
         memoryButton.setName(getString(R.string.memory_button, memoryLabel()));
-        if (memoryButton.isFocused()) showFocusName(memoryButton.getContentDescription());
+        // Only the number changed: the new text without the fade, which is for a focus change.
+        if (memoryButton.isFocused()) focusName.setText(memoryButton.getContentDescription());
     }
 
     /** The memory tile: closes background apps (asking for debugging if needed) and says how much that freed. */
