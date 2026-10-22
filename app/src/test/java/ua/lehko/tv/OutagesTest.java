@@ -74,8 +74,49 @@ public class OutagesTest {
 
         st = Outages.status(s, kyiv(2026, 10, 22, 20, 0));
         assertEquals(Outages.ON, st.state);
-        assertTrue("nothing more today and tomorrow unknown", st.clearAhead);
+        assertFalse("nothing more today, but tomorrow isn't published: not 'no outages ahead'", st.clearAhead);
         assertTrue(st.untilEndOfData);
+        assertEquals(-1, st.minutesToChange);
+    }
+
+    /** Tomorrow is an emergency day (all unknown): power isn't promised back at midnight, nor the day called clear. */
+    @Test public void noChangeIntoTheUnknown() {
+        Outages.Schedule s = new Outages.Schedule();
+        Outages.Day today = new Outages.Day("2026-10-22", Outages.ON);
+        s.days.add(today);
+        s.days.add(new Outages.Day("2026-10-23", Outages.UNKNOWN));
+        Outages.Status st = Outages.status(s, kyiv(2026, 10, 22, 20, 0));
+        assertEquals(Outages.ON, st.state);
+        assertFalse(st.clearAhead);
+        assertTrue(st.untilEndOfData);
+
+        today.slots[46] = Outages.OFF;
+        today.slots[47] = Outages.OFF;
+        st = Outages.status(s, kyiv(2026, 10, 22, 20, 0));
+        assertEquals(Outages.OFF, st.next);
+        assertEquals("23:00", st.changeAt);
+        st = Outages.status(s, kyiv(2026, 10, 22, 23, 10));
+        assertEquals(Outages.OFF, st.state);
+        assertEquals(-1, st.minutesToChange);
+        assertTrue(st.untilEndOfData);
+    }
+
+    /** The countdown is real time: on the days the clocks change, the wall clock is an hour off. */
+    @Test public void countdownAcrossClockChanges() {
+        Outages.Schedule s = new Outages.Schedule();
+        Outages.Day autumn = new Outages.Day("2026-10-25", Outages.ON);
+        autumn.slots[10] = Outages.OFF; // 05:00, after 04:00 summer time became 03:00
+        s.days.add(autumn);
+        Outages.Status st = Outages.status(s, kyiv(2026, 10, 25, 2, 0));
+        assertEquals("05:00", st.changeAt);
+        assertEquals(240, st.minutesToChange);
+
+        Outages.Day spring = new Outages.Day("2027-03-28", Outages.ON);
+        spring.slots[10] = Outages.OFF; // 05:00, after 03:00 became 04:00
+        s.days.add(spring);
+        st = Outages.status(s, kyiv(2027, 3, 28, 2, 0));
+        assertEquals("05:00", st.changeAt);
+        assertEquals(120, st.minutesToChange);
     }
 
     @Test public void statusLooksIntoTomorrow() {

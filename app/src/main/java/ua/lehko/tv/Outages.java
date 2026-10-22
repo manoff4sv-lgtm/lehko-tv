@@ -452,13 +452,13 @@ final class Outages {
         int minutesToChange = -1;
         /** When it changes, "HH:mm" in Kyiv; "24:00" for midnight. */
         String changeAt;
-        /** What it changes to. */
+        /** What it changes to: ON, OFF or MAYBE. */
         byte next = UNKNOWN;
         /** The change is tomorrow (after midnight). */
         boolean changeTomorrow;
-        /** No change until the end of the schedules we have. */
+        /** No change until the end of what the schedules tell (their last day, or an unknown stretch). */
         boolean untilEndOfData;
-        /** Today and tomorrow (if known) have no outages at all. */
+        /** No outages for the rest of today and all of tomorrow, or no outage regime at all. */
         boolean clearAhead;
     }
 
@@ -486,21 +486,36 @@ final class Outages {
         byte[] ahead = new byte[d1 != null ? SLOTS * 2 : SLOTS];
         System.arraycopy(d0.slots, 0, ahead, 0, SLOTS);
         if (d1 != null) System.arraycopy(d1.slots, 0, ahead, SLOTS, SLOTS);
-        boolean anyOutage = false;
-        for (int k = slot; k < ahead.length; k++) if (ahead[k] == OFF || ahead[k] == MAYBE) anyOutage = true;
-        st.clearAhead = st.state == ON && !anyOutage;
+        // Clear only when nothing but power lies ahead and tomorrow is known too: an unpublished tomorrow isn't clear.
+        st.clearAhead = st.state == ON && (d1 != null || s.noSchedules);
+        for (int k = slot; k < ahead.length && st.clearAhead; k++) if (ahead[k] != ON) st.clearAhead = false;
         for (int k = slot + 1; k < ahead.length; k++) {
-            if (ahead[k] != st.state) {
-                st.next = ahead[k];
-                st.minutesToChange = k * 30 - minute;
-                int hm = k * 30 % 1440;
-                st.changeAt = k == SLOTS ? "24:00" : String.format(Locale.ROOT, "%02d:%02d", hm / 60, hm % 60);
-                st.changeTomorrow = k > SLOTS;
-                return st;
-            }
+            if (ahead[k] == st.state) continue;
+            // An emergency day or a gap in the data: no change we can promise.
+            if (ahead[k] == UNKNOWN) break;
+            st.next = ahead[k];
+            st.minutesToChange = minutesUntil(now, k);
+            int hm = k * 30 % 1440;
+            st.changeAt = k == SLOTS ? "24:00" : String.format(Locale.ROOT, "%02d:%02d", hm / 60, hm % 60);
+            st.changeTomorrow = k > SLOTS;
+            return st;
         }
         st.untilEndOfData = true;
         return st;
+    }
+
+    /**
+     * Real minutes from {@code now} (a Kyiv calendar) to the start of slot {@code k}, counted from today's midnight.
+     * Not just the difference on the wall clock: the days the clocks change are 23 and 25 hours long.
+     */
+    private static int minutesUntil(Calendar now, int k) {
+        Calendar at = (Calendar) now.clone();
+        at.add(Calendar.DAY_OF_MONTH, k / SLOTS);
+        at.set(Calendar.HOUR_OF_DAY, (k % SLOTS) / 2);
+        at.set(Calendar.MINUTE, (k % 2) * 30);
+        at.set(Calendar.SECOND, 0);
+        at.set(Calendar.MILLISECOND, 0);
+        return (int) ((at.getTimeInMillis() - now.getTimeInMillis() / 60_000 * 60_000) / 60_000);
     }
 
     // MARK: - Dates (Kyiv wall clock)
