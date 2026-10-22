@@ -104,7 +104,10 @@ tags from cloud sessions is blocked by the git proxy; releases are made on GitHu
 
 Deviations from the plan below: no USDT/UAH (the line wouldn't fit beside the weather); `forecast_days=2`; on
 UI_HIDDEN the picture cache is trimmed rather than emptied (emptying would reload every banner on each return home).
-The fireplace look was checked only in an AWT re-drawing of `FireView`, not on a device.
+The fireplace look was checked only in an AWT re-drawing of `FireView`, not on a device. Auto clean keeps the planned
+thresholds (< 20% or < 200 MB), which a 1 GB TV may hit on most returns home: watch for apps restarting too often.
+Review fixes: no clipPath per frame (arch mask in the grid), picture cache keeps favorites except at BACKGROUND+,
+favorites row rebuilt on resume only when the list changed, fire paused without window focus (Android 8-10 dreams).
 
 Eugene asked for these on 2026-10-22. Keep every hard constraint above (no libraries, no blur/shaders, tiny RAM).
 After each item: `tools/quick-build.sh` and `tools/quick-test.sh` green, small commit, push to main, CI green.
@@ -160,6 +163,6 @@ After each item: `tools/quick-build.sh` and `tools/quick-test.sh` green, small c
      noise with random short pops.
    - Also a `FireDream` (DreamService with `FireView`); the screensaver choice becomes system / clock / fireplace.
 7. (done) README (uk + en): describe the new features honestly; update CLAUDE.md "Status"; mark items here as done.
-8. When all is done: a fresh independent review agent over the new code (crashes, leaks, CPU/RAM on 1 GB, focus),
+8. (done; fixes in "Fix review findings") When all is done: a fresh independent review agent over the new code (crashes, leaks, CPU/RAM on 1 GB, focus),
    fix what it finds, then write Eugene a short summary in Russian (casual, no long dashes): what changed and what
    to try on the TV. Don't publish a release; ask him.
