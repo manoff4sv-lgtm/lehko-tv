@@ -117,9 +117,9 @@ public final class SettingsActivity extends Activity {
             }
             case RATES: return getString(Rates.fiatEnabled(this) ? R.string.rates_fiat_on : R.string.state_off);
             case SAVER: {
-                android.content.SharedPreferences p = Prefs.of(this);
-                if (!p.getBoolean(Prefs.SCREENSAVER_LEHKO, false)) return getString(R.string.screensaver_system);
-                return getString(p.getBoolean(Prefs.SCREENSAVER_FIRE, false) ? R.string.screensaver_fire : R.string.screensaver_lehko);
+                int saver = saver();
+                return getString(saver == HomeMode.SAVER_FIRE ? R.string.screensaver_fire
+                        : saver == HomeMode.SAVER_CLOCK ? R.string.screensaver_lehko : R.string.screensaver_system);
             }
             case FIRE_IDLE: {
                 int min = FireScene.idleMinutes(this);
@@ -260,9 +260,14 @@ public final class SettingsActivity extends Activity {
     }
 
     private void confirmDisable() {
+        String message = getString(R.string.disable_message);
+        // "Original" puts the TV's own screensaver back too, if Lehko's is the one set.
+        if (saver() != HomeMode.SAVER_SYSTEM && Prefs.of(this).getBoolean(HomeMode.K_SAVER_CHANGED, false)) {
+            message += " " + getString(R.string.disable_message_saver);
+        }
         new AlertDialog.Builder(this)
                 .setTitle(R.string.disable_title)
-                .setMessage(R.string.disable_message)
+                .setMessage(message)
                 .setPositiveButton(R.string.disable_button, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         run(new Task() {
@@ -528,19 +533,34 @@ public final class SettingsActivity extends Activity {
 
     // MARK: - Screensaver
 
+    /** The screensaver the TV really has: it can be changed in the TV's settings, or outlive a reinstall of Lehko. */
+    private int saver() {
+        try {
+            String now = Settings.Secure.getString(getContentResolver(), "screensaver_components");
+            if (now == null || !now.startsWith(HomeMode.PKG + "/")
+                    || Settings.Secure.getInt(getContentResolver(), "screensaver_enabled", 1) == 0) {
+                return HomeMode.SAVER_SYSTEM;
+            }
+            return now.startsWith(HomeMode.FIRE_DREAM) ? HomeMode.SAVER_FIRE : HomeMode.SAVER_CLOCK;
+        } catch (RuntimeException e) {
+            // Not readable on this TV: what Lehko set last.
+            android.content.SharedPreferences p = Prefs.of(this);
+            if (!p.getBoolean(Prefs.SCREENSAVER_LEHKO, false)) return HomeMode.SAVER_SYSTEM;
+            return p.getBoolean(Prefs.SCREENSAVER_FIRE, false) ? HomeMode.SAVER_FIRE : HomeMode.SAVER_CLOCK;
+        }
+    }
+
     private void screensaver() {
-        android.content.SharedPreferences prefs = Prefs.of(this);
-        final int current = !prefs.getBoolean(Prefs.SCREENSAVER_LEHKO, false) ? HomeMode.SAVER_SYSTEM
-                : prefs.getBoolean(Prefs.SCREENSAVER_FIRE, false) ? HomeMode.SAVER_FIRE : HomeMode.SAVER_CLOCK;
         // In the order of HomeMode.SAVER_SYSTEM, SAVER_CLOCK, SAVER_FIRE.
         CharSequence[] labels = {getString(R.string.screensaver_system), getString(R.string.screensaver_lehko),
                 getString(R.string.screensaver_fire)};
         new AlertDialog.Builder(this)
                 .setTitle(R.string.screensaver)
-                .setSingleChoiceItems(labels, current, new DialogInterface.OnClickListener() {
+                .setSingleChoiceItems(labels, saver(), new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, final int which) {
                         d.dismiss();
-                        if (which == current) return;
+                        // Even the checked one: setting it again is harmless, and where the TV's setting can't be
+                        // read the check is only what Lehko set last.
                         run(new Task() {
                             @Override public String run(HomeMode.Progress p) throws IOException {
                                 return HomeMode.setScreensaver(getApplicationContext(), which, p);

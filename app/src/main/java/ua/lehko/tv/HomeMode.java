@@ -271,7 +271,9 @@ final class HomeMode {
                     for (String pkg : value.split(",")) if (PACKAGE.matcher(pkg).matches()) disabled.add(pkg);
                     break;
                 case "screensaver_changed": if ("true".equals(value)) e.putBoolean(K_SAVER_CHANGED, true); break;
-                case "screensaver": if (SETTING.matcher(value).matches()) e.putString(K_SAVER, value); break;
+                case "screensaver":
+                    if (SETTING.matcher(value).matches() && !value.contains(PKG + "/")) e.putString(K_SAVER, value);
+                    break;
                 case "screensaver_enabled": if (value.matches("-?\\d+|null")) e.putString(K_SAVER_ENABLED, value); break;
                 case "adb_time_changed": if ("true".equals(value)) e.putBoolean(K_ADB_TIME_CHANGED, true); break;
                 case "adb_time": if (value.matches("-?\\d+|null")) e.putString(K_ADB_TIME, value); break;
@@ -570,6 +572,8 @@ final class HomeMode {
             if (lehko) {
                 if (!c.prefs().getBoolean(K_SAVER_CHANGED, false)) {
                     String current = adb.shell("settings get secure screensaver_components").trim();
+                    // Lehko's own dream picked in the TV's settings isn't "the TV's own": that is Android's default.
+                    if (current.contains(PKG + "/")) current = "null";
                     String enabled = adb.shell("settings get secure screensaver_enabled").trim();
                     c.prefs().edit().putString(K_SAVER, SETTING.matcher(current).matches() ? current : "null")
                             .putString(K_SAVER_ENABLED, enabled.matches("-?\\d+") ? enabled : "null")
@@ -591,14 +595,20 @@ final class HomeMode {
 
     private static void restoreScreensaver(Env c, Adb adb) throws IOException {
         if (!c.prefs().getBoolean(K_SAVER_CHANGED, false)) return;
-        String saver = c.prefs().getString(K_SAVER, "null"), enabled = c.prefs().getString(K_SAVER_ENABLED, "null");
-        if (saver.isEmpty() || "null".equals(saver) || !SETTING.matcher(saver).matches()) {
-            adb.shell("settings delete secure screensaver_components");
-        } else {
-            adb.shell("settings put secure screensaver_components " + saver);
+        // Only while Lehko's is still set: a screensaver picked in the TV's settings since then stays.
+        if (adb.shell("settings get secure screensaver_components").trim().startsWith(PKG + "/")) {
+            String saver = c.prefs().getString(K_SAVER, "null"), enabled = c.prefs().getString(K_SAVER_ENABLED, "null");
+            if (saver.isEmpty() || "null".equals(saver) || !SETTING.matcher(saver).matches()) {
+                adb.shell("settings delete secure screensaver_components");
+            } else {
+                adb.shell("settings put secure screensaver_components " + saver);
+            }
+            // Lehko turned it on; "Turn screen off" chosen since then (0) stays too.
+            if ("1".equals(adb.shell("settings get secure screensaver_enabled").trim())) {
+                if (enabled.matches("-?\\d+")) adb.shell("settings put secure screensaver_enabled " + enabled);
+                else adb.shell("settings delete secure screensaver_enabled");
+            }
         }
-        if (enabled.matches("-?\\d+")) adb.shell("settings put secure screensaver_enabled " + enabled);
-        else adb.shell("settings delete secure screensaver_enabled");
         c.prefs().edit().putBoolean(K_SAVER_CHANGED, false).remove(K_SAVER).remove(K_SAVER_ENABLED)
                 .putBoolean(Prefs.SCREENSAVER_LEHKO, false).putBoolean(Prefs.SCREENSAVER_FIRE, false).commit();
     }

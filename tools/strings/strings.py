@@ -33,6 +33,7 @@ s("nothing_found", "Nothing found. Try another spelling.", "Нічого не з
 s("not_set", "Not set", "Не вибрано", "Не выбрано")
 
 # FIX-STRINGS-SYS (temporary anchor: new strings of the 'sys' fixes go right below)
+s("disable_message_saver", "The screensaver goes back to the TV’s own too.", "Заставка теж стане стандартною.", "Заставка тоже станет стандартной.")
 
 s("weather_pick_city", "Choose a city in Lehko settings", "Оберіть місто в налаштуваннях Lehko", "Выберите город в настройках Lehko")
 s("weather_loading", "Loading the weather…", "Завантаження погоди…", "Загрузка погоды…")

@@ -410,6 +410,30 @@ public class HomeModeTest {
         assertFalse(e.prefs.getBoolean(Prefs.SCREENSAVER_LEHKO, true));
     }
 
+    @Test public void screensaverChosenInTheTvsSettingsStays() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        String ambient = "com.google.android.apps.tv.dreamx/.service.Ambient";
+        tv("settings put secure screensaver_components " + ambient);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_SYSTEM, QUIET);
+        assertEquals(ambient, state().getJSONObject("settings").getJSONObject("secure").getString("screensaver_components"));
+
+        HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        tv("settings put secure screensaver_enabled 0"); // "Turn screen off"
+        HomeMode.disable(e, QUIET);
+        JSONObject secure = state().getJSONObject("settings").getJSONObject("secure");
+        assertEquals(ambient, secure.getString("screensaver_components"));
+        assertEquals("0", secure.getString("screensaver_enabled"));
+    }
+
+    @Test public void lehkosOwnDreamIsNotTheTvsOwn() throws Exception {
+        tv("settings put secure screensaver_components " + HomeMode.DREAM); // picked in the TV's settings
+        Env e = new Env(keys);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_SYSTEM, QUIET);
+        assertFalse("Android's default", state().getJSONObject("settings").getJSONObject("secure").has("screensaver_components"));
+    }
+
     @Test public void unneededAppsScreen() throws Exception {
         Env e = new Env(keys);
         HomeMode.setAppEnabled(e, "com.google.android.play.games", false);
