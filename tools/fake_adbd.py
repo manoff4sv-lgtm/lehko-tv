@@ -152,7 +152,7 @@ class TV:
         m = re.fullmatch(r"cmd role (add|remove)-role-holder --user 0 android\.app\.role\.HOME (\S+)", cmd)
         if m:
             op, p = m.groups()
-            if op == "add" and self.pkgs.get(p) and p in self.homes:
+            if op == "add" and self.pkgs.get(p) and p in self.homes and not (self.flags.get("home_refused") and p == LEHKO):
                 self.holder = p
             elif op == "remove" and self.holder == p:
                 self.holder = self.fallback_holder(exclude=p)
@@ -171,7 +171,7 @@ class TV:
         if m:
             comp = m.group(1)
             p = comp.split("/")[0]
-            if self.pkgs.get(p) and self.homes.get(p) == comp:
+            if self.pkgs.get(p) and self.homes.get(p) == comp and not (self.flags.get("home_refused") and p == LEHKO):
                 self.holder = p
                 return "Success\n"
             return "Error: Failed to set the home activity\n"

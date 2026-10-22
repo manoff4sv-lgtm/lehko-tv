@@ -248,6 +248,25 @@ public class HomeModeTest {
         assertEquals("ua.lehko.tv", state().getString("holder"));
     }
 
+    @Test public void refusedTurnOnPutsTheDebuggingTimeoutBack() throws Exception {
+        tv("fake:flag home_refused 1");
+        Env e = new Env(keys);
+        try {
+            HomeMode.enable(e, true, QUIET);
+            fail("should refuse");
+        } catch (HomeMode.Refused expected) {
+            // ok
+        }
+        assertFalse(state().getJSONObject("settings").getJSONObject("global").has("adb_allowed_connection_time"));
+        assertFalse(e.prefs.getBoolean(HomeMode.K_ADB_TIME_CHANGED, false));
+    }
+
+    @Test public void turnOnCountsOnlyWhatItTurnedOff() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.setAppEnabled(e, "com.google.android.play.games", false);
+        assertEquals("the launcher and the setup app", e.text(R.string.result_on_full, 2), HomeMode.enable(e, true, QUIET));
+    }
+
     @Test public void appsOffBeforeLehkoAreLeftAlone() throws Exception {
         tv("pm disable-user --user 0 com.google.android.play.games");
         Env e = new Env(keys);

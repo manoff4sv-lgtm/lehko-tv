@@ -332,24 +332,26 @@ final class HomeMode {
                 adb.shell("cmd role add-role-holder --user 0 android.app.role.HOME " + PKG);
                 if (!homeHolder(adb).contains(PKG)) {
                     c.prefs().edit().putBoolean(K_ON, false).putBoolean(K_FULL, false).commit();
+                    // Lehko stays off, so nothing needs the debugging permission kept any more.
+                    restoreDebuggingTimeout(c, adb);
                     writeDeviceState(c, adb);
                     throw new Refused(out.trim());
                 }
             }
 
             Set<String> ours = disabled(c);
-            int i = 0;
+            int i = 0, turnedOff = 0;
             for (String pkg : targets) {
                 i++;
                 p.step(c.text(R.string.step_disabling, i, targets.size()));
                 if (isCore(pkg) || !present.contains(pkg)) continue;
                 // Already off before Lehko (and not by Lehko): leave it alone, and don't claim it.
                 if (offNow.contains(pkg) && !ours.contains(pkg)) continue;
-                disablePackage(c, adb, pkg);
+                if (disablePackage(c, adb, pkg)) turnedOff++;
             }
             writeDeviceState(c, adb);
             adb.shell("am start -a android.intent.action.MAIN -c android.intent.category.HOME");
-            return full ? c.text(R.string.result_on_full, disabled(c).size()) : c.text(R.string.result_on);
+            return turnedOff > 0 ? c.text(R.string.result_on_full, turnedOff) : c.text(R.string.result_on);
         }
     }
 
