@@ -64,6 +64,8 @@ class TV:
         self.settings = {"secure": {"screensaver_components": "com.google.android.apps.tv.dreamx/.service.Backdrop",
                                     "screensaver_enabled": "1"}, "global": {}}
         self.networks = [("HomeWiFi", "com.android.tv.settings")]
+        self.running = {LAUNCHERX: 245678, "com.google.android.youtube.tv": 120000}
+        self.kills = 0
         self.files = {}
         self.flags = {}
         self.log = []
@@ -103,7 +105,8 @@ class TV:
             return "ok\n"
         if cmd == "fake:state":
             return json.dumps({"pkgs": self.pkgs, "holder": self.holder, "settings": self.settings,
-                               "networks": self.networks, "files": self.files}) + "\n"
+                               "networks": self.networks, "files": self.files, "running": self.running,
+                               "kills": self.kills}) + "\n"
         m = re.fullmatch(r"cat (\S+)( 2>/dev/null)?", cmd)
         if m:
             return self.files.get(m.group(1), "")
@@ -193,10 +196,40 @@ class TV:
                 return "No networks\n"
             return "Network Id      SSID                         Security type\n" + "".join(
                 "%d            %s                      wpa2-psk\n" % (i, n[0]) for i, n in enumerate(self.networks))
+        m = re.fullmatch(r"dumpsys meminfo (\S+)", cmd)
+        if m:
+            p = m.group(1)
+            if not self.pkgs.get(p) or p not in self.running:
+                return "No process found for: %s\n" % p
+            pss = self.running[p]
+            return MEMINFO.format(pid=4242, pkg=p, pss=pss, native=pss // 5, rss=pss + 60000)
+        if cmd == "am kill-all":
+            # Only cached apps go: the home screen and what is on screen stay.
+            self.kills += 1
+            self.running = {p: v for p, v in self.running.items() if p == self.holder}
+            return ""
         if cmd.startswith("am start"):
             return "Starting: Intent { act=android.intent.action.MAIN cat=[android.intent.category.HOME] }\n"
         return "/system/bin/sh: %s: inaccessible or not found\n" % cmd.split(" ")[0]
 
+
+# What "dumpsys meminfo PKG" prints on Android 12-14 (shortened).
+MEMINFO = """Applications Memory Usage (in Kilobytes):
+Uptime: 3456789 Realtime: 3456789
+
+** MEMINFO in pid {pid} [{pkg}] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    {native}    {native}        0      120    {native}    40960    30000    10960
+        TOTAL   {pss}   200000    10000     5000   {rss}    70000    50000    20000
+
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    12345                          23456
+               TOTAL PSS:   {pss}            TOTAL RSS:   {rss}       TOTAL SWAP PSS:     5000
+"""
 
 TV_MODE = "--tv" in sys.argv
 THE_TV = TV()

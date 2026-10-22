@@ -135,6 +135,8 @@ final class HomeMode {
             K_SAVER_CHANGED = "mode_saver_changed", K_DISABLED = "mode_disabled",
             K_ADB_TIME = "mode_original_adb_time", K_ADB_TIME_CHANGED = "mode_adb_time_changed",
             K_ADOPTED = "mode_adopted";
+    /** How much memory (PSS, KB) the stock launcher used when Lehko was turned on: for the settings screen. */
+    static final String K_LAUNCHER_PSS = "mode_launcher_pss_kb";
 
     static boolean isOn(Context c) {
         return Prefs.of(c).getBoolean(K_ON, false);
@@ -300,6 +302,7 @@ final class HomeMode {
                 for (String t : targets) if (owners.contains(t)) throw new WifiOwnerException(t);
             }
             keepDebuggingAllowed(c, adb);
+            measureLauncher(c, adb, original);
 
             p.step(c.text(R.string.step_switching));
             Watchdog.clear(c.prefs());
@@ -456,6 +459,55 @@ final class HomeMode {
             return;
         }
         if (!fixed.isEmpty()) c.notice(c.text(R.string.verify_fixed, String.join(", ", fixed)));
+    }
+
+    // MARK: - Memory
+
+    /**
+     * Closes the apps Android keeps cached in the background ("am kill-all": only cached processes, never what is on
+     * screen or playing). {@code ask}: the user pressed a button, so "Allow USB debugging?" may appear; otherwise
+     * (automatic) it fails quietly instead.
+     */
+    static synchronized void killAll(Env c, boolean ask, Progress p) throws IOException {
+        try (Adb adb = ask ? connect(c, p) : c.connect(0, null)) {
+            adb.shell("am kill-all");
+        }
+    }
+
+    static void killAll(Context c, boolean ask, Progress p) throws IOException {
+        killAll(env(c), ask, p);
+    }
+
+    /** Remembers how much memory the stock launcher takes, while it is still running. Never fails the switch. */
+    private static void measureLauncher(Env c, Adb adb, String home) {
+        String pkg = packageOf(home);
+        if (pkg == null || pkg.equals(PKG) || !PACKAGE.matcher(pkg).matches()) return;
+        try {
+            long kb = pssKb(adb.shell("dumpsys meminfo " + pkg));
+            if (kb > 0) c.prefs().edit().putLong(K_LAUNCHER_PSS, kb).commit();
+        } catch (IOException ignored) {
+            // Only a number for the settings screen.
+        }
+    }
+
+    private static final Pattern TOTAL_PSS = Pattern.compile("TOTAL PSS:\\s+(\\d+)");
+    private static final Pattern TOTAL_ROW = Pattern.compile("(?m)^\\s*TOTAL:?\\s+(\\d+)");
+
+    /**
+     * Total PSS in KB from "dumpsys meminfo PKG", summed over the package's processes: the "TOTAL PSS:" summary
+     * (Android 11+) or the first column of the "TOTAL" row (older). 0 if not running.
+     */
+    static long pssKb(String dump) {
+        long sum = 0;
+        Matcher m = TOTAL_PSS.matcher(dump);
+        while (m.find()) sum += Long.parseLong(m.group(1));
+        if (sum > 0) return sum;
+        // Older Android: the table row, and on some versions an "App Summary" line "TOTAL:  N" for the same process.
+        for (String section : dump.split("\\*\\* MEMINFO")) {
+            Matcher r = TOTAL_ROW.matcher(section);
+            if (r.find()) sum += Long.parseLong(r.group(1));
+        }
+        return sum;
     }
 
     // MARK: - Screensaver

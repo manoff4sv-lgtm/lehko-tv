@@ -52,6 +52,8 @@ public final class HomeActivity extends Activity {
     private long firstHourAt;
     private View outageDot;
     private OutageBar todayBar, tomorrowBar;
+    private Tile memoryTile;
+    private boolean cleaning;
 
     private List<Apps.Entry> apps = new ArrayList<>();
     private List<Inputs.Input> inputs = new ArrayList<>();
@@ -85,6 +87,7 @@ public final class HomeActivity extends Activity {
             showOutage();
             maybeRefresh();
             long now = System.currentTimeMillis();
+            updateMemoryTile();
             if (weather != null && firstHourAt != 0 && now >= firstHourAt) showWeather(weather);
             View f = getCurrentFocus();
             if (f != null) ambient(f); // sunset may have passed
@@ -222,14 +225,18 @@ public final class HomeActivity extends Activity {
         App.MAIN.removeCallbacks(ticker);
         App.MAIN.postDelayed(ticker, 60_000 - System.currentTimeMillis() % 60_000 + 200);
         String n = Prefs.takeNotice(this);
-        if (n != null) {
-            notice.setText(n);
-            notice.setVisibility(View.VISIBLE);
-            // The notice takes the section title's place, so the shortcuts row still fits on screen.
-            favoritesLabel.setVisibility(View.GONE);
-            App.MAIN.removeCallbacks(hideNotice);
-            App.MAIN.postDelayed(hideNotice, 20_000);
-        }
+        if (n != null) showNotice(n);
+        updateMemoryTile();
+        Memory.maybeAutoClean(this);
+    }
+
+    private void showNotice(String text) {
+        notice.setText(text);
+        notice.setVisibility(View.VISIBLE);
+        // The notice takes the section title's place, so the shortcuts row still fits on screen.
+        favoritesLabel.setVisibility(View.GONE);
+        App.MAIN.removeCallbacks(hideNotice);
+        App.MAIN.postDelayed(hideNotice, 20_000);
     }
 
     @Override protected void onPause() {
@@ -504,6 +511,12 @@ public final class HomeActivity extends Activity {
                 Apps.start(HomeActivity.this, new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             }
         });
+        memoryTile = shortcut("memory", R.drawable.ic_memory, memoryLabel());
+        memoryTile.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                cleanMemory();
+            }
+        });
         shortcut("lehko", R.drawable.ic_lehko, getString(R.string.lehko_settings)).setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 Apps.start(HomeActivity.this, new Intent(HomeActivity.this, SettingsActivity.class));
@@ -522,6 +535,48 @@ public final class HomeActivity extends Activity {
         t.show(getDrawable(icon), false, label);
         addWithGap(quickRow, t);
         return t;
+    }
+
+    // MARK: - Memory
+
+    private String memoryLabel() {
+        return getString(R.string.memory_free_short, Memory.freeMb(this));
+    }
+
+    private void updateMemoryTile() {
+        if (memoryTile != null) memoryTile.label(memoryLabel());
+    }
+
+    /** The memory tile: closes background apps (asking for debugging if needed) and says how much that freed. */
+    private void cleanMemory() {
+        if (cleaning) return;
+        cleaning = true;
+        showNotice(getString(R.string.memory_cleaning));
+        final Context app = getApplicationContext();
+        final HomeMode.Progress progress = new HomeMode.Progress() {
+            @Override public void step(String text) {}
+
+            @Override public void approval() {
+                App.MAIN.post(new Runnable() {
+                    @Override public void run() {
+                        if (!isDestroyed()) showNotice(getString(R.string.adb_waiting));
+                    }
+                });
+            }
+        };
+        App.ADB.execute(new Runnable() {
+            @Override public void run() {
+                final String result = Memory.clean(app, progress);
+                App.MAIN.post(new Runnable() {
+                    @Override public void run() {
+                        cleaning = false;
+                        if (isDestroyed()) return;
+                        showNotice(result);
+                        updateMemoryTile();
+                    }
+                });
+            }
+        });
     }
 
     // MARK: - Weather

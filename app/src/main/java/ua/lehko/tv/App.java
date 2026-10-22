@@ -65,4 +65,14 @@ public final class App extends Application {
         } catch (Exception ignored) {}
         Watchdog.install(this);
     }
+
+    /**
+     * Android asks for memory back. Hidden (an app is on screen): keep only about the favorites' pictures, whose
+     * tiles hold them anyway. Memory running low, or Lehko in the background list: drop the whole picture cache.
+     */
+    @Override public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (level == TRIM_MEMORY_UI_HIDDEN) Apps.trimPictures(false);
+        else if (level >= TRIM_MEMORY_RUNNING_LOW) Apps.trimPictures(true);
+    }
 }

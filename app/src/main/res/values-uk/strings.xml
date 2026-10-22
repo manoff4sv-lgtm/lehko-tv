@@ -102,6 +102,16 @@
     <string name="rates_crypto_on">Біткоїн та ефір у доларах · Binance</string>
     <string name="cleanup">Зайві додатки</string>
     <string name="cleanup_summary">Вимкніть те, чим не користуєтесь, щоб звільнити памʼять</string>
+    <string name="memory">Памʼять</string>
+    <string name="memory_free_short">вільно %d МБ</string>
+    <string name="memory_lehko">Lehko %d МБ</string>
+    <string name="memory_launcher">стандартний лаунчер займав %d МБ</string>
+    <string name="memory_free_of">вільно %1$d з %2$d МБ</string>
+    <string name="memory_cleaning">Закриваю фонові додатки…</string>
+    <string name="memory_freed">Звільнено %d МБ</string>
+    <string name="memory_nothing">У фоні не працювало нічого зайвого.</string>
+    <string name="memory_auto">Автоочищення памʼяті</string>
+    <string name="memory_auto_on">Коли памʼяті мало, закриває фонові додатки (потрібне налагодження USB)</string>
     <string name="about">Про Lehko</string>
     <string name="about_summary">Версія %1$s · %2$s</string>
     <string name="about_text">Lehko безкоштовний і з відкритим кодом: %s\n\nПогода від Open-Meteo, графіки відключень від YASNO і ДТЕК (через проєкт outage-data-ua), курси валют від Монобанку і НБУ, криптовалюти від Binance. Без акаунтів, реклами і стеження.\n\nПеред видаленням Lehko поверніть стандартний головний екран, інакше телевізор може залишитися без нього.</string>

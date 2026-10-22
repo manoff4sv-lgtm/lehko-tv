@@ -30,7 +30,7 @@ import java.util.Locale;
 /** Lehko's settings: the "Lehko" tile in the app list and the last tile on the home screen. */
 public final class SettingsActivity extends Activity {
     private static final int HOME = 1, PREVIEW = 2, CITY = 3, OUTAGES = 4, SAVER = 5, CLEANUP = 6, ABOUT = 7,
-            RATES = 8, CRYPTO = 9;
+            RATES = 8, CRYPTO = 9, MEMORY = 10, AUTO_CLEAN = 11;
 
     private ListView list;
     private TextView status;
@@ -58,6 +58,7 @@ public final class SettingsActivity extends Activity {
     }
 
     private void buildRows() {
+        memorySummary = null;
         rows.clear();
         rows.add(new int[]{HOME});
         if (!HomeMode.isOn(this)) rows.add(new int[]{PREVIEW});
@@ -67,6 +68,8 @@ public final class SettingsActivity extends Activity {
         rows.add(new int[]{CRYPTO});
         rows.add(new int[]{SAVER});
         rows.add(new int[]{CLEANUP});
+        rows.add(new int[]{MEMORY});
+        rows.add(new int[]{AUTO_CLEAN});
         rows.add(new int[]{ABOUT});
         adapter.notifyDataSetChanged();
     }
@@ -81,6 +84,8 @@ public final class SettingsActivity extends Activity {
             case CRYPTO: return getString(R.string.rates_crypto);
             case SAVER: return getString(R.string.screensaver);
             case CLEANUP: return getString(R.string.cleanup);
+            case MEMORY: return getString(R.string.memory);
+            case AUTO_CLEAN: return getString(R.string.memory_auto);
             default: return getString(R.string.about);
         }
     }
@@ -108,6 +113,8 @@ public final class SettingsActivity extends Activity {
                 return getString(Prefs.of(this).getBoolean(Prefs.SCREENSAVER_LEHKO, false)
                         ? R.string.screensaver_lehko : R.string.screensaver_system);
             case CLEANUP: return getString(R.string.cleanup_summary);
+            case MEMORY: return memorySummary();
+            case AUTO_CLEAN: return getString(Memory.autoEnabled(this) ? R.string.memory_auto_on : R.string.state_off);
             default: return getString(R.string.about_summary, App.version, App.REPO_URL.replace("https://", ""));
         }
     }
@@ -140,9 +147,36 @@ public final class SettingsActivity extends Activity {
             case CLEANUP:
                 Apps.start(this, new Intent(this, CleanupActivity.class));
                 break;
+            case MEMORY:
+                run(new Task() {
+                    @Override public String run(HomeMode.Progress p) {
+                        return Memory.clean(getApplicationContext(), p);
+                    }
+                });
+                break;
+            case AUTO_CLEAN:
+                Prefs.of(this).edit().putBoolean(Memory.P_AUTO, !Memory.autoEnabled(this)).apply();
+                buildRows();
+                break;
             default:
                 about();
         }
+    }
+
+    /** "Lehko 38 MB · the stock launcher used 240 MB · 412 of 1024 MB free". Computed once per list build. */
+    private String memorySummary;
+
+    private String memorySummary() {
+        if (memorySummary != null) return memorySummary;
+        StringBuilder b = new StringBuilder();
+        long own = Memory.ownPssKb(this) / 1024;
+        if (own > 0) b.append(getString(R.string.memory_lehko, own));
+        long launcher = Prefs.of(this).getLong(HomeMode.K_LAUNCHER_PSS, 0) / 1024;
+        if (launcher > 0) b.append(b.length() > 0 ? " · " : "").append(getString(R.string.memory_launcher, launcher));
+        android.app.ActivityManager.MemoryInfo mi = Memory.info(this);
+        b.append(b.length() > 0 ? " · " : "").append(getString(R.string.memory_free_of, mi.availMem / Memory.MB,
+                mi.totalMem / Memory.MB));
+        return memorySummary = b.toString();
     }
 
     // MARK: - Home screen on/off

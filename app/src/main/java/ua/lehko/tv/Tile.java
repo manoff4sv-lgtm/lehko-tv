@@ -88,6 +88,12 @@ final class Tile extends FrameLayout {
         setContentDescription(text);
     }
 
+    /** A new label for an icon tile (the memory shortcut's free memory). */
+    void label(CharSequence text) {
+        label.setText(text);
+        setContentDescription(text);
+    }
+
     /** Label only, while the picture is loading. */
     void placeholder(CharSequence text) {
         show(null, false, text);

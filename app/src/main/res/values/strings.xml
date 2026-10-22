@@ -104,6 +104,16 @@
     <string name="rates_crypto_on">Bitcoin and Ether in dollars · Binance</string>
     <string name="cleanup">Unneeded apps</string>
     <string name="cleanup_summary">Turn off apps you don’t use to free memory</string>
+    <string name="memory">Memory</string>
+    <string name="memory_free_short">%d MB free</string>
+    <string name="memory_lehko">Lehko %d MB</string>
+    <string name="memory_launcher">the stock launcher used %d MB</string>
+    <string name="memory_free_of">%1$d of %2$d MB free</string>
+    <string name="memory_cleaning">Closing background apps…</string>
+    <string name="memory_freed">Freed %d MB</string>
+    <string name="memory_nothing">Nothing extra was running in the background.</string>
+    <string name="memory_auto">Free memory automatically</string>
+    <string name="memory_auto_on">When memory runs low, closes background apps (needs USB debugging)</string>
     <string name="about">About Lehko</string>
     <string name="about_summary">Version %1$s · %2$s</string>
     <string name="about_text">Lehko is free and open source: %s\n\nWeather comes from Open-Meteo, outage schedules from YASNO and DTEK (through the outage-data-ua project), exchange rates from Monobank and the NBU, crypto prices from Binance. No accounts, ads or tracking.\n\nBefore uninstalling Lehko, switch the home screen back to the TV’s own, or the TV may be left without one.</string>

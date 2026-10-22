@@ -304,6 +304,21 @@ public class HomeModeTest {
         assertTrue("still on, so the user can try again", e.prefs.getBoolean(HomeMode.K_ON, false));
     }
 
+    @Test public void turningOnRemembersTheLaunchersMemory() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.enable(e, true, QUIET);
+        assertEquals(245678L, e.prefs.getLong(HomeMode.K_LAUNCHER_PSS, 0));
+    }
+
+    @Test public void closingBackgroundApps() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.killAll(e, false, null);
+        JSONObject s = state();
+        assertEquals(1, s.getInt("kills"));
+        assertFalse(s.getJSONObject("running").has("com.google.android.youtube.tv"));
+        assertTrue("the home screen stays", s.getJSONObject("running").has(LAUNCHERX));
+    }
+
     @Test public void screensaverOnAndBack() throws Exception {
         Env e = new Env(keys);
         HomeMode.setScreensaver(e, true, QUIET);

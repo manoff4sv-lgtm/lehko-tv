@@ -251,6 +251,15 @@ final class Apps {
         BANNER.put(a.pkg, banner);
     }
 
+    /**
+     * Gives picture memory back. {@code all}: everything (memory is low); otherwise down to about the favorites row
+     * (Lehko just went to the background: the next visit home then needs no reloading).
+     */
+    static void trimPictures(boolean all) {
+        if (all) PICTURES.evictAll();
+        else PICTURES.trimToSize(3 * 1024);
+    }
+
     static void forget(String pkg) {
         PICTURES.remove(pkg);
         BANNER.remove(pkg);

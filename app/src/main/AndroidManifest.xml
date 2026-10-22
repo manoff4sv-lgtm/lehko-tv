@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <!-- The "unneeded apps" screen shows names of apps that are turned off (they have no tile any more). -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <!-- The memory button without debugging: Android's own "close background apps" (up to Android 13). -->
+    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
