@@ -60,5 +60,6 @@ android {
 dependencies {
     // Tests only: the app itself has no dependencies.
     testImplementation "junit:junit:4.13.2"
-    testImplementation "org.json:json:20240303"
+    // Android's own org.json (the same code as on the TV), not json.org's.
+    testImplementation "com.vaadin.external.google:android-json:0.0.20131108.vaadin1"
 }
