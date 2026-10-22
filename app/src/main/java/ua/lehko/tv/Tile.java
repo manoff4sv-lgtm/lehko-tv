@@ -39,6 +39,8 @@ final class Tile extends FrameLayout {
         pad = getResources().getDimensionPixelSize(R.dimen.ring_pad);
         setLayoutParams(new ViewGroup.MarginLayoutParams(widthPx + 2 * pad, heightPx + 2 * pad));
         setBackgroundResource(R.drawable.tile_bg);
+        // The inset background would report its inset as padding; the children keep their own margins instead.
+        setPadding(0, 0, 0, 0);
         radius = getResources().getDimension(R.dimen.radius);
         // The shadow (and its glow when focused) follows the picture, not the ring's room.
         setOutlineProvider(new ViewOutlineProvider() {

@@ -70,7 +70,7 @@
             android:layout_marginStart="10dp"
             android:layout_weight="1"
             android:background="@drawable/info_bg"
-            android:focusable="true"
+            android:focusable="false"
             android:orientation="vertical"
             android:paddingStart="20dp"
             android:paddingTop="14dp"
@@ -146,7 +146,8 @@
                 android:textSize="15sp"
                 android:visibility="gone" />
 
-            <!-- The details: only while this panel has focus. -->
+            <!-- The details: only while this panel has focus. Invisible (not gone) the rest of the time, so opening them
+                 moves nothing and needs no new layout. The rates line above shows its full version meanwhile. -->
             <LinearLayout
                 android:id="@+id/details"
                 android:layout_width="match_parent"
@@ -154,7 +155,7 @@
                 android:layout_marginTop="14dp"
                 android:gravity="bottom"
                 android:orientation="horizontal"
-                android:visibility="gone">
+                android:visibility="invisible">
 
                 <LinearLayout
                     android:id="@+id/weather_hours"
@@ -173,17 +174,6 @@
                         android:id="@+id/weather_sun"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:fontFeatureSettings="tnum"
-                        android:maxLines="1"
-                        android:textColor="@color/text_dim"
-                        android:textSize="12sp" />
-
-                    <TextView
-                        android:id="@+id/rates_full"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="3dp"
                         android:ellipsize="end"
                         android:fontFeatureSettings="tnum"
                         android:maxLines="1"
@@ -229,6 +219,8 @@
         android:layout_marginBottom="6dp"
         android:accessibilityLiveRegion="polite"
         android:background="@drawable/card_bg"
+        android:ellipsize="end"
+        android:maxLines="2"
         android:paddingStart="16dp"
         android:paddingTop="8dp"
         android:paddingEnd="16dp"

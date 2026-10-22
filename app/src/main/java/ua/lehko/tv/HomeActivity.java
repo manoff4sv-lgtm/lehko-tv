@@ -46,7 +46,11 @@ public final class HomeActivity extends Activity {
     private View details, tomorrowBox;
     private HorizontalScrollView favoritesScroll;
     private ImageView weatherIcon;
-    private TextView weatherTemp, weatherText, weatherSun, powerTitle, powerDetail, notice, focusName, ratesLine, ratesFull;
+    private TextView weatherTemp, weatherText, weatherSun, powerTitle, powerDetail, notice, focusName, ratesLine;
+    /** The rates line's two versions: short, and full while the details are open. */
+    private CharSequence ratesShort, ratesLong;
+    /** The favorite that had focus last, so Down from the details goes back to it. */
+    private View lastFavorite;
     private DialView dial;
     /** The next hours under the current weather. */
     private static final int HOURS = 5;
@@ -117,6 +121,7 @@ public final class HomeActivity extends Activity {
     private final Runnable hideNotice = new Runnable() {
         @Override public void run() {
             notice.setVisibility(View.GONE);
+            focusName.setVisibility(View.VISIBLE);
         }
     };
 
@@ -177,11 +182,11 @@ public final class HomeActivity extends Activity {
         notice = findViewById(R.id.notice);
         focusName = findViewById(R.id.focus_name);
         ratesLine = findViewById(R.id.rates);
-        ratesFull = findViewById(R.id.rates_full);
         // Calm by default; Up from the favorites opens the details.
         info.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override public void onFocusChange(View v, boolean hasFocus) {
-                details.setVisibility(hasFocus ? View.VISIBLE : View.GONE);
+                details.setVisibility(hasFocus ? View.VISIBLE : View.INVISIBLE);
+                if (ratesLong != null) ratesLine.setText(hasFocus ? ratesLong : ratesShort);
             }
         });
 
@@ -276,6 +281,8 @@ public final class HomeActivity extends Activity {
     private void showNotice(String text) {
         notice.setText(text);
         notice.setVisibility(View.VISIBLE);
+        // The notice borrows the name line's room, so the buttons stay inside the screen's safe area.
+        focusName.setVisibility(View.GONE);
         App.MAIN.removeCallbacks(hideNotice);
         App.MAIN.postDelayed(hideNotice, 20_000);
     }
@@ -372,10 +379,12 @@ public final class HomeActivity extends Activity {
         if (toFocus != null) {
             toFocus.requestFocus();
         } else if (getCurrentFocus() == null || hadFocus || !focusedOnce) {
-            // On a cold start the shortcuts row exists first; the first favorite is where people expect to be.
+            // On a cold start the buttons exist first; the first favorite is where people expect to be.
             favoritesRow.getChildAt(0).requestFocus();
         }
         focusedOnce = true;
+        // Only now: otherwise the details panel (first in the layout) would take the window's first focus.
+        info.setFocusable(true);
     }
 
     private Tile appTile(final Apps.Entry a, int w, int h) {
@@ -414,6 +423,7 @@ public final class HomeActivity extends Activity {
 
     private void focusChanged(View focused) {
         ambient(focused);
+        if (focused.getParent() == favoritesRow) lastFavorite = focused;
         boolean named = focused.getParent() == favoritesRow || focused.getParent() == quickRow;
         CharSequence name = named ? focused.getContentDescription() : null;
         showFocusName(name == null ? "" : name);
@@ -466,6 +476,19 @@ public final class HomeActivity extends Activity {
     }
 
     @Override public boolean onKeyDown(int keyCode, KeyEvent event) {
+        View current = getCurrentFocus();
+        // Down from the details: back to the favorite we came from, not the one nearest the panel's middle.
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && current == info) {
+            View back = lastFavorite != null && lastFavorite.getParent() == favoritesRow ? lastFavorite
+                    : favoritesRow.getChildCount() > 0 ? favoritesRow.getChildAt(0) : null;
+            if (back != null && back.requestFocus()) return true;
+        }
+        // Right at the end of a row stays there (the wide details panel above would otherwise catch it).
+        if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && current != null && (current.getParent() == quickRow
+                || current.getParent() == favoritesRow)) {
+            ViewGroup row = (ViewGroup) current.getParent();
+            if (row.indexOfChild(current) == row.getChildCount() - 1) return true;
+        }
         if (keyCode == KeyEvent.KEYCODE_MENU) {
             View f = getCurrentFocus();
             if (f instanceof Tile && f.getParent() == favoritesRow && ((Tile) f).key instanceof String) {
@@ -575,7 +598,9 @@ public final class HomeActivity extends Activity {
             }
         });
         updateMemoryTile();
-        shortcut("lehko", R.drawable.ic_lehko, getString(R.string.settings_title)).setOnClickListener(new View.OnClickListener() {
+        IconButton lehko = new IconButton(this, "lehko", getDrawable(R.drawable.ic_lehko), getString(R.string.settings_title), false);
+        addWithGap(quickRow, lehko);
+        lehko.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 Apps.start(HomeActivity.this, new Intent(HomeActivity.this, SettingsActivity.class));
             }
@@ -807,10 +832,13 @@ public final class HomeActivity extends Activity {
     private void showRates() {
         String[] lines = Rates.lines(this);
         ratesLine.setVisibility(lines == null ? View.GONE : View.VISIBLE);
-        ratesFull.setVisibility(lines == null ? View.GONE : View.VISIBLE);
-        if (lines == null) return;
-        ratesLine.setText(coloured(lines[0]));
-        ratesFull.setText(coloured(lines[1]));
+        if (lines == null) {
+            ratesShort = ratesLong = null;
+            return;
+        }
+        ratesShort = coloured(lines[0]);
+        ratesLong = coloured(lines[1]);
+        ratesLine.setText(info.hasFocus() ? ratesLong : ratesShort);
     }
 
     private CharSequence coloured(String line) {

@@ -22,6 +22,11 @@ final class IconButton extends FrameLayout {
     private final TextView badge;
 
     IconButton(Context c, String key, Drawable picture, CharSequence name) {
+        this(c, key, picture, name, true);
+    }
+
+    /** {@code tint}: false for a picture that has its own colours (Lehko's leaf). */
+    IconButton(Context c, String key, Drawable picture, CharSequence name, boolean tint) {
         super(c);
         this.key = key;
         int size = getResources().getDimensionPixelSize(R.dimen.icon_button);
@@ -30,7 +35,7 @@ final class IconButton extends FrameLayout {
         ColorStateList fg = c.getColorStateList(R.color.icon_button_fg);
         icon = new ImageView(c);
         icon.setImageDrawable(picture);
-        icon.setImageTintList(fg);
+        if (tint) icon.setImageTintList(fg);
         icon.setDuplicateParentStateEnabled(true);
         icon.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
         int iconSize = Math.round(24 * getResources().getDisplayMetrics().density);

@@ -19,6 +19,7 @@ public final class DialView extends View {
             off = new Paint(Paint.ANTI_ALIAS_FLAG), maybe = new Paint(Paint.ANTI_ALIAS_FLAG),
             label = new Paint(Paint.ANTI_ALIAS_FLAG), dot = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF ring = new RectF();
+    private static final String[] HOURS = {"0", "3", "6", "9", "12", "15", "18", "21"};
     private final float density;
     private byte[] slots;
     private int nowMinute = -1;
@@ -62,7 +63,7 @@ public final class DialView extends View {
         float baseline = -(label.ascent() + label.descent()) / 2;
         for (int h = 0; h < 24; h += 3) {
             double a = Math.toRadians(h * 15 - 90);
-            canvas.drawText(String.valueOf(h), cx + (float) Math.cos(a) * (r + labelGap),
+            canvas.drawText(HOURS[h / 3], cx + (float) Math.cos(a) * (r + labelGap),
                     cy + (float) Math.sin(a) * (r + labelGap) + baseline, label);
         }
         if (nowMinute >= 0) {
