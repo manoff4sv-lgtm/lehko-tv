@@ -17,7 +17,9 @@ set SAVER=
 set SAVERENABLED=
 set ADBCHANGED=
 set ADBTIME=
+set GOTSTATE=
 for /f "usebackq tokens=1,* delims==" %%a in (`adb -s %TV% shell cat /data/local/tmp/lehko_state 2^>nul`) do (
+  set GOTSTATE=1
   if "%%a"=="home" set HOMEC=%%b
   if "%%a"=="disabled" set DISABLED=%%b
   if "%%a"=="screensaver_changed" set SAVERCHANGED=%%b
@@ -26,7 +28,11 @@ for /f "usebackq tokens=1,* delims==" %%a in (`adb -s %TV% shell cat /data/local
   if "%%a"=="adb_time_changed" set ADBCHANGED=%%b
   if "%%a"=="adb_time" set ADBTIME=%%b
 )
-if "!DISABLED!"=="" set DISABLED=com.google.android.apps.tv.launcherx,com.google.android.tvlauncher,com.google.android.tungsten.setupwraith,com.google.android.tvrecommendations
+rem The usual stock launcher apps only without notes, like revert.sh: an empty disabled= means Lehko turned nothing off.
+if not defined GOTSTATE (
+  echo No Lehko notes on the TV, turning on the usual stock launcher apps.
+  set DISABLED=com.google.android.apps.tv.launcherx,com.google.android.tvlauncher,com.google.android.tungsten.setupwraith,com.google.android.tvrecommendations
+)
 for %%p in (!DISABLED:,= !) do (
   echo %%p| findstr /R /X "[A-Za-z0-9_.][A-Za-z0-9_.]*" >nul && (
     echo Turning on %%p
