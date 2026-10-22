@@ -162,6 +162,11 @@ public final class AllAppsActivity extends Activity {
                 .show();
     }
 
+    /** What TalkBack says for a tile: favorites say so. Worked out when applied, as the menu can change it. */
+    private CharSequence describe(Apps.Entry a) {
+        return Apps.isFavorite(this, a.pkg) ? a.label + ", " + getString(R.string.in_favorites) : a.label;
+    }
+
     private final class Adapter extends BaseAdapter {
         @Override public int getCount() {
             return apps.size();
@@ -202,14 +207,16 @@ public final class AllAppsActivity extends Activity {
                         Apps.remember(a, pic, banner[0]);
                         App.MAIN.post(new Runnable() {
                             @Override public void run() {
-                                if (a.pkg.equals(t.key)) t.show(pic, banner[0], a.label);
+                                if (!a.pkg.equals(t.key)) return;
+                                // show() resets the description to the bare name.
+                                t.show(pic, banner[0], a.label);
+                                t.setContentDescription(describe(a));
                             }
                         });
                     }
                 });
             }
-            t.setContentDescription(Apps.isFavorite(AllAppsActivity.this, a.pkg)
-                    ? a.label + ", " + getString(R.string.in_favorites) : a.label);
+            t.setContentDescription(describe(a));
             return t;
         }
     }
