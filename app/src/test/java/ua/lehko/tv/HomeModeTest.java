@@ -330,6 +330,23 @@ public class HomeModeTest {
         assertEquals("1", secure.getString("screensaver_enabled"));
     }
 
+    @Test public void fireplaceScreensaverAndBack() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        JSONObject secure = state().getJSONObject("settings").getJSONObject("secure");
+        assertEquals(HomeMode.FIRE_DREAM, secure.getString("screensaver_components"));
+        assertTrue(e.prefs.getBoolean(Prefs.SCREENSAVER_FIRE, false));
+        HomeMode.setScreensaver(e, HomeMode.SAVER_CLOCK, QUIET);
+        secure = state().getJSONObject("settings").getJSONObject("secure");
+        assertEquals(HomeMode.DREAM, secure.getString("screensaver_components"));
+        assertFalse(e.prefs.getBoolean(Prefs.SCREENSAVER_FIRE, false));
+        HomeMode.setScreensaver(e, HomeMode.SAVER_SYSTEM, QUIET);
+        secure = state().getJSONObject("settings").getJSONObject("secure");
+        assertEquals("the original, not the clock", "com.google.android.apps.tv.dreamx/.service.Backdrop",
+                secure.getString("screensaver_components"));
+        assertFalse(e.prefs.getBoolean(Prefs.SCREENSAVER_LEHKO, true));
+    }
+
     @Test public void unneededAppsScreen() throws Exception {
         Env e = new Env(keys);
         HomeMode.setAppEnabled(e, "com.google.android.play.games", false);

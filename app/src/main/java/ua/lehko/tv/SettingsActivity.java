@@ -30,7 +30,7 @@ import java.util.Locale;
 /** Lehko's settings: the "Lehko" tile in the app list and the last tile on the home screen. */
 public final class SettingsActivity extends Activity {
     private static final int HOME = 1, PREVIEW = 2, CITY = 3, OUTAGES = 4, SAVER = 5, CLEANUP = 6, ABOUT = 7,
-            RATES = 8, CRYPTO = 9, MEMORY = 10, AUTO_CLEAN = 11;
+            RATES = 8, CRYPTO = 9, MEMORY = 10, AUTO_CLEAN = 11, FIRE_IDLE = 12, FIRE_SOUND = 13;
 
     private ListView list;
     private TextView status;
@@ -67,6 +67,8 @@ public final class SettingsActivity extends Activity {
         rows.add(new int[]{RATES});
         rows.add(new int[]{CRYPTO});
         rows.add(new int[]{SAVER});
+        rows.add(new int[]{FIRE_IDLE});
+        rows.add(new int[]{FIRE_SOUND});
         rows.add(new int[]{CLEANUP});
         rows.add(new int[]{MEMORY});
         rows.add(new int[]{AUTO_CLEAN});
@@ -83,6 +85,8 @@ public final class SettingsActivity extends Activity {
             case RATES: return getString(R.string.rates_fiat);
             case CRYPTO: return getString(R.string.rates_crypto);
             case SAVER: return getString(R.string.screensaver);
+            case FIRE_IDLE: return getString(R.string.fireplace);
+            case FIRE_SOUND: return getString(R.string.fireplace_sound);
             case CLEANUP: return getString(R.string.cleanup);
             case MEMORY: return getString(R.string.memory);
             case AUTO_CLEAN: return getString(R.string.memory_auto);
@@ -109,9 +113,16 @@ public final class SettingsActivity extends Activity {
             }
             case RATES: return getString(Rates.fiatEnabled(this) ? R.string.rates_fiat_on : R.string.state_off);
             case CRYPTO: return getString(Rates.cryptoEnabled(this) ? R.string.rates_crypto_on : R.string.state_off);
-            case SAVER:
-                return getString(Prefs.of(this).getBoolean(Prefs.SCREENSAVER_LEHKO, false)
-                        ? R.string.screensaver_lehko : R.string.screensaver_system);
+            case SAVER: {
+                android.content.SharedPreferences p = Prefs.of(this);
+                if (!p.getBoolean(Prefs.SCREENSAVER_LEHKO, false)) return getString(R.string.screensaver_system);
+                return getString(p.getBoolean(Prefs.SCREENSAVER_FIRE, false) ? R.string.screensaver_fire : R.string.screensaver_lehko);
+            }
+            case FIRE_IDLE: {
+                int min = FireScene.idleMinutes(this);
+                return min > 0 ? getString(R.string.fireplace_after, min) : getString(R.string.state_off);
+            }
+            case FIRE_SOUND: return getString(FireScene.sound(this) ? R.string.fireplace_sound_on : R.string.state_off);
             case CLEANUP: return getString(R.string.cleanup_summary);
             case MEMORY: return memorySummary();
             case AUTO_CLEAN: return getString(Memory.autoEnabled(this) ? R.string.memory_auto_on : R.string.state_off);
@@ -143,6 +154,13 @@ public final class SettingsActivity extends Activity {
                 break;
             case SAVER:
                 screensaver();
+                break;
+            case FIRE_IDLE:
+                fireIdle();
+                break;
+            case FIRE_SOUND:
+                Prefs.of(this).edit().putBoolean(FireScene.P_SOUND, !FireScene.sound(this)).apply();
+                buildRows();
                 break;
             case CLEANUP:
                 Apps.start(this, new Intent(this, CleanupActivity.class));
@@ -492,20 +510,43 @@ public final class SettingsActivity extends Activity {
     // MARK: - Screensaver
 
     private void screensaver() {
-        final boolean current = Prefs.of(this).getBoolean(Prefs.SCREENSAVER_LEHKO, false);
-        CharSequence[] labels = {getString(R.string.screensaver_system), getString(R.string.screensaver_lehko)};
+        android.content.SharedPreferences prefs = Prefs.of(this);
+        final int current = !prefs.getBoolean(Prefs.SCREENSAVER_LEHKO, false) ? HomeMode.SAVER_SYSTEM
+                : prefs.getBoolean(Prefs.SCREENSAVER_FIRE, false) ? HomeMode.SAVER_FIRE : HomeMode.SAVER_CLOCK;
+        // In the order of HomeMode.SAVER_SYSTEM, SAVER_CLOCK, SAVER_FIRE.
+        CharSequence[] labels = {getString(R.string.screensaver_system), getString(R.string.screensaver_lehko),
+                getString(R.string.screensaver_fire)};
         new AlertDialog.Builder(this)
                 .setTitle(R.string.screensaver)
-                .setSingleChoiceItems(labels, current ? 1 : 0, new DialogInterface.OnClickListener() {
-                    @Override public void onClick(DialogInterface d, int which) {
+                .setSingleChoiceItems(labels, current, new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, final int which) {
                         d.dismiss();
-                        final boolean lehko = which == 1;
-                        if (lehko == current) return;
+                        if (which == current) return;
                         run(new Task() {
                             @Override public String run(HomeMode.Progress p) throws IOException {
-                                return HomeMode.setScreensaver(getApplicationContext(), lehko, p);
+                                return HomeMode.setScreensaver(getApplicationContext(), which, p);
                             }
                         });
+                    }
+                })
+                .show();
+    }
+
+    private void fireIdle() {
+        final int[] choices = FireScene.IDLE_CHOICES;
+        int current = FireScene.idleMinutes(this), checked = choices.length - 1;
+        CharSequence[] labels = new CharSequence[choices.length];
+        for (int i = 0; i < choices.length; i++) {
+            labels[i] = choices[i] > 0 ? getString(R.string.dur_min, choices[i]) : getString(R.string.state_off);
+            if (choices[i] == current) checked = i;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.fireplace)
+                .setSingleChoiceItems(labels, checked, new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        d.dismiss();
+                        Prefs.of(SettingsActivity.this).edit().putInt(FireScene.P_IDLE, choices[which]).apply();
+                        buildRows();
                     }
                 })
                 .show();

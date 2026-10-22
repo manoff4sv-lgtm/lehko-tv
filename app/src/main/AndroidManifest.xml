@@ -91,11 +91,33 @@
             android:screenOrientation="landscape"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection" />
 
+        <!-- The fireplace after a few idle minutes on the home screen (any key goes back). -->
+        <activity
+            android:name=".FireplaceActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:screenOrientation="landscape"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection"
+            android:theme="@style/Lehko.Fire" />
+
         <!-- Optional screensaver: a clock with the weather that slowly moves (no burn-in). -->
         <service
             android:name=".ClockDream"
             android:exported="true"
-            android:label="@string/app_name"
+            android:label="@string/screensaver_lehko"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+
+        <!-- Optional screensaver: the fireplace. -->
+        <service
+            android:name=".FireDream"
+            android:exported="true"
+            android:label="@string/screensaver_fire"
             android:permission="android.permission.BIND_DREAM_SERVICE">
             <intent-filter>
                 <action android:name="android.service.dreams.DreamService" />

@@ -36,7 +36,8 @@ final class HomeMode {
 
     static final String PKG = "ua.lehko.tv";
     static final String HOME = PKG + "/.HomeActivity";
-    static final String DREAM = PKG + "/.ClockDream";
+    static final String DREAM = PKG + "/.ClockDream", FIRE_DREAM = PKG + "/.FireDream";
+    static final int SAVER_SYSTEM = 0, SAVER_CLOCK = 1, SAVER_FIRE = 2;
     static final String GOOGLE_TV_HOME = "com.google.android.apps.tv.launcherx/.home.HomeActivity";
     static final String ATV_HOME_PKG = "com.google.android.tvlauncher";
     static final String ATV_RECOMMENDATIONS = "com.google.android.tvrecommendations";
@@ -215,8 +216,8 @@ final class HomeMode {
         verify(env(c));
     }
 
-    static String setScreensaver(Context c, boolean lehko, Progress p) throws IOException {
-        return setScreensaver(env(c), lehko, p);
+    static String setScreensaver(Context c, int which, Progress p) throws IOException {
+        return setScreensaver(env(c), which, p);
     }
 
     static void setAppEnabled(Context c, String pkg, boolean enabled) throws IOException {
@@ -512,7 +513,13 @@ final class HomeMode {
 
     // MARK: - Screensaver
 
-    static synchronized String setScreensaver(Env c, boolean lehko, Progress p) throws IOException {
+    static String setScreensaver(Env c, boolean lehko, Progress p) throws IOException {
+        return setScreensaver(c, lehko ? SAVER_CLOCK : SAVER_SYSTEM, p);
+    }
+
+    /** {@code which}: SAVER_SYSTEM (the TV's own, as it was), SAVER_CLOCK or SAVER_FIRE. */
+    static synchronized String setScreensaver(Env c, int which, Progress p) throws IOException {
+        boolean lehko = which == SAVER_CLOCK || which == SAVER_FIRE;
         try (Adb adb = connect(c, p)) {
             if (lehko) {
                 if (!c.prefs().getBoolean(K_SAVER_CHANGED, false)) {
@@ -523,14 +530,16 @@ final class HomeMode {
                             .putBoolean(K_SAVER_CHANGED, true).commit();
                     writeDeviceState(c, adb);
                 }
-                adb.shell("settings put secure screensaver_components " + DREAM);
+                adb.shell("settings put secure screensaver_components " + (which == SAVER_FIRE ? FIRE_DREAM : DREAM));
                 adb.shell("settings put secure screensaver_enabled 1");
             } else {
                 restoreScreensaver(c, adb);
             }
-            c.prefs().edit().putBoolean(Prefs.SCREENSAVER_LEHKO, lehko).commit();
+            c.prefs().edit().putBoolean(Prefs.SCREENSAVER_LEHKO, lehko).putBoolean(Prefs.SCREENSAVER_FIRE, which == SAVER_FIRE)
+                    .commit();
             writeDeviceState(c, adb);
-            return c.text(lehko ? R.string.result_saver_on : R.string.result_saver_off);
+            return c.text(which == SAVER_FIRE ? R.string.result_saver_fire
+                    : lehko ? R.string.result_saver_on : R.string.result_saver_off);
         }
     }
 
@@ -545,7 +554,7 @@ final class HomeMode {
         if (enabled.matches("-?\\d+")) adb.shell("settings put secure screensaver_enabled " + enabled);
         else adb.shell("settings delete secure screensaver_enabled");
         c.prefs().edit().putBoolean(K_SAVER_CHANGED, false).remove(K_SAVER).remove(K_SAVER_ENABLED)
-                .putBoolean(Prefs.SCREENSAVER_LEHKO, false).commit();
+                .putBoolean(Prefs.SCREENSAVER_LEHKO, false).putBoolean(Prefs.SCREENSAVER_FIRE, false).commit();
     }
 
     // MARK: - Debugging permission

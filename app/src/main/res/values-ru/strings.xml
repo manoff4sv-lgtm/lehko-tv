@@ -96,6 +96,11 @@
     <string name="screensaver">Заставка</string>
     <string name="screensaver_system">Стандартная</string>
     <string name="screensaver_lehko">Часы Lehko</string>
+    <string name="screensaver_fire">Камин Lehko</string>
+    <string name="fireplace">Камин в простое</string>
+    <string name="fireplace_after">Через %d мин на главном экране без нажатий</string>
+    <string name="fireplace_sound">Треск камина</string>
+    <string name="fireplace_sound_on">Тихое потрескивание</string>
     <string name="rates_fiat">Курс валют</string>
     <string name="rates_fiat_on">Доллар и евро к гривне · Монобанк, НБУ</string>
     <string name="rates_crypto">Криптовалюты</string>
@@ -146,6 +151,7 @@
     <string name="result_off">Готово! Стандартный экран возвращён, всё, что выключал Lehko, снова включено.</string>
     <string name="result_off_partly">Экран возвращён, но не удалось включить: %s</string>
     <string name="result_saver_on">Заставка: часы Lehko.</string>
+    <string name="result_saver_fire">Заставка: камин Lehko.</string>
     <string name="result_saver_off">Заставка: стандартная.</string>
     <string name="the_home_screen">главный экран</string>
     <string name="reverted_crash">Экран Lehko несколько раз аварийно закрылся, поэтому возвращён стандартный экран. Пожалуйста, напишите об этом на GitHub.</string>

@@ -98,6 +98,11 @@
     <string name="screensaver">Screensaver</string>
     <string name="screensaver_system">The TV’s own</string>
     <string name="screensaver_lehko">Lehko clock</string>
+    <string name="screensaver_fire">Lehko fireplace</string>
+    <string name="fireplace">Fireplace when idle</string>
+    <string name="fireplace_after">After %d min on the home screen without pressing anything</string>
+    <string name="fireplace_sound">Fireplace crackle</string>
+    <string name="fireplace_sound_on">A quiet crackling sound</string>
     <string name="rates_fiat">Exchange rates</string>
     <string name="rates_fiat_on">Dollar and euro to hryvnia · Monobank, NBU</string>
     <string name="rates_crypto">Cryptocurrencies</string>
@@ -148,6 +153,7 @@
     <string name="result_off">Done! The TV’s own home screen is back, and every app Lehko turned off is on again.</string>
     <string name="result_off_partly">The home screen is back, but these couldn’t be turned on: %s</string>
     <string name="result_saver_on">Screensaver: Lehko clock.</string>
+    <string name="result_saver_fire">Screensaver: Lehko fireplace.</string>
     <string name="result_saver_off">Screensaver: the TV’s own.</string>
     <string name="the_home_screen">the home screen</string>
     <string name="reverted_crash">Lehko’s home screen crashed several times, so the TV’s own home screen is back. Please report it on GitHub.</string>

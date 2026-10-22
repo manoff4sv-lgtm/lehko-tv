@@ -95,6 +95,19 @@ public final class HomeActivity extends Activity {
         }
     };
 
+    /** After a few minutes without a key press: the fireplace. */
+    private final Runnable idle = new Runnable() {
+        @Override public void run() {
+            if (!resumed || isFinishing() || isDestroyed()) return;
+            if (!hasWindowFocus()) {
+                // A menu is open (its keys don't reach onUserInteraction): wait for another round.
+                scheduleIdle();
+                return;
+            }
+            Apps.start(HomeActivity.this, new Intent(HomeActivity.this, FireplaceActivity.class));
+        }
+    };
+
     private final Runnable hideNotice = new Runnable() {
         @Override public void run() {
             notice.setVisibility(View.GONE);
@@ -204,6 +217,7 @@ public final class HomeActivity extends Activity {
             if (la != null) la.unregisterCallback(packages);
             App.MAIN.removeCallbacks(hideNotice);
             App.MAIN.removeCallbacks(ticker);
+            App.MAIN.removeCallbacks(idle);
             ambientFade.cancel();
             getWindow().getDecorView().getViewTreeObserver().removeOnGlobalFocusChangeListener(focusWatch);
         }
@@ -228,6 +242,18 @@ public final class HomeActivity extends Activity {
         if (n != null) showNotice(n);
         updateMemoryTile();
         Memory.maybeAutoClean(this);
+        scheduleIdle();
+    }
+
+    @Override public void onUserInteraction() {
+        super.onUserInteraction();
+        if (!safe) scheduleIdle();
+    }
+
+    private void scheduleIdle() {
+        App.MAIN.removeCallbacks(idle);
+        int minutes = FireScene.idleMinutes(this);
+        if (resumed && minutes > 0) App.MAIN.postDelayed(idle, minutes * 60_000L);
     }
 
     private void showNotice(String text) {
@@ -246,6 +272,7 @@ public final class HomeActivity extends Activity {
         }
         resumed = false;
         App.MAIN.removeCallbacks(ticker);
+        App.MAIN.removeCallbacks(idle);
         super.onPause();
     }
 

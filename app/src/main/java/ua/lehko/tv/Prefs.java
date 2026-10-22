@@ -63,6 +63,8 @@ final class Prefs {
     // MARK: - Screensaver
 
     static final String SCREENSAVER_LEHKO = "screensaver_lehko";
+    /** With SCREENSAVER_LEHKO: the fireplace rather than the clock. */
+    static final String SCREENSAVER_FIRE = "screensaver_fire";
 
     // MARK: - A one-time notice shown on the home screen (results of background checks)
 

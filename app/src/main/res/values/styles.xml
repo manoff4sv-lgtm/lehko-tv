@@ -16,6 +16,12 @@
         <item name="android:windowAnimationStyle">@null</item>
     </style>
 
+    <!-- The fireplace: black while it starts. -->
+    <style name="Lehko.Fire">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowShowWallpaper">false</item>
+    </style>
+
     <style name="Lehko.Dialog" parent="@android:style/Theme.DeviceDefault.Dialog.Alert">
         <item name="android:colorAccent">@color/accent</item>
     </style>
