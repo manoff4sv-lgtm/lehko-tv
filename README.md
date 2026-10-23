@@ -24,11 +24,14 @@
   після заходу сонця, відтінок ще темніший.
 - **Назва вибраного додатка** під рядом улюблених: на банерах її видно не завжди.
 - **Погода** від Open-Meteo: зараз і «дощ з 17:00», а в подробицях мінімум і максимум, наступні 5 годин, схід і
-  захід сонця. Працює без ключів і показує останній прогноз навіть без інтернету.
+  захід сонця. Працює без ключів і показує останній прогноз навіть без інтернету. Якщо оновити не вдається, а
+  прогнозу вже понад 3 години, поруч зʼявляється «Не оновлювалося з 14:05»; заставка-годинник такий прогноз не показує.
 - **Курси:** долар і євро до гривні: продаж у Монобанку (або офіційний курс НБУ, якщо Монобанк не відповідає), у
   подробицях купівля і продаж. Вмикаються в налаштуваннях; останні значення видно й без інтернету.
 - **Графік відключень світла**: зараз є чи нема і до котрої, коли відключать або ввімкнуть, кільце на сьогодні,
-  смуга на завтра в подробицях.
+  смуга на завтра в подробицях. Якщо графік не вдається оновити понад 2 години (скажімо, під час відключення немає
+  інтернету), у рядку зʼявляється «Не оновлювалося з 09:00» (з датою, якщо графік востаннє оновився не сьогодні).
+  Так само в каміні.
   - Київ (місто): група за вашою адресою (з 2026 року в Києві 60 груп по будинках), дані YASNO, запасне джерело ДТЕК.
   - Київська область та Одеська область: дані ДТЕК.
   - Дніпропетровщина (ДнЕМ і ЦЕК): дані YASNO, група за адресою.
@@ -37,15 +40,20 @@
 - **Вимкнення зайвих додатків**, щоб звільнити памʼять. Нічого не видаляється, усе вмикається назад однією кнопкою.
 - **Памʼять.** Кнопка «Памʼять» показує, скільки вільно. Натискання закриває додатки, які Android тримає у фоні
   (через режим налагодження; без нього звичайним способом Android, який працює до Android 13), і пише, скільки
-  звільнилося. Автоочищення робить те саме автоматично, коли памʼяті мало (його можна вимкнути). Закриті додатки наступного
+  звільнилося. На Android 14 і новіших, якщо налагодження недоступне, кнопка пише, чому нічого не закрила.
+  Автоочищення робить те саме автоматично, коли памʼяті мало (його можна вимкнути). Закриті додатки наступного
   разу відкриваються трохи довше. У налаштуваннях видно, скільки займає Lehko і скільки займав стандартний лаунчер.
 - **Камін.** Якщо 5 хвилин нічого не натискати на головному екрані, запалюється камін: цегла, поліна, живий вогонь,
-  тьмяний годинник і стан світла з графіка. Будь-яка кнопка повертає назад. Можна поставити 10 чи 15 хвилин або
-  вимкнути; тихе потріскування вмикається окремо. Екран камін не тримає: звичайна заставка і вимкнення телевізора
-  працюють як завжди.
+  тьмяний годинник і стан світла з графіка. Кнопки гучності й відтворення працюють як завжди, будь-яка інша повертає
+  назад. Можна поставити 10 чи 15 хвилин або вимкнути. Тихе потріскування вмикається окремо і поверх музики не звучить:
+  замовкає, щойно вмикається музика чи відео. Екран камін не тримає: звичайна заставка і вимкнення телевізора працюють
+  як завжди. Тому якщо таймер заставки телевізора не довший за час до каміна (5, 10 чи 15 хв), першою вмикається
+  заставка телевізора, а камін пропускається. Тоді виберіть заставкою камін Lehko; рядок «Камін у простої» в
+  налаштуваннях про це підкаже.
 - **Заставка** на вибір: стандартна, годинник Lehko (темний, повільно переміщується) або камін Lehko.
 - **Безпечно**: стандартний лаунчер лише вимикається, не видаляється. Кнопка «Повернути» поверне все як було.
-  Якщо екран Lehko тричі впаде за 5 хвилин, телевізор сам повернеться до стандартного екрана.
+  Якщо екран Lehko тричі впаде за 5 хвилин, телевізор сам повернеться до стандартного екрана. На Android 11 і новіших
+  враховуються також зависання й збої нативного коду (наприклад, графічного драйвера).
 - **Доступність.** Текст контрастний за WCAG AA навіть на кольоровому фоні, фокус завжди обведений білою рамкою,
   графік відключень читається без розрізнення червоного й зеленого (світло є: тонка лінія, нема: товста дуга,
   можливо: пунктир). TalkBack зачитує погоду, графік і сповіщення. Якщо в налаштуваннях телевізора вимкнено
@@ -87,19 +95,42 @@ IP телевізора є в **Налаштування → Мережа та �
 «Дозволити налагодження USB?»: позначте **«Завжди дозволяти»** і натисніть **OK**. Готово.
 
 Галочка «Також вимкнути стандартний лаунчер» звільняє найбільше памʼяті, але за замовчуванням вимкнена. Спершу
-спробуйте без неї; якщо кнопка Home все одно відкриває стандартний екран, увімкніть її. **З цією галочкою завжди
-повертайте стандартний екран перед видаленням Lehko.**
+спробуйте без неї. Якщо кнопка Home все одно відкриває стандартний екран, вимкніть лаунчер окремо: Lehko →
+Головний екран → **Вимкнути стандартний лаунчер** → **Вимкнути**. Там само його можна знову ввімкнути (**Увімкнути
+стандартний лаунчер знову**), а Lehko лишиться головним екраном. Якщо щось не ввімкнеться, Lehko напише, що саме, і
+пункт лишиться в списку, щоб спробувати ще раз. Повертати для цього стандартний екран не треба: це ще й увімкнуло б
+назад усі зайві додатки і скинуло заставку. **Поки лаунчер вимкнений, завжди повертайте стандартний екран перед
+видаленням Lehko.**
 
 > Не вимикайте «Налагодження USB» після встановлення: через нього Lehko перевіряє себе після оновлень телевізора.
 > Дозволяйте налагодження лише тоді, коли самі щойно натиснули кнопку в Lehko.
 
+**Якщо телевізор забув дозвіл** (Lehko про це напише): Lehko → Головний екран → **Дозволити налагодження знову**,
+і у вікні позначте «Завжди дозволяти».
+
+**Якщо порт закривається після перезавантаження.** Деякі телевізори відкривають порт налагодження лише командою `adb
+tcpip 5555` з компʼютера і закривають його після кожного перезавантаження. Тоді виконуйте її після кожного
+перезавантаження телевізора або ввімкніть «Налагодження по мережі», якщо воно є. Поки порт закритий, `adb connect
+IP:5555` теж не працює, тож підключіться до телевізора інакше: USB-кабелем (якщо телевізор має USB-порт для компʼютера;
+на більшості телевізорів є лише порти для флешок) або, на Android 11 і новіших, через «Бездротове налагодження»
+(`adb pair` з кодом сполучення, `adb connect` на адресу з того самого екрана, потім `adb -s IP:ПОРТ tcpip 5555`). Із
+закритим портом Lehko лишається головним екраном, але не може перевірити себе після оновлень телевізора і не зможе сам
+повернути стандартний екран, якщо екран Lehko почне падати. Налаштування Lehko, екран «Зайві додатки» і, на Android 14 і
+новіших, кнопка «Памʼять» скажуть, що порт закритий, а після перезавантаження про це зʼявиться повідомлення на головному
+екрані.
+
 ## Як повернути все назад
 
-- **На телевізорі:** Lehko → Головний екран → **Повернути**. Усе, що вимикав Lehko, знову ввімкнеться.
+- **На телевізорі:** Lehko → Головний екран → **Повернути стандартний екран** → **Повернути**. Усе, що вимикав
+  Lehko, знову ввімкнеться: і лаунчер, і додатки з екрана «Зайві додатки».
+- **Стандартний екран уже працює, а зайві додатки ще вимкнені:** Lehko → **Увімкнути додатки назад** (цей рядок
+  зʼявляється в налаштуваннях сам, поки є додатки, які Lehko вимкнув і не ввімкнув назад).
 - **З компʼютера**, навіть якщо Lehko вже видалено: `scripts/revert.sh 192.168.1.50` (або `revert.bat`). Додайте
-  `--uninstall`, щоб заразом видалити Lehko.
+  `--uninstall`, щоб заразом видалити Lehko. Якщо Lehko лишився, він помітить такий відкат, щойно наступного разу
+  звернеться до телевізора, і сам головним екраном знову не стане: ні після перезавантаження, ні після оновлення.
 
-**Перед видаленням Lehko спершу натисніть «Повернути»**, інакше телевізор може залишитися без головного екрана.
+**Перед видаленням Lehko спершу натисніть «Повернути»** (або «Увімкнути додатки назад», якщо стандартний екран уже
+працює), інакше телевізор може залишитися без головного екрана, а вимкнені додатки так і лишаться вимкненими.
 
 ## Що саме змінюється
 
@@ -107,13 +138,20 @@ IP телевізора є в **Налаштування → Мережа та �
 - Якщо галочка увімкнена, вимикаються (`pm disable-user`, не видаляються): стандартний лаунчер; на Google TV ще
   екран відновлення з майстра налаштування (інакше він займає місце лаунчера); на старому Android TV ще сервіс рекомендацій.
 - Додатки, які зберегли вашу мережу Wi-Fi, ніколи не вимикаються: Android тоді забув би мережу. Системні служби,
-  магазин, клавіатура, пульт і входи телевізора в захищеному списку.
+  магазин, клавіатура, пульт і входи телевізора в захищеному списку. Крім того, на екрані «Зайві додатки» не
+  пропонуються головний екран, вибрана клавіатура, служби доступності, заставка, ефірне ТБ і плеєр HDMI.
+- Lehko ставить свою заставку лише тоді, коли ви самі вибираєте її в налаштуваннях Lehko. Пункт «Стандартна» там
+  повертає ту, що була раніше, а якщо заставку Lehko вибрали в налаштуваннях телевізора, то стандартну заставку Android.
+  «Повернути» і скрипт відкату повертають попередню заставку, лише якщо заставку Lehko поставив сам Lehko і вона досі
+  стоїть. Заставку, вибрану в налаштуваннях телевізора (навіть заставку Lehko), вони не чіпають.
 - На Android 11+ вимикається тайм-аут дозволу налагодження (як пункт «Disable adb authorization timeout» у Параметрах
-  розробника), інакше через 7 днів телевізор забуває дозвіл і страховка Lehko не спрацює. «Повернути» відновлює як було.
+  розробника), інакше через 7 днів телевізор забуває дозвіл і страховка Lehko не спрацює. «Повернути» і скрипт
+  відкату відновлюють як було.
 - Список змін Lehko також пише в `/data/local/tmp/lehko_state` на телевізорі: його читають скрипт відкату з
   компʼютера і сам Lehko після перевстановлення.
-- Якщо екран Lehko тричі впаде за 5 хвилин, вмикається безпечний режим: Lehko нічого не малює, а одразу повертає
-  стандартний екран.
+- Якщо екран Lehko тричі впаде за 5 хвилин, вмикається безпечний режим: Lehko показує лише просте повідомлення з
+  кнопками «Спробувати ще раз», «Налаштування ТВ» і «Налаштування Lehko» і одразу повертає стандартний екран. Якщо
+  повернути не вдалося, повідомлення підкаже, що робити (наприклад, що порт налагодження закритий і як його відкрити).
 
 ## Приватність
 
@@ -159,12 +197,20 @@ Dnipro region via YASNO); beside it, short lines for power, the weather (Open-Me
 apps with banners and round buttons for HDMI inputs, Live TV and settings. Up from the favorites opens the details:
 the next 5 hours, sunrise and sunset, full rates, tomorrow's schedule.
 
-Also: the background takes on a dark tint of the focused app's banner; the rates line beside the clock gives the
-dollar and euro in hryvnias (Monobank, or the NBU), with buy and sell in the details; a "Memory" button that shows
-free memory and closes cached background apps (through the TV's debugging, or Android's own way up to Android 13),
-with optional automatic cleaning when memory runs low; and a fireplace (bricks, logs, a "Doom fire", a dim clock and
-the outage status, optional quiet crackle) after 5 idle minutes on the home screen, also available as a screensaver.
-The fireplace doesn't keep the screen on.
+Also: the background takes on a dark tint of the focused app's banner; the rates line beside the clock gives the dollar
+and euro in hryvnias (Monobank, or the NBU), with buy and sell in the details; a "Memory" button that shows free memory
+and closes cached background apps (through the TV's debugging, or Android's own way up to Android 13; on Android 14 and
+later, when debugging can't be reached, it says why nothing was closed), with optional automatic cleaning when memory
+runs low; and a fireplace (bricks, logs, a "Doom fire", a dim clock and the outage status, optional quiet crackle that
+stays off while music plays and stops when a player starts music or a video) after 5 idle minutes on the home screen,
+also available as a screensaver. On the idle fireplace, volume and playback keys keep working; any other key goes back
+home. The fireplace doesn't keep the screen on, so when the TV's own screensaver timer is no longer than the fireplace's
+idle time, the TV's screensaver comes first and the idle fireplace is skipped: pick the Lehko fireplace as the
+screensaver instead (Settings says so).
+
+Offline, the last forecast and schedule stay up. When updating fails or there is no network, a forecast over 3 hours
+old or a schedule over 2 hours old says "No update since 09:00" (with the date if that wasn't today; the
+fireplace's outage line says it too), and the clock screensaver leaves an old forecast out.
 
 Accessibility: text passes WCAG AA contrast even on the tinted background, focus always has a white outline, the
 outage ring and bar read without telling red from green (on: thin line, off: thick arc, possible: dashed),
@@ -175,11 +221,35 @@ fireplace stands still.
 [Lehko.apk](https://github.com/manoff4sv-lgtm/lehko-tv/releases/latest/download/Lehko.apk) (with the Downloader app,
 or `scripts/install.sh TV_IP` from a computer), open Lehko → Home screen → Turn on, and allow debugging on the TV.
 Lehko talks to the TV's own debugging port (127.0.0.1:5555) to make itself the home screen and, optionally, turn
-off the stock launcher. Nothing is uninstalled.
+off the stock launcher. Nothing is uninstalled. Try it without "Also turn off the stock launcher" first. If Home
+still opens the stock screen, turn the launcher off separately: Lehko → Home screen → Turn off the stock launcher →
+Turn off. The same list turns it back on (Turn the stock launcher back on) while Lehko stays the home screen; if
+something doesn't come back on, Lehko says what and keeps the item there to try again. No need to switch back for
+that, which would also turn the unneeded apps back on and reset the screensaver.
 
-**Go back:** Lehko → Home screen → Bring it back, or `scripts/revert.sh TV_IP` from a computer (works even if Lehko
-is gone). Bring the original back before uninstalling Lehko. If Lehko's home screen crashes 3 times in 5 minutes,
-the original comes back by itself.
+Keep USB debugging on: Lehko checks itself through it after TV updates. If the TV forgets the permission (Lehko says
+so), use Lehko → Home screen → Allow debugging again and tick "Always allow". Some TVs open the debugging port only
+after `adb tcpip 5555` from a computer and close it on every restart: run it again after each restart, or turn on
+Network debugging if the TV has it. While the port is closed, `adb connect TV_IP:5555` fails too, so reach the TV
+another way: over a USB cable (only if the TV has a USB port for a computer; most TV sets don't) or, on Android 11+,
+through Wireless debugging (`adb pair` with the pairing code, `adb connect` to the address on the same screen, then
+`adb -s IP:PORT tcpip 5555`). With the port closed Lehko stays the home screen, but it can't check itself after TV
+updates, and the crash safety net can't switch back by itself either. Lehko's settings, Unneeded apps and, on Android 14
+and later, the Memory button say that the port is closed, and after a restart a notice on the home screen says so too.
+
+**Go back:** Lehko → Home screen → Bring back the TV's home screen → Bring it back. Every app Lehko turned off comes
+back on, the stock launcher and the unneeded apps alike; a screensaver Lehko set gives way to the one you had before
+(any screensaver picked in the TV's own settings, Lehko's included, stays). If the TV's own home screen is in use
+already but apps turned off on Unneeded apps are still off: Lehko → Turn apps back on (the row shows while some app
+Lehko turned off hasn't been turned back on by Lehko). Do one of these before uninstalling Lehko. From a computer:
+`scripts/revert.sh TV_IP` (works even if Lehko is gone). A Lehko still installed accepts that revert the next time it
+talks to the TV and won't take the home screen back by itself, either after a restart or after an update. If Lehko's
+home screen crashes 3 times in 5 minutes (on Android 11+ hangs and native crashes count too), the original comes back by
+itself, with a plain safe screen (Try again, TV settings, Lehko settings) up meanwhile; if switching back fails, that
+screen says what to do (for example, that the debugging port is closed and how to open it).
+
+Lehko sets its own screensaver only when you pick it in Lehko's settings. "The TV's own" there brings back the one
+you had before, or Android's default when Lehko's was picked in the TV's own settings.
 
 **Privacy:** no accounts, analytics or ads; only Open-Meteo, YASNO and the outage-data-ua mirror are contacted, plus
 Monobank and the NBU when the rates line is on.
