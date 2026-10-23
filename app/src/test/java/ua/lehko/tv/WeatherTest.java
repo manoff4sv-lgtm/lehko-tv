@@ -100,7 +100,7 @@ public class WeatherTest {
     @Test public void fahrenheitWhere() {
         assertFalse(Weather.fahrenheit(Locale.US, "Europe/Kiev"));
         assertTrue(Weather.fahrenheit(Locale.US, "America/New_York"));
-        assertFalse(Weather.fahrenheit(new Locale("uk", "UA"), "America/New_York"));
+        assertFalse(Weather.fahrenheit(Locale.forLanguageTag("uk-UA"), "America/New_York"));
         assertTrue(Weather.fahrenheit(Locale.forLanguageTag("en-GB-u-mu-fahrenhe"), "Europe/London"));
         assertFalse(Weather.fahrenheit(Locale.forLanguageTag("en-US-u-mu-celsius"), "America/Chicago"));
     }

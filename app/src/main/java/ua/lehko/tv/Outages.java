@@ -221,7 +221,10 @@ final class Outages {
 
     /** The schedule is downloaded again when older than this, but not within RETRY_MS of a failed try. */
     static final long MAX_AGE_MS = 10 * 60_000L, RETRY_MS = 5 * 60_000L;
-    /** Main thread only; shared by every caller, so two screens never download at once. */
+    /**
+     * Main thread only. Shared by the fireplace and the fire screensaver, so when one takes over from the other it
+     * doesn't start a second download, or retry sooner after a failure.
+     */
     private static boolean loading;
     private static long failedAt;
 
