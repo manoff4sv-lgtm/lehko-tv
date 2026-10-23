@@ -3,6 +3,7 @@ package ua.lehko.tv;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -212,11 +213,28 @@ public final class CleanupActivity extends Activity {
             // A broken input service shouldn't keep the list from loading.
         }
         for (Intent view : views) {
-            for (ResolveInfo ri : c.getPackageManager().queryIntentActivities(view, 0)) {
-                if (ri.activityInfo != null) out.add(ri.activityInfo.packageName);
+            for (ResolveInfo ri : c.getPackageManager().queryIntentActivities(view,
+                    PackageManager.GET_RESOLVED_FILTER)) {
+                if (ri.activityInfo != null && namesType(ri.filter, view.getType())) {
+                    out.add(ri.activityInfo.packageName);
+                }
             }
         }
         return out;
+    }
+
+    /**
+     * Whether the filter names this type: exactly, or its first half with a star (Android keeps that as the first half
+     * alone). A filter that takes every type, as file managers' do, matches channel links too without being a TV app.
+     * Unknown counts as yes.
+     */
+    private static boolean namesType(IntentFilter f, String type) {
+        if (f == null) return true;
+        for (int i = 0; i < f.countDataTypes(); i++) {
+            String t = f.getDataType(i);
+            if (type.equals(t) || type.startsWith(t + "/")) return true;
+        }
+        return false;
     }
 
     private void toggle(final Row r) {
