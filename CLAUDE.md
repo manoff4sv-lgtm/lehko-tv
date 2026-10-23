@@ -59,9 +59,10 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
 - `Inputs`: physical inputs sorted HDMI first, then by the TV's own name (the system list comes in hash order); the
   `IconButton` badge is the port number from the TV's own label, so a custom name doesn't change it. Live TV opens the
   TV's own tuner (system app, a `/HW` id) over channel apps' tuner inputs.
-- `CleanupActivity` (Unneeded apps): never lists the recorded and the current home, setupwraith, Lehko, the current
-  keyboard, accessibility services, screensaver (also the TV's own while Lehko's is set), Live TV/HDMI players
-  (catch-all "open with" apps don't count), or `HomeMode.isProtected`. Its ADB calls pass a Progress, so the status
+- `CleanupActivity` (Unneeded apps): never lists the recorded and the current home, setupwraith (and tvrecommendations
+  with the ATV launcher), Lehko, or `HomeMode.isProtected`. The current keyboard, accessibility services, screensaver
+  (also the TV's own while Lehko's is set) and Live TV/HDMI players (catch-all "open with" apps don't count) are left
+  out only while on: an off one stays listed so it can be turned back on. Its ADB calls pass a Progress, so the status
   says when the TV asks "Allow USB debugging?"; errors go through `HomeMode.explain` (never raw English exception
   text). singleTop, so a double OK doesn't open two.
 - `Weather` Open-Meteo forecast + geocoding search; cached JSON so it shows offline (outages!). Default city
@@ -87,35 +88,34 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   launcherOn (only `launcherPackages` come back on: the recorded launcher, setupwraith, tvrecommendations with the ATV
   launcher; Lehko stays home; full mode ends once the launcher itself is on, even if setupwraith stays off, so verify
   won't turn the launcher off again, and what stayed off is still recorded for "Bring back") / enableApps (Lehko off:
-  turns recorded apps back on) / allowAgain ("Allow debugging again": may prompt, then check()) / verify (after boot
-  or a Lehko update, never prompts) / revertAfterCrash / setScreensaver / setAppEnabled / systemState / killAll. Each
-  has a Context wrapper over the `HomeMode.Env` version (prefs, text, connect, notice, sdk, debuggingOn) that
-  HomeModeTest drives against `tools/fake_adbd.py --tv`. Records original home, checks Wi-Fi network owners (disabling
-  an owner deletes the Wi-Fi network: refuse), `cmd package set-home-activity --user 0 ua.lehko.tv/.HomeActivity`,
-  full mode disables original launcher pkg (+ tvrecommendations on classic ATV, +
-  `com.google.android.tungsten.setupwraith` when it has a HOME activity: its RecoveryActivity takes over otherwise).
-  Writes /data/local/tmp/lehko_state for the PC revert scripts. Every user-started connection goes through
-  `connect(Env, Progress)` = adopt() + acceptOutsideRevert(); verify and allowAgain reach the same pair through
-  check(). The exception is revertAfterCrash (the safe screen's Try again too): its own 120 s connect and adopt()
-  only, since it restores anyway. adopt() reads the note once after a reinstall and takes on/full only when the TV
-  agrees (Lehko holds HOME, or in full mode the recorded launcher or setupwraith is still off); when the note says on
-  and the TV doesn't agree (e.g. uninstalled in the lighter mode), it puts the debugging timeout back and rewrites the
-  note. Outside revert: Lehko's records say on, the note isn't `on=true` (scripts/revert removes it; a TV update
-  leaves it) and HOME isn't Lehko: forgetSwitch() drops Lehko's records and changes no setting or package on the TV
-  (it only rewrites the note, on=false), so a revert from a computer sticks. Screensaver: recorded again whenever the
-  TV's current one isn't Lehko's; restored only while Lehko's dream is still set (a later pick in the TV's settings
-  stays), screensaver_enabled only while it is 1, and a recorded saver package turned off on Unneeded apps is enabled
-  first. SAVER_SYSTEM with no record but Lehko's dream set (picked in the TV's settings) deletes
-  screensaver_components (Android's default) and leaves screensaver_enabled alone. keepDebuggingAllowed (API 30+,
-  adb_allowed_connection_time 0) runs in enable() and in check() after the outside-revert test, never before it; a
-  refused turn-on and "Bring back" put the old value back. The stock launcher's PSS is measured on each turn-on from
-  off (`!isOn`), not when full mode is added later (the launcher has been in the background behind Lehko by then).
-  verify(): PORT_CLOSED with debugging on means the TV needs `adb tcpip 5555` again after a restart
-  (verify_port_closed). A successful restore drops a stale `reverted_crash_failed` notice. `HomeMode.explain(c, e)` is
-  the shared connection-error mapping (Settings, Unneeded apps, the Memory button): PORT_CLOSED -> `adb_closed` with
-  ADB_ENABLED=1, else `cleanup_need_debugging`; NOT_ALLOWED -> `adb_rejected`; TLS_ONLY -> `adb_tls`; other
-  `Adb.Failure`s and socket timeouts/EOF/resets -> `adb_no_answer`; null for anything else. `launcherOff(c)` = full
-  mode, or a `launcherPackages` entry is still recorded off.
+  turns recorded apps back on) / allowAgain ("Allow debugging again": may prompt, then check()) / verify (after boot or
+  a Lehko update, never prompts) / revertAfterCrash / setScreensaver / setAppEnabled / systemState / killAll. Each has a
+  Context wrapper over the `HomeMode.Env` version (prefs, text, connect, notice, sdk, debuggingOn) that HomeModeTest
+  drives against `tools/fake_adbd.py --tv`. Records original home, checks Wi-Fi network owners (disabling an owner
+  deletes the Wi-Fi network: refuse), `cmd package set-home-activity --user 0 ua.lehko.tv/.HomeActivity`, full mode
+  disables original launcher pkg (+ tvrecommendations on classic ATV, + `com.google.android.tungsten.setupwraith` when
+  it has a HOME activity: its RecoveryActivity takes over otherwise). Writes /data/local/tmp/lehko_state for the PC
+  revert scripts. Every user-started connection goes through `connect(Env, Progress)` = adopt() + acceptOutsideRevert();
+  verify and allowAgain reach the same pair through check(). The exception is revertAfterCrash (the safe screen's Try
+  again too): its own 120 s connect and adopt() only, since it restores anyway. adopt() reads the note once after a
+  reinstall and takes on/full only when the TV agrees (Lehko holds HOME, or in full mode the recorded launcher or
+  setupwraith is still off); when the note says on and the TV doesn't agree (e.g. uninstalled in the lighter mode), it
+  puts the debugging timeout back and rewrites the note. Outside revert: Lehko's records say on, the note isn't
+  `on=true` (scripts/revert removes it; a TV update leaves it) and HOME isn't Lehko: forgetSwitch() drops Lehko's
+  records (the turned-off list keeps only apps still off) and changes no setting or package on the TV (it only rewrites
+  the note, on=false), so a revert from a computer sticks. Screensaver: recorded again whenever the TV's current one
+  isn't Lehko's; restored only while Lehko's dream is still set (a later pick in the TV's settings stays),
+  screensaver_enabled only while it is 1, and a recorded saver package turned off on Unneeded apps is enabled first.
+  SAVER_SYSTEM with no record but Lehko's dream set (picked in the TV's settings) deletes screensaver_components
+  (Android's default) and leaves screensaver_enabled alone. keepDebuggingAllowed (API 30+, adb_allowed_connection_time
+  0) runs in enable() and in check() after the outside-revert test, never before it; a refused turn-on and "Bring back"
+  put the old value back. The stock launcher's PSS is measured on each turn-on from off (`!isOn`), not when full mode is
+  added later (the launcher has been in the background behind Lehko by then). verify(): PORT_CLOSED with debugging on
+  means the TV needs `adb tcpip 5555` again after a restart (verify_port_closed). A successful restore drops a stale
+  `reverted_crash_failed` notice. `HomeMode.explain(c, e)` is the shared connection-error mapping (Settings, Unneeded
+  apps, the Memory button): PORT_CLOSED -> `adb_closed` with ADB_ENABLED=1, else `cleanup_need_debugging`; NOT_ALLOWED
+  -> `adb_rejected`; TLS_ONLY -> `adb_tls`; other `Adb.Failure`s and socket timeouts/EOF/resets -> `adb_no_answer`; null
+  for anything else. `launcherOff(c)` = full mode, or a `launcherPackages` entry is still recorded off.
 - `SettingsActivity`: network work (city, regions, groups, addresses) on `App.NET`; switches on `App.ADB` through
   run() (one at a time). A result that arrives while Settings is out of sight goes to `Prefs.notice` too (Lehko's
   home shows it) when Lehko is on. Home row: off -> the turn-on dialog (focus starts on "Turn on", not the "Also
@@ -156,13 +156,13 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   Eugene's request (2026-10-22): don't bring it back.
 - `Memory`: free memory, own PSS; `clean()` = `HomeMode.killAll` (`am kill-all`, may show the debugging prompt) else
   `killBackgroundProcesses` per app; `maybeAutoClean()` on Home resume when memory is low (< 20% or < 500 MB, at most
-  every 3 min, never prompts). `clean()` returns a `Memory.Result` (text, failed): on Android 14 (no
+  every 3 min, never prompts). `clean()` returns a `Memory.Result` (text, failed): on Android 14+ (API 34+, no
   killBackgroundProcesses fallback) a failed killAll gives `HomeMode.explain`'s reason, or `error_generic` with the
   class name, as failed=true, and home shows it as an ordinary notice. `HomeMode.enable` from off stores the stock
   launcher's PSS (`K_LAUNCHER_PSS`, from `dumpsys meminfo`). `App.onTrimMemory`: from RUNNING_LOW up (UI_HIDDEN,
   BACKGROUND and COMPLETE too) `Apps.trimPictures` keeps only the favorites' pictures and never empties the cache: the
   home tiles hold those bitmaps anyway, so evicting them freed nothing and the next favorites rebuild showed names
-  only. Android 14 sends only UI_HIDDEN and BACKGROUND.
+  only. Android 14+ sends only UI_HIDDEN and BACKGROUND.
 - Design/accessibility pass (2026-10-22, with the tvastar skill's platform-neutral rules): text colours and
   `Ambient.MAX_LUMINANCE` keep all text >= 4.5:1 (AmbientTest checks `text_secondary` #A7AFBA and `text_dim` #959DAA,
   the dial's hour numbers, on the brightest tint any colour or a white banner gives); focus = white 2dp outline
@@ -224,7 +224,8 @@ simulated Google TV). v0.10 (2026-10-22) added the ambient background, hourly we
 name, the rates line, memory cleaning and measurement, the fireplace, a design/accessibility pass and the dial
 redesign of the home screen. First run on Eugene's TV (2026-10-22) found three things, fixed: the memory notice didn't
 go away, the faded ends of the scrolling rows looked bad, the fireplace filled only part of the screen.
-v0.10.0-beta.2 is published. A full audit (2026-10-23: home switching and the revert scripts, outage and weather
+v0.10.0-beta.2 (2026-10-22) is published; it predates the audit, so everything below is on main only until
+the next release. A full audit (2026-10-23: home switching and the revert scripts, outage and weather
 data, the home screen, apps, Unneeded apps, build and CI) found ~70 defects; all are fixed. A follow-up pass the same
 day fixed the "TV's own" screensaver choice, the safe-mode "Bring back" dialog, the launcher row's wording and its
 "back on" with setupwraith left off, the debugging timeout after a reinstall, the Memory button's Android 14 errors
@@ -234,13 +235,13 @@ offline schedule tries; 101 tests now. Waiting for Eugene's answer: auto clean's
 UI strings live in `tools/strings/strings.py` (edit there, then `python3 tools/strings/strings.py app/src/main/res`).
 It writes line breaks as `\n` and quotes texts with double spaces, which aapt2 would otherwise squeeze.
 
-**Do not** publish GitHub releases, change repository settings or rewrite git history without Eugene's OK. Pushing
-tags from cloud sessions is blocked by the git proxy; releases are made on GitHub's "Draft a new release" page
-(tag `v0.10.0-beta.3` style) and CI then attaches the signed `Lehko.apk`. Do NOT tick "Set as a pre-release", not
-even for a beta: README, scripts/install.sh and scripts/install.bat download `/releases/latest/download/Lehko.apk`,
-and /releases/latest skips pre-releases (CI only warns; releases CI creates itself are normal ones). Tags need two
-or three numbers: v1.2.3, v1.2.3-beta.1, or v1.2 (= v1.2.0); versionCode = major*10000 + minor*100 + patch. Any
-other v* tag fails CI at configuration (app/build.gradle). If CI goes red on a tag made on the release page, delete
+**Do not** publish GitHub releases, change repository settings or rewrite git history without Eugene's OK. Pushing tags
+from cloud sessions is blocked by the git proxy; releases are made on GitHub's "Draft a new release" page (tag
+`v0.10.0-beta.3` style) and CI then attaches the signed `Lehko.apk`. Do NOT tick "Set as a pre-release", not even for a
+beta: README, scripts/install.sh and scripts/install.bat download `/releases/latest/download/Lehko.apk`, and
+/releases/latest skips pre-releases (CI only warns; releases CI creates itself are normal ones). Tags need two or three
+numbers: v1.2.3, v1.2.3-beta.1, or v1.2 (= v1.2.0); versionCode = major*10000 + minor*100 + patch. Any other v* tag
+fails CI at configuration (app/build.gradle). If CI goes red on a tag made on the release page, ask Eugene to delete
 that release and its tag and make a correct one: otherwise "latest" has no Lehko.apk and the README link returns 404.
 
 ## v0.10: look, memory, rates, fireplace (all done 2026-10-22; kept as the spec)
