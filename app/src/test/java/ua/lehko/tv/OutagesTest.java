@@ -75,8 +75,14 @@ public class OutagesTest {
         st = Outages.status(s, kyiv(2026, 10, 22, 20, 0));
         assertEquals(Outages.ON, st.state);
         assertFalse("nothing more today, but tomorrow isn't published: not 'no outages ahead'", st.clearAhead);
+        assertTrue("but 'no more outages today'", st.clearToday);
         assertTrue(st.untilEndOfData);
         assertEquals(-1, st.minutesToChange);
+        assertFalse(Outages.status(s, kyiv(2026, 10, 22, 10, 0)).clearToday);
+
+        // A gap in today's data later on: today isn't known to be clear.
+        s.day("2026-10-22").slots[44] = Outages.UNKNOWN;
+        assertFalse(Outages.status(s, kyiv(2026, 10, 22, 20, 0)).clearToday);
     }
 
     /** Tomorrow is an emergency day (all unknown): power isn't promised back at midnight, nor the day called clear. */
@@ -88,6 +94,7 @@ public class OutagesTest {
         Outages.Status st = Outages.status(s, kyiv(2026, 10, 22, 20, 0));
         assertEquals(Outages.ON, st.state);
         assertFalse(st.clearAhead);
+        assertTrue("the rest of today is on", st.clearToday);
         assertTrue(st.untilEndOfData);
 
         today.slots[46] = Outages.OFF;

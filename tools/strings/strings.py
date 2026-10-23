@@ -138,6 +138,8 @@ s("outage_then_maybe", "then a possible outage", "далі можливе від
 s("outage_then_maybe_tomorrow", "until %s tomorrow, then a possible outage", "до %s завтра, далі можливе відключення", "до %s завтра, дальше возможное отключение")
 s("outage_off_until_maybe", "No power until %s · then a possible outage", "Світла немає до %s · далі можливе відключення", "Света нет до %s · дальше возможное отключение")
 s("outage_off_until_tomorrow_maybe", "No power until %s tomorrow · then a possible outage", "Світла немає до %s завтра · далі можливе відключення", "Света нет до %s завтра · дальше возможное отключение")
+s("outage_none_today", "no more outages today", "сьогодні відключень більше немає", "сегодня отключений больше нет")
+s("outage_on_none_today", "Power is on · no more outages today", "Світло є · сьогодні відключень більше немає", "Свет есть · сегодня отключений больше нет")
 
 s("settings_title", "Lehko settings", "Налаштування Lehko", "Настройки Lehko")
 s("home_screen", "Home screen", "Головний екран", "Главный экран")

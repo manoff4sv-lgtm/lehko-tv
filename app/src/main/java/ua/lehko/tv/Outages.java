@@ -562,6 +562,8 @@ final class Outages {
         boolean untilEndOfData;
         /** No outages for the rest of today and all of tomorrow, or no outage regime at all. */
         boolean clearAhead;
+        /** Nothing but power until midnight (tomorrow may not be published yet). */
+        boolean clearToday;
         /** Today is an emergency day: the operator says the schedule doesn't apply. */
         boolean emergency;
         /** The source says there are no schedules today (no outage regime). */
@@ -603,6 +605,8 @@ final class Outages {
         // Clear only when nothing but power lies ahead and tomorrow is known too: an unpublished tomorrow isn't clear.
         st.clearAhead = st.state == ON && (d1 != null || st.noSchedules);
         for (int k = slot; k < ahead.length && st.clearAhead; k++) if (ahead[k] != ON) st.clearAhead = false;
+        st.clearToday = st.state == ON;
+        for (int k = slot; k < SLOTS && st.clearToday; k++) if (d0.slots[k] != ON) st.clearToday = false;
         for (int k = slot + 1; k < ahead.length; k++) {
             if (ahead[k] == st.state) continue;
             // An emergency day or a gap in the data: no change we can promise.

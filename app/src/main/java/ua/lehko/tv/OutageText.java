@@ -14,7 +14,7 @@ final class OutageText {
                 if (st.clearAhead) {
                     return c.getString(st.noSchedules ? R.string.outage_none_planned : R.string.outage_on_clear);
                 }
-                if (st.minutesToChange < 0) return c.getString(R.string.outage_on);
+                if (st.minutesToChange < 0) return c.getString(st.clearToday ? R.string.outage_on_none_today : R.string.outage_on);
                 if (st.changeTomorrow) {
                     return c.getString(st.next == Outages.MAYBE ? R.string.outage_on_maybe_tomorrow : R.string.outage_on_off_tomorrow,
                             st.changeAt);
@@ -76,6 +76,9 @@ final class OutageText {
                     h.until = st.changeAt;
                     h.detail = st.next == Outages.MAYBE ? R.string.outage_maybe_in : R.string.outage_in;
                     h.detailMinutes = st.minutesToChange;
+                } else if (st.clearToday) {
+                    // Tomorrow isn't published yet (or has no schedule): only today is known to be clear.
+                    h.detail = R.string.outage_none_today;
                 }
                 return h;
             case Outages.OFF:

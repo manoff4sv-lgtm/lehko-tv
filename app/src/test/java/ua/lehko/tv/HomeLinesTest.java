@@ -71,6 +71,18 @@ public class HomeLinesTest {
                 OutageText.headline(new Outages.Schedule(), st(Outages.UNKNOWN, -1, null, Outages.UNKNOWN, false)).title);
     }
 
+    /** Nothing more today and tomorrow not published: says so, but not "no outages ahead". */
+    @Test public void noMoreOutagesToday() {
+        Outages.Status on = st(Outages.ON, -1, null, Outages.UNKNOWN, false);
+        assertEquals(0, OutageText.headline(new Outages.Schedule(), on).detail);
+        on.clearToday = true;
+        assertEquals(R.string.outage_none_today, OutageText.headline(new Outages.Schedule(), on).detail);
+        // A known outage tomorrow says more.
+        Outages.Status tomorrow = st(Outages.ON, 600, "06:00", Outages.OFF, true);
+        tomorrow.clearToday = true;
+        assertEquals(R.string.outage_next_tomorrow, OutageText.headline(new Outages.Schedule(), tomorrow).detail);
+    }
+
     /** Offline after midnight with the next day's schedule cached: yesterday's emergency doesn't stick. */
     @Test public void emergencyEndsWithItsDay() {
         Outages.Schedule s = new Outages.Schedule();
