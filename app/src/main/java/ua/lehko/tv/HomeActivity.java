@@ -678,12 +678,14 @@ public final class HomeActivity extends Activity {
 
     private void favoriteMenu(final Apps.Entry a) {
         if (isFinishing() || isDestroyed()) return;
-        final List<String> favs = Prefs.favorites(this);
-        final int index = favs.indexOf(a.pkg);
+        // Places on the row as shown: saved favorites that aren't installed or are turned off don't count.
+        List<Apps.Entry> row = Apps.favorites(this, apps);
+        int index = -1;
+        for (int k = 0; k < row.size(); k++) if (row.get(k).pkg.equals(a.pkg)) index = k;
         final List<Integer> actions = new ArrayList<>();
         actions.add(R.string.open);
         if (index > 0) actions.add(R.string.move_left);
-        if (index >= 0 && index < favs.size() - 1) actions.add(R.string.move_right);
+        if (index >= 0 && index < row.size() - 1) actions.add(R.string.move_right);
         actions.add(R.string.remove_favorite);
         actions.add(R.string.app_info);
         actions.add(R.string.uninstall);
@@ -697,7 +699,7 @@ public final class HomeActivity extends Activity {
                         if (action == R.string.open) {
                             Apps.launch(HomeActivity.this, a);
                         } else if (action == R.string.move_left || action == R.string.move_right) {
-                            Apps.moveFavorite(HomeActivity.this, a.pkg, action == R.string.move_left ? -1 : 1);
+                            Apps.moveFavorite(HomeActivity.this, apps, a.pkg, action == R.string.move_left ? -1 : 1);
                             focusPkgAfterRebuild = a.pkg;
                             buildFavorites();
                         } else if (action == R.string.remove_favorite) {

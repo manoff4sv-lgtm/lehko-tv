@@ -145,21 +145,6 @@ final class Apps {
         Prefs.setFavorites(c, f);
     }
 
-    /**
-     * Moves a favorite one place left (-1) or right (+1) in the saved list, where favorites that aren't shown count
-     * as places too, so a move next to one changes nothing on screen.
-     *
-     * @deprecated use {@link #moveFavorite(Context, List, String, int)}.
-     */
-    @Deprecated
-    static void moveFavorite(Context c, String pkg, int delta) {
-        List<String> f = Prefs.favorites(c);
-        int i = f.indexOf(pkg), j = i + delta;
-        if (i < 0 || j < 0 || j >= f.size()) return;
-        Collections.swap(f, i, j);
-        Prefs.setFavorites(c, f);
-    }
-
     // MARK: - Opening
 
     static void launch(Context c, Entry a) {
