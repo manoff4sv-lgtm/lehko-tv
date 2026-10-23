@@ -246,7 +246,11 @@ for i, folder in enumerate(["values", "values-uk", "values-ru"]):
     for k, v in S.items():
         text = v[i]
         assert "—" not in text and "–" not in text, k
-        text = text.replace("'", "\\'")
+        # aapt2 squeezes unquoted whitespace (line breaks too) into one space: write breaks as \n, and quote a
+        # text with double spaces so they stay ("3.  " lines up with steps 1 and 2 built in Java).
+        text = text.replace("'", "\\'").replace("\n", "\\n")
+        if "  " in text:
+            text = f'"{text}"'
         attrs = ' translatable="false"' if (i == 0 and k in ("app_name", "lehko_settings")) else ""
         if i > 0 and k in ("app_name", "lehko_settings"):
             continue

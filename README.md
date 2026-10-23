@@ -159,12 +159,12 @@ Dnipro region via YASNO); beside it, short lines for power, the weather (Open-Me
 apps with banners and round buttons for HDMI inputs, Live TV and settings. Up from the favorites opens the details:
 the next 5 hours, sunrise and sunset, full rates, tomorrow's schedule.
 
-Also: the background takes on a dark tint of the focused app's banner; a line under the date with the dollar and
-euro in hryvnias (Monobank, or the NBU); a "Memory" button that shows free memory and
-closes cached background apps (through the TV's debugging, or Android's own way up to Android 13), with optional
-automatic cleaning when memory runs low; and a fireplace (bricks, logs, a "Doom fire", a dim clock and the outage
-status, optional quiet crackle) after 5 idle minutes on the home screen, also available as a screensaver. The
-fireplace doesn't keep the screen on.
+Also: the background takes on a dark tint of the focused app's banner; the rates line beside the clock gives the
+dollar and euro in hryvnias (Monobank, or the NBU), with buy and sell in the details; a "Memory" button that shows
+free memory and closes cached background apps (through the TV's debugging, or Android's own way up to Android 13),
+with optional automatic cleaning when memory runs low; and a fireplace (bricks, logs, a "Doom fire", a dim clock and
+the outage status, optional quiet crackle) after 5 idle minutes on the home screen, also available as a screensaver.
+The fireplace doesn't keep the screen on.
 
 Accessibility: text passes WCAG AA contrast even on the tinted background, focus always has a white outline, the
 outage ring and bar read without telling red from green (on: thin line, off: thick arc, possible: dashed),

@@ -2,12 +2,16 @@ plugins {
     id "com.android.application"
 }
 
-// The version comes from the git tag in CI (v1.2.3 -> versionName 1.2.3, versionCode 10203; v0.9.0-beta.1 -> 0.9.0-beta.1).
+// The version comes from the git tag in CI (v1.2.3 -> versionName 1.2.3, versionCode 10203; v0.9.0-beta.1 -> 0.9.0-beta.1;
+// v1.2 counts as v1.2.0). Any other tag fails the build: versionCode 1 would be a downgrade no TV installs.
 def tag = System.getenv("GITHUB_REF_TYPE") == "tag" ? System.getenv("GITHUB_REF_NAME") : null
-def tagMatch = tag != null ? (tag =~ /^v(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z.]+)?$/) : null
-def appVersion = (tagMatch != null && tagMatch.matches()) ? tag.substring(1) : "0.0.0-dev"
-def appVersionCode = (tagMatch != null && tagMatch.matches())
-        ? (tagMatch.group(1) as int) * 10000 + (tagMatch.group(2) as int) * 100 + (tagMatch.group(3) as int)
+def tagMatch = tag != null ? (tag =~ /^v(\d+)\.(\d+)(?:\.(\d+))?(-[0-9A-Za-z.]+)?$/) : null
+if (tag != null && !tagMatch.matches()) {
+    throw new GradleException("Release tags must look like v1.2.3 or v1.2.3-beta.1, got " + tag)
+}
+def appVersion = tag != null ? tag.substring(1) : "0.0.0-dev"
+def appVersionCode = tag != null
+        ? (tagMatch.group(1) as int) * 10000 + (tagMatch.group(2) as int) * 100 + ((tagMatch.group(3) ?: "0") as int)
         : 1
 
 // Release signing comes from environment variables (set by CI from repository secrets).
