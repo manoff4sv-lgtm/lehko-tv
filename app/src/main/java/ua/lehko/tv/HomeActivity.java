@@ -395,7 +395,11 @@ public final class HomeActivity extends Activity {
         focusName.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), any);
         // The buttons' place at the bottom, not quickScroll.getTop(): a notice that doesn't fit pushes them down.
         int quickTop = root.getHeight() - root.getPaddingBottom() - quickScroll.getHeight();
-        int room = quickTop - header.getBottom() - favoritesScroll.getHeight() - focusName.getMeasuredHeight();
+        // The row's height with its tiles: before the apps have loaded it is still empty.
+        int row = tileH + 2 * getResources().getDimensionPixelSize(R.dimen.ring_pad) + favoritesRow.getPaddingTop()
+                + favoritesRow.getPaddingBottom();
+        int room = quickTop - header.getBottom() - Math.max(favoritesScroll.getHeight(), row)
+                - focusName.getMeasuredHeight();
         return notice.getMeasuredHeight() + ((ViewGroup.MarginLayoutParams) notice.getLayoutParams()).bottomMargin <= room;
     }
 
