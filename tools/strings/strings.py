@@ -33,6 +33,7 @@ s("nothing_found", "Nothing found. Try another spelling.", "Нічого не з
 s("not_set", "Not set", "Не вибрано", "Не выбрано")
 
 # FIX-STRINGS-SYS (temporary anchor: new strings of the 'sys' fixes go right below)
+s("enable_full_later", "Frees the most memory and removes its ads. It isn’t deleted, and you can turn it back on here at any time. While it is off, always bring back the TV’s home screen before uninstalling Lehko.", "Звільняє найбільше памʼяті й прибирає його рекламу. Він не видаляється, і його можна будь-коли знову ввімкнути тут. Поки він вимкнений, завжди повертайте стандартний екран перед видаленням Lehko.", "Освобождает больше всего памяти и убирает его рекламу. Он не удаляется, и его можно в любой момент снова включить здесь. Пока он выключен, всегда возвращайте стандартный экран перед удалением Lehko.")
 s("launcher_on", "Turn the stock launcher back on", "Увімкнути стандартний лаунчер знову", "Включить стандартный лаунчер снова")
 s("result_launcher_on", "Done! The stock launcher is on again, and Lehko is still the home screen.", "Готово! Стандартний лаунчер знову ввімкнено, а Lehko лишається головним екраном.", "Готово! Стандартный лаунчер снова включён, а Lehko остаётся главным экраном.")
 s("fireplace_tv_first", "The TV’s screensaver starts first, after %d min · to see the fireplace, pick it as the screensaver", "Заставка телевізора вмикається раніше, через %d хв · щоб бачити камін, виберіть його заставкою", "Заставка телевизора включается раньше, через %d мин · чтобы видеть камин, выберите его заставкой")

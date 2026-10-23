@@ -329,7 +329,8 @@ public final class SettingsActivity extends Activity {
     private void confirmFull() {
         new AlertDialog.Builder(this)
                 .setTitle(R.string.enable_full)
-                .setMessage(R.string.enable_full_hint)
+                // Not the turn-on hint: its "try without it first" is what was just done.
+                .setMessage(R.string.enable_full_later)
                 .setPositiveButton(R.string.enable_button, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         run(new Task() {
