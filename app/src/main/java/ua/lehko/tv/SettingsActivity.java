@@ -305,7 +305,7 @@ public final class SettingsActivity extends Activity {
         final boolean full = HomeMode.isFull(this);
         new AlertDialog.Builder(this)
                 .setTitle(R.string.home_screen)
-                .setItems(new CharSequence[]{getString(full ? R.string.launcher_on : R.string.enable_full),
+                .setItems(new CharSequence[]{getString(full ? R.string.launcher_on : R.string.launcher_off),
                                 getString(R.string.allow_again), getString(R.string.home_bring_back)},
                         new DialogInterface.OnClickListener() {
                             @Override public void onClick(DialogInterface d, int which) {
@@ -329,10 +329,10 @@ public final class SettingsActivity extends Activity {
 
     private void confirmFull() {
         new AlertDialog.Builder(this)
-                .setTitle(R.string.enable_full)
+                .setTitle(R.string.launcher_off)
                 // Not the turn-on hint: its "try without it first" is what was just done.
                 .setMessage(R.string.enable_full_later)
-                .setPositiveButton(R.string.enable_button, new DialogInterface.OnClickListener() {
+                .setPositiveButton(R.string.cleanup_turn_off, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         run(new Task() {
                             @Override public String run(HomeMode.Progress p) throws IOException {

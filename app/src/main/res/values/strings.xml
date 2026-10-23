@@ -26,6 +26,7 @@
     <string name="nothing_found">Nothing found. Try another spelling.</string>
     <string name="not_set">Not set</string>
     <string name="enable_full_later">Frees the most memory and removes its ads. It isn’t deleted, and you can turn it back on here at any time. While it is off, always bring back the TV’s home screen before uninstalling Lehko.</string>
+    <string name="launcher_off">Turn off the stock launcher</string>
     <string name="launcher_on">Turn the stock launcher back on</string>
     <string name="result_launcher_on">Done! The stock launcher is on again, and Lehko is still the home screen.</string>
     <string name="fireplace_tv_first">The TV’s screensaver starts first, after %d min · to see the fireplace, pick it as the screensaver</string>
