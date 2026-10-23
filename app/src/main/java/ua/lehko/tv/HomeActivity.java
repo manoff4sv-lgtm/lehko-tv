@@ -66,6 +66,8 @@ public final class HomeActivity extends Activity {
     private final ImageView[] hourIcon = new ImageView[HOURS];
     /** When the first hour shown begins (then the strip moves on by one). */
     private long firstHourAt;
+    /** When the rain or snow in the hint starts (then the hint goes), or 0. */
+    private long hintUntil;
     private OutageBar tomorrowBar;
     private IconButton memoryButton;
     private boolean cleaning;
@@ -111,7 +113,9 @@ public final class HomeActivity extends Activity {
             maybeRefresh();
             long now = System.currentTimeMillis();
             updateMemoryTile();
-            if (weather != null && firstHourAt != 0 && now >= firstHourAt) showWeather(weather);
+            if (weather != null && ((firstHourAt != 0 && now >= firstHourAt) || (hintUntil != 0 && now >= hintUntil))) {
+                showWeather(weather);
+            }
             View f = getCurrentFocus();
             if (f != null) ambient(f); // sunset may have passed
             App.MAIN.postDelayed(this, 60_000 - now % 60_000 + 200);
@@ -909,6 +913,7 @@ public final class HomeActivity extends Activity {
     private void showWeather(Weather.Data d) {
         weather = d;
         firstHourAt = 0;
+        hintUntil = 0;
         if (Weather.place(this) == null || d == null) {
             weatherIcon.setImageDrawable(null);
             weatherTemp.setText("");
@@ -922,14 +927,19 @@ public final class HomeActivity extends Activity {
         }
         weatherIcon.setImageResource(Weather.icon(d.code, d.day));
         weatherTemp.setText(Weather.degrees(d.temp));
+        long now = System.currentTimeMillis();
+        // In the TV's own 12/24-hour style and time zone, like the clock.
+        java.text.DateFormat time = DateFormat.getTimeFormat(this);
         // "Cloudy, rain from 21:00": the hint (or an old forecast's warning) in amber after the sky.
         String hint = null;
         // Like the outage line's: an old forecast only warns once updating it has failed (or can't start).
-        if (Net.stale(System.currentTimeMillis(), Weather.cacheTime(this), Weather.OLD_MS)
-                && (weatherFailedAt != 0 || !online())) {
+        if (Net.stale(now, Weather.cacheTime(this), Weather.OLD_MS) && (weatherFailedAt != 0 || !online())) {
             hint = getString(R.string.weather_old, since(Weather.cacheTime(this)));
-        } else if (d.precipAt != null) {
-            hint = getString(d.precipSnow ? R.string.weather_snow_at : R.string.weather_rain_at, d.precipAt);
+        } else if (d.precipStart > now) {
+            // Only while it is still ahead: offline, the forecast stays up for hours.
+            hint = getString(d.precipSnow ? R.string.weather_snow_at : R.string.weather_rain_at,
+                    time.format(new java.util.Date(d.precipStart)));
+            hintUntil = d.precipStart;
         }
         String sky = getString(Weather.text(d.code));
         if (hint == null) {
@@ -942,9 +952,7 @@ public final class HomeActivity extends Activity {
             weatherText.setText(t);
         }
 
-        List<Weather.Hour> next = Weather.next(d, System.currentTimeMillis(), HOURS);
-        // In the TV's own 12/24-hour style and time zone, like the clock.
-        java.text.DateFormat time = DateFormat.getTimeFormat(this);
+        List<Weather.Hour> next = Weather.next(d, now, HOURS);
         for (int i = 0; i < HOURS; i++) {
             View cell = (View) hourTime[i].getParent();
             if (i >= next.size()) {

@@ -34,7 +34,6 @@ public class WeatherTest {
         assertEquals(14.6, d.max, 0.001);
         assertEquals(7.5, d.min, 0.001);
         // The slot at "now" is skipped; 0.05 mm is below the threshold; 14:00 is the first real rain.
-        assertEquals("14:00", d.precipAt);
         assertEquals(NOW + 45 * 60_000L, d.precipStart);
         assertFalse(d.precipSnow);
     }
@@ -84,7 +83,6 @@ public class WeatherTest {
 
     @Test public void noHintWhileItAlreadyRains() throws Exception {
         Weather.Data d = Weather.parse(FORECAST.replace("\"weather_code\":3", "\"weather_code\":63"));
-        assertNull(d.precipAt);
         assertEquals(0, d.precipStart);
     }
 
