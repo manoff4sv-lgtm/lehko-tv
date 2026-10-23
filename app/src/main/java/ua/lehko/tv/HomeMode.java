@@ -5,7 +5,10 @@ import android.content.SharedPreferences;
 import android.os.Build;
 import android.provider.Settings;
 
+import java.io.EOFException;
 import java.io.IOException;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -257,6 +260,30 @@ final class HomeMode {
             throw e;
         }
         return adb;
+    }
+
+    /**
+     * What went wrong with the debugging connection, or null if it wasn't the connection. For the screens that need
+     * debugging but don't switch the home screen: with "USB debugging" off, a closed port gets the advice to turn it
+     * on (or to make Lehko the home screen, which walks through that).
+     */
+    static String explain(Context c, Exception e) {
+        if (e instanceof Adb.Failure) {
+            switch (((Adb.Failure) e).reason) {
+                case Adb.Failure.PORT_CLOSED:
+                    // Debugging on but the port closed: some TVs open it only with "adb tcpip 5555", until a restart.
+                    boolean on = Settings.Global.getInt(c.getContentResolver(), Settings.Global.ADB_ENABLED, 0) == 1;
+                    return c.getString(on ? R.string.adb_closed : R.string.cleanup_need_debugging);
+                case Adb.Failure.NOT_ALLOWED: return c.getString(R.string.adb_rejected);
+                case Adb.Failure.TLS_ONLY: return c.getString(R.string.adb_tls);
+                default: return c.getString(R.string.adb_no_answer);
+            }
+        }
+        // The TV stopped answering halfway: a timeout or a dropped connection.
+        if (e instanceof SocketTimeoutException || e instanceof EOFException || e instanceof SocketException) {
+            return c.getString(R.string.adb_no_answer);
+        }
+        return null;
     }
 
     /**

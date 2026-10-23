@@ -11,7 +11,6 @@ import android.media.tv.TvContract;
 import android.media.tv.TvInputInfo;
 import android.media.tv.TvInputManager;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -20,9 +19,6 @@ import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 
-import java.io.EOFException;
-import java.net.SocketException;
-import java.net.SocketTimeoutException;
 import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -102,7 +98,7 @@ public final class CleanupActivity extends Activity {
                     // Unknown Wi-Fi owners only leave the rows unmarked: turning an app off checks them again.
                     found = candidates(app, state[0], state[1] == null ? new HashSet<String>() : state[1]);
                 } catch (Exception e) {
-                    error = explain(e);
+                    error = HomeMode.explain(app, e);
                     // Exception texts are English: only the kind of error goes into the translated sentence.
                     if (error == null) error = getString(R.string.error_generic, e.getClass().getSimpleName());
                 }
@@ -291,7 +287,7 @@ public final class CleanupActivity extends Activity {
                 } catch (HomeMode.WifiCheckException e) {
                     error = getString(R.string.cleanup_wifi_check_error);
                 } catch (Exception e) {
-                    error = explain(e);
+                    error = HomeMode.explain(app, e);
                     if (error == null) error = getString(R.string.cleanup_failed, r.label);
                 }
                 final String err = error;
@@ -311,29 +307,6 @@ public final class CleanupActivity extends Activity {
                 });
             }
         });
-    }
-
-    /**
-     * What went wrong with the debugging connection, as in Settings, or null if it wasn't the connection. With "USB
-     * debugging" off, a closed port gets this screen's own advice.
-     */
-    private String explain(Exception e) {
-        if (e instanceof Adb.Failure) {
-            switch (((Adb.Failure) e).reason) {
-                case Adb.Failure.PORT_CLOSED:
-                    // Debugging on but the port closed: some TVs open it only with "adb tcpip 5555", until a restart.
-                    boolean on = Settings.Global.getInt(getContentResolver(), Settings.Global.ADB_ENABLED, 0) == 1;
-                    return getString(on ? R.string.adb_closed : R.string.cleanup_need_debugging);
-                case Adb.Failure.NOT_ALLOWED: return getString(R.string.adb_rejected);
-                case Adb.Failure.TLS_ONLY: return getString(R.string.adb_tls);
-                default: return getString(R.string.adb_no_answer);
-            }
-        }
-        // The TV stopped answering halfway: a timeout or a dropped connection.
-        if (e instanceof SocketTimeoutException || e instanceof EOFException || e instanceof SocketException) {
-            return getString(R.string.adb_no_answer);
-        }
-        return null;
     }
 
     private final class Adapter extends BaseAdapter {

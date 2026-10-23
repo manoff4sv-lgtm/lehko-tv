@@ -65,8 +65,9 @@ final class Memory {
         } catch (IOException | RuntimeException e) {
             // Android 14 has no other way: say why nothing was closed, not that nothing was running.
             if (android.os.Build.VERSION.SDK_INT >= 34) {
-                boolean denied = e instanceof Adb.Failure && ((Adb.Failure) e).reason == Adb.Failure.NOT_ALLOWED;
-                return c.getString(denied ? R.string.adb_rejected : R.string.cleanup_need_debugging);
+                String why = HomeMode.explain(c, e);
+                // Exception texts are English: only the kind of error goes into the translated sentence.
+                return why != null ? why : c.getString(R.string.error_generic, e.getClass().getSimpleName());
             }
             killBackground(c);
         }
