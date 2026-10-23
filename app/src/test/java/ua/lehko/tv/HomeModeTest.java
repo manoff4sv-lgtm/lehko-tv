@@ -195,6 +195,7 @@ public class HomeModeTest {
         HomeMode.enable(e, true, QUIET);
         HomeMode.setAppEnabled(e, games, false, null);
         HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        assertTrue(HomeMode.launcherOff(e.prefs));
         // Back to the lighter mode: only what full mode turned off comes back, Lehko stays the home screen.
         assertEquals(e.text(R.string.result_launcher_on), HomeMode.launcherOn(e, QUIET));
         JSONObject s = state();
@@ -207,6 +208,7 @@ public class HomeModeTest {
                 .getString("screensaver_components"));
         assertTrue(e.prefs.getBoolean(HomeMode.K_ON, false));
         assertFalse(e.prefs.getBoolean(HomeMode.K_FULL, false));
+        assertFalse("an unneeded app isn't the launcher", HomeMode.launcherOff(e.prefs));
         assertTrue(s.getJSONObject("files").getString(HomeMode.STATE_FILE).contains("full=false"));
     }
 
@@ -223,9 +225,13 @@ public class HomeModeTest {
         assertTrue(enabled(state(), LAUNCHERX));
         assertNull(e.notice);
 
+        // Offered again in the Home screen list, and the next try brings it back.
+        assertTrue(HomeMode.launcherOff(e.prefs));
         tv("fake:flag setup_enable_fails 0");
-        HomeMode.disable(e, QUIET);
-        assertTrue("the leftover comes back with the rest", enabled(state(), SETUP));
+        assertEquals(e.text(R.string.result_launcher_on), HomeMode.launcherOn(e, QUIET));
+        assertTrue(enabled(state(), SETUP));
+        assertTrue(HomeMode.disabled(e.prefs).isEmpty());
+        assertFalse(HomeMode.launcherOff(e.prefs));
     }
 
     @Test public void wifiOwnerIsNeverTurnedOff() throws Exception {

@@ -302,14 +302,15 @@ public final class SettingsActivity extends Activity {
      * screensaver. "Allow debugging again" is listed too: Lehko's notices send people to it through this row.
      */
     private void homeChoice() {
-        final boolean full = HomeMode.isFull(this);
+        // Also after a "back on" that left Google TV's setup app off: it can be tried again here.
+        final boolean off = HomeMode.launcherOff(this);
         new AlertDialog.Builder(this)
                 .setTitle(R.string.home_screen)
-                .setItems(new CharSequence[]{getString(full ? R.string.launcher_on : R.string.launcher_off),
+                .setItems(new CharSequence[]{getString(off ? R.string.launcher_on : R.string.launcher_off),
                                 getString(R.string.allow_again), getString(R.string.home_bring_back)},
                         new DialogInterface.OnClickListener() {
                             @Override public void onClick(DialogInterface d, int which) {
-                                if (which == 0 && full) launcherOn();
+                                if (which == 0 && off) launcherOn();
                                 else if (which == 0) confirmFull();
                                 else if (which == 1) allowAgain();
                                 else confirmDisable();

@@ -178,6 +178,33 @@ final class HomeMode {
         return e.prefs().getBoolean(K_FULL, false);
     }
 
+    /**
+     * Full mode, or something it turned off is still off ("Turn the stock launcher back on" left it): the Home screen
+     * list offers that again rather than turning the launcher off.
+     */
+    static boolean launcherOff(Context c) {
+        return launcherOff(Prefs.of(c));
+    }
+
+    static boolean launcherOff(SharedPreferences p) {
+        if (p.getBoolean(K_FULL, false)) return true;
+        Set<String> off = disabled(p);
+        off.retainAll(launcherPackages(p));
+        return !off.isEmpty();
+    }
+
+    /**
+     * What full mode turns off and launcherOn turns back on: the stock launcher, Google TV's setup app and, with
+     * Android TV's launcher, its recommendations (as in targets(): on other TVs they may be off from the "unneeded
+     * apps" screen).
+     */
+    private static Set<String> launcherPackages(SharedPreferences p) {
+        String home = packageOf(p.getString(K_HOME, ""));
+        Set<String> out = new HashSet<>(Arrays.asList(home, SETUP));
+        if (ATV_HOME_PKG.equals(home)) out.add(ATV_RECOMMENDATIONS);
+        return out;
+    }
+
     private static void setDisabled(Env e, Set<String> pkgs) {
         e.prefs().edit().putStringSet(K_DISABLED, new HashSet<>(pkgs)).commit();
     }
@@ -504,17 +531,13 @@ final class HomeMode {
         try (Adb adb = connect(c, p)) {
             // connect() found it given back from a computer: everything is on already.
             if (!isOn(c)) return c.text(R.string.home_status_off);
-            // As in targets(): the recommendations went with Android TV's launcher only; on other TVs they may be off
-            // from the "unneeded apps" screen.
             String home = packageOf(c.prefs().getString(K_HOME, ""));
-            Set<String> launcher = new HashSet<>(Arrays.asList(home, SETUP));
-            if (ATV_HOME_PKG.equals(home)) launcher.add(ATV_RECOMMENDATIONS);
-            List<String> failed = enableRecorded(c, adb, p, launcher);
+            List<String> failed = enableRecorded(c, adb, p, launcherPackages(c.prefs()));
             // Back on, the launcher may claim the Home button again.
             adb.shell("cmd package set-home-activity --user 0 " + HOME);
             // Out of full mode once the launcher itself is back: full mode's check after a reboot would turn it off
-            // again. Whatever stays off is still recorded, and "Bring back" turns it on. With the launcher still off,
-            // full mode stays, and so does the row that offers this again.
+            // again. Whatever stays off is still recorded: the Home screen list offers this again (launcherOff), and
+            // "Bring back" turns it on too.
             if (!failed.contains(home)) c.prefs().edit().putBoolean(K_FULL, false).commit();
             writeDeviceState(c, adb);
             return failed.isEmpty() ? c.text(R.string.result_launcher_on)
