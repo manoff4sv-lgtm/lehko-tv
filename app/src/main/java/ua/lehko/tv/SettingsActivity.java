@@ -41,6 +41,8 @@ public final class SettingsActivity extends Activity {
     private final RowAdapter adapter = new RowAdapter();
     private boolean busy;
     private long lastClick;
+    /** On screen. Back on Android 12+ only moves Settings behind, so a result may arrive while nobody sees it. */
+    private boolean visible;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -59,10 +61,20 @@ public final class SettingsActivity extends Activity {
         });
     }
 
+    @Override protected void onStart() {
+        super.onStart();
+        visible = true;
+    }
+
     @Override protected void onResume() {
         super.onResume();
         buildRows();
         list.requestFocus();
+    }
+
+    @Override protected void onStop() {
+        visible = false;
+        super.onStop();
     }
 
     private void buildRows() {
@@ -726,11 +738,13 @@ public final class SettingsActivity extends Activity {
                 final boolean err = error;
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
-                        if (isDestroyed() || isFinishing()) {
-                            // Only Lehko's home shows notices: with Lehko off this one would pop up, stale, next time.
-                            if (HomeMode.isOn(getApplicationContext())) Prefs.notice(getApplicationContext(), m);
-                            return;
+                        boolean gone = isDestroyed() || isFinishing();
+                        // Gone or out of sight: the home screen says it. Only Lehko's home shows notices: with Lehko
+                        // off this one would pop up, stale, next time.
+                        if ((gone || !visible) && HomeMode.isOn(getApplicationContext())) {
+                            Prefs.notice(getApplicationContext(), m);
                         }
+                        if (gone) return;
                         setBusy(false);
                         showStatus(m, err);
                         buildRows();
