@@ -23,6 +23,12 @@
     <string name="search">Знайти</string>
     <string name="nothing_found">Нічого не знайдено. Спробуйте інакше.</string>
     <string name="not_set">Не вибрано</string>
+    <string name="enable_full_later">Звільняє найбільше памʼяті й прибирає його рекламу. Він не видаляється, і його можна будь-коли знову ввімкнути тут. Поки він вимкнений, завжди повертайте стандартний екран перед видаленням Lehko.</string>
+    <string name="launcher_on">Увімкнути стандартний лаунчер знову</string>
+    <string name="result_launcher_on">Готово! Стандартний лаунчер знову ввімкнено, а Lehko лишається головним екраном.</string>
+    <string name="fireplace_tv_first">Заставка телевізора вмикається раніше, через %d хв · щоб бачити камін, виберіть його заставкою</string>
+    <string name="home_bring_back">Повернути стандартний екран</string>
+    <string name="safe_mode_failed">Екран Lehko перестав працювати, а стандартний екран повернути не вдалося.</string>
     <string name="disable_message_saver">Заставка теж стане стандартною.</string>
     <string name="allow_again">Дозволити налагодження знову</string>
     <string name="allow_ok">Готово! Lehko знову може перевіряти себе після оновлень телевізора.</string>
@@ -118,6 +124,12 @@
     <string name="dur_min">%d хв</string>
     <string name="dur_h">%d год</string>
     <string name="dur_h_min">%1$d год %2$d хв</string>
+    <string name="outage_then_maybe">далі можливе відключення</string>
+    <string name="outage_then_maybe_tomorrow">до %s завтра, далі можливе відключення</string>
+    <string name="outage_off_until_maybe">Світла немає до %s · далі можливе відключення</string>
+    <string name="outage_off_until_tomorrow_maybe">Світла немає до %s завтра · далі можливе відключення</string>
+    <string name="outage_none_today">сьогодні відключень більше немає</string>
+    <string name="outage_on_none_today">Світло є · сьогодні відключень більше немає</string>
     <string name="settings_title">Налаштування Lehko</string>
     <string name="home_screen">Головний екран</string>
     <string name="home_status_off">Зараз стандартний екран телевізора</string>
@@ -192,7 +204,7 @@
     <string name="reverted_crash">Екран Lehko кілька разів аварійно закрився, тому повернуто стандартний екран. Будь ласка, напишіть про це на GitHub.</string>
     <string name="reverted_crash_failed">Екран Lehko кілька разів аварійно закрився і не зміг сам повернути стандартний екран. Відкрийте налаштування Lehko і поверніть стандартний екран.</string>
     <string name="verify_fixed">Після оновлення телевізора Lehko виправив: %s</string>
-    <string name="cleanup_intro">Вимкнені додатки лишаються встановленими і не займають памʼять. Натисніть на додаток, щоб вимкнути або ввімкнути його. Повернення стандартного екрана ввімкне їх усі.</string>
+    <string name="cleanup_intro">Вимкнені додатки лишаються встановленими і не займають памʼять. Натисніть на додаток, щоб вимкнути або ввімкнути його. Перед видаленням Lehko увімкніть їх усі: поверніть стандартний екран, а якщо він уже працює, натисніть «Увімкнути додатки назад» у налаштуваннях Lehko.</string>
     <string name="cleanup_need_debugging">Для цього потрібен режим налагодження. Спершу зробіть Lehko головним екраном (або просто ввімкніть «Налагодження USB»).</string>
     <string name="cleanup_failed">Не вдалося змінити «%s».</string>
     <string name="cleanup_wifi_owner">зберіг ваш Wi-Fi</string>

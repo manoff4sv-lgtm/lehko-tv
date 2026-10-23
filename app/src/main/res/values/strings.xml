@@ -25,6 +25,12 @@
     <string name="search">Search</string>
     <string name="nothing_found">Nothing found. Try another spelling.</string>
     <string name="not_set">Not set</string>
+    <string name="enable_full_later">Frees the most memory and removes its ads. It isn’t deleted, and you can turn it back on here at any time. While it is off, always bring back the TV’s home screen before uninstalling Lehko.</string>
+    <string name="launcher_on">Turn the stock launcher back on</string>
+    <string name="result_launcher_on">Done! The stock launcher is on again, and Lehko is still the home screen.</string>
+    <string name="fireplace_tv_first">The TV’s screensaver starts first, after %d min · to see the fireplace, pick it as the screensaver</string>
+    <string name="home_bring_back">Bring back the TV’s home screen</string>
+    <string name="safe_mode_failed">Lehko’s home screen stopped working, and the TV’s own home screen couldn’t be brought back.</string>
     <string name="disable_message_saver">The screensaver goes back to the TV’s own too.</string>
     <string name="allow_again">Allow debugging again</string>
     <string name="allow_ok">Done! Lehko can check itself after TV updates again.</string>
@@ -120,6 +126,12 @@
     <string name="dur_min">%d min</string>
     <string name="dur_h">%d h</string>
     <string name="dur_h_min">%1$d h %2$d min</string>
+    <string name="outage_then_maybe">then a possible outage</string>
+    <string name="outage_then_maybe_tomorrow">until %s tomorrow, then a possible outage</string>
+    <string name="outage_off_until_maybe">No power until %s · then a possible outage</string>
+    <string name="outage_off_until_tomorrow_maybe">No power until %s tomorrow · then a possible outage</string>
+    <string name="outage_none_today">no more outages today</string>
+    <string name="outage_on_none_today">Power is on · no more outages today</string>
     <string name="settings_title">Lehko settings</string>
     <string name="home_screen">Home screen</string>
     <string name="home_status_off">The TV’s own home screen is in use</string>
@@ -194,7 +206,7 @@
     <string name="reverted_crash">Lehko’s home screen crashed several times, so the TV’s own home screen is back. Please report it on GitHub.</string>
     <string name="reverted_crash_failed">Lehko’s home screen crashed several times and couldn’t switch back by itself. Open Lehko settings and bring back the TV’s home screen.</string>
     <string name="verify_fixed">After a TV update Lehko fixed: %s</string>
-    <string name="cleanup_intro">Turned-off apps stay installed and use no memory. Press an app to turn it off or back on. Switching back to the TV’s own home screen turns them all back on.</string>
+    <string name="cleanup_intro">Turned-off apps stay installed and use no memory. Press an app to turn it off or back on. Before uninstalling Lehko, turn them all back on: bring back the TV’s own home screen, or, if it is in use already, press “Turn apps back on” in Lehko settings.</string>
     <string name="cleanup_need_debugging">This needs the TV’s debugging mode. First make Lehko the home screen (or just turn on “USB debugging”).</string>
     <string name="cleanup_failed">Couldn’t change “%s”.</string>
     <string name="cleanup_wifi_owner">saved your Wi-Fi</string>

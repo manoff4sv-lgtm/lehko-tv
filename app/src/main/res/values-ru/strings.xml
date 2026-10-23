@@ -23,6 +23,12 @@
     <string name="search">Найти</string>
     <string name="nothing_found">Ничего не найдено. Попробуйте иначе.</string>
     <string name="not_set">Не выбрано</string>
+    <string name="enable_full_later">Освобождает больше всего памяти и убирает его рекламу. Он не удаляется, и его можно в любой момент снова включить здесь. Пока он выключен, всегда возвращайте стандартный экран перед удалением Lehko.</string>
+    <string name="launcher_on">Включить стандартный лаунчер снова</string>
+    <string name="result_launcher_on">Готово! Стандартный лаунчер снова включён, а Lehko остаётся главным экраном.</string>
+    <string name="fireplace_tv_first">Заставка телевизора включается раньше, через %d мин · чтобы видеть камин, выберите его заставкой</string>
+    <string name="home_bring_back">Вернуть стандартный экран</string>
+    <string name="safe_mode_failed">Экран Lehko перестал работать, а стандартный экран вернуть не удалось.</string>
     <string name="disable_message_saver">Заставка тоже станет стандартной.</string>
     <string name="allow_again">Разрешить отладку снова</string>
     <string name="allow_ok">Готово! Lehko снова может проверять себя после обновлений телевизора.</string>
@@ -118,6 +124,12 @@
     <string name="dur_min">%d мин</string>
     <string name="dur_h">%d ч</string>
     <string name="dur_h_min">%1$d ч %2$d мин</string>
+    <string name="outage_then_maybe">дальше возможное отключение</string>
+    <string name="outage_then_maybe_tomorrow">до %s завтра, дальше возможное отключение</string>
+    <string name="outage_off_until_maybe">Света нет до %s · дальше возможное отключение</string>
+    <string name="outage_off_until_tomorrow_maybe">Света нет до %s завтра · дальше возможное отключение</string>
+    <string name="outage_none_today">сегодня отключений больше нет</string>
+    <string name="outage_on_none_today">Свет есть · сегодня отключений больше нет</string>
     <string name="settings_title">Настройки Lehko</string>
     <string name="home_screen">Главный экран</string>
     <string name="home_status_off">Сейчас стандартный экран телевизора</string>
@@ -192,7 +204,7 @@
     <string name="reverted_crash">Экран Lehko несколько раз аварийно закрылся, поэтому возвращён стандартный экран. Пожалуйста, напишите об этом на GitHub.</string>
     <string name="reverted_crash_failed">Экран Lehko несколько раз аварийно закрылся и не смог сам вернуть стандартный экран. Откройте настройки Lehko и верните стандартный экран.</string>
     <string name="verify_fixed">После обновления телевизора Lehko исправил: %s</string>
-    <string name="cleanup_intro">Выключенные приложения остаются установленными и не занимают память. Нажмите на приложение, чтобы выключить или включить его. Возврат стандартного экрана включит их все.</string>
+    <string name="cleanup_intro">Выключенные приложения остаются установленными и не занимают память. Нажмите на приложение, чтобы выключить или включить его. Перед удалением Lehko включите их все: верните стандартный экран, а если он уже работает, нажмите «Включить приложения обратно» в настройках Lehko.</string>
     <string name="cleanup_need_debugging">Для этого нужен режим отладки. Сначала сделайте Lehko главным экраном (или просто включите «Отладка по USB»).</string>
     <string name="cleanup_failed">Не удалось изменить «%s».</string>
     <string name="cleanup_wifi_owner">сохранил ваш Wi-Fi</string>
