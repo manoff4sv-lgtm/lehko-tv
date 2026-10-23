@@ -169,6 +169,24 @@ public class HomeModeTest {
         assertEquals(LAUNCHERX, state().getString("holder"));
     }
 
+    @Test public void fullModeLaterKeepsTheRest() throws Exception {
+        String games = "com.google.android.play.games";
+        Env e = new Env(keys);
+        HomeMode.enable(e, false, QUIET);
+        HomeMode.setAppEnabled(e, games, false, null);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        // Home still opened the stock screen: the launcher goes off now, without switching back first.
+        assertEquals(e.text(R.string.result_on_full, 2), HomeMode.enable(e, true, QUIET));
+        JSONObject s = state();
+        assertEquals("ua.lehko.tv", s.getString("holder"));
+        assertFalse(enabled(s, LAUNCHERX));
+        assertFalse(enabled(s, games));
+        assertEquals(new HashSet<>(Arrays.asList(LAUNCHERX, SETUP, games)), HomeMode.disabled(e.prefs));
+        assertEquals(HomeMode.FIRE_DREAM, s.getJSONObject("settings").getJSONObject("secure")
+                .getString("screensaver_components"));
+        assertTrue(e.prefs.getBoolean(HomeMode.K_FULL, false));
+    }
+
     @Test public void wifiOwnerIsNeverTurnedOff() throws Exception {
         tv("fake:networks " + SETUP);
         Env e = new Env(keys);

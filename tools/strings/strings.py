@@ -33,6 +33,7 @@ s("nothing_found", "Nothing found. Try another spelling.", "Нічого не з
 s("not_set", "Not set", "Не вибрано", "Не выбрано")
 
 # FIX-STRINGS-SYS (temporary anchor: new strings of the 'sys' fixes go right below)
+s("home_bring_back", "Bring back the TV’s home screen", "Повернути стандартний екран", "Вернуть стандартный экран")
 s("safe_mode_failed", "Lehko’s home screen stopped working, and the TV’s own home screen couldn’t be brought back.", "Екран Lehko перестав працювати, а стандартний екран повернути не вдалося.", "Экран Lehko перестал работать, а стандартный экран вернуть не удалось.")
 s("disable_message_saver", "The screensaver goes back to the TV’s own too.", "Заставка теж стане стандартною.", "Заставка тоже станет стандартной.")
 s("allow_again", "Allow debugging again", "Дозволити налагодження знову", "Разрешить отладку снова")

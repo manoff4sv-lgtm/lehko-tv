@@ -146,7 +146,9 @@ public final class SettingsActivity extends Activity {
     private void click(int row) {
         switch (row) {
             case HOME:
-                if (HomeMode.isOn(this)) confirmDisable(); else enableDialog();
+                if (!HomeMode.isOn(this)) enableDialog();
+                else if (HomeMode.isFull(this)) confirmDisable();
+                else homeChoice();
                 break;
             case APPS_ON:
                 confirmAppsOn();
@@ -269,6 +271,40 @@ public final class SettingsActivity extends Activity {
         // The TV would focus the content first, which is the "also turn off the stock launcher" box: a reflex OK would
         // tick it. Up from "Turn on" still reaches it.
         d.getButton(DialogInterface.BUTTON_POSITIVE).requestFocus();
+    }
+
+    /**
+     * Lehko is on, the stock launcher isn't off: the hint says to turn it off if Home still opens the stock screen.
+     * Done from here, not by switching back and on again, which would turn every unneeded app back on and reset the
+     * screensaver.
+     */
+    private void homeChoice() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.home_screen)
+                .setItems(new CharSequence[]{getString(R.string.enable_full), getString(R.string.home_bring_back)},
+                        new DialogInterface.OnClickListener() {
+                            @Override public void onClick(DialogInterface d, int which) {
+                                if (which == 0) confirmFull(); else confirmDisable();
+                            }
+                        })
+                .show();
+    }
+
+    private void confirmFull() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.enable_full)
+                .setMessage(R.string.enable_full_hint)
+                .setPositiveButton(R.string.enable_button, new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        run(new Task() {
+                            @Override public String run(HomeMode.Progress p) throws IOException {
+                                return HomeMode.enable(getApplicationContext(), true, p);
+                            }
+                        });
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void openSettings(String action) {
