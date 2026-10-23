@@ -909,7 +909,8 @@ public final class HomeActivity extends Activity {
         // "Cloudy, rain from 21:00": the hint (or an old forecast's warning) in amber after the sky.
         String hint = null;
         long age = System.currentTimeMillis() - Weather.cacheTime(this);
-        if (age > 3 * 3600_000L) {
+        // Like the outage line's: an old forecast only warns once updating it has failed (or can't start).
+        if (age > 3 * 3600_000L && (weatherFailedAt != 0 || !online())) {
             hint = getString(R.string.weather_old, since(Weather.cacheTime(this)));
         } else if (d.precipAt != null) {
             hint = getString(d.precipSnow ? R.string.weather_snow_at : R.string.weather_rain_at, d.precipAt);
@@ -1067,7 +1068,10 @@ public final class HomeActivity extends Activity {
         }
         long now = System.currentTimeMillis();
         long fetched = Outages.fetchedAt(this);
-        boolean old = schedule != null && fetched > 0 && now - fetched > OUTAGE_OLD_MS;
+        // Only once updating has failed (or can't start): back home after a film the schedule is hours old, but it is
+        // renewed a second later.
+        boolean old = schedule != null && fetched > 0 && now - fetched > OUTAGE_OLD_MS
+                && (outageFailedAt > fetched || !online());
         Outages.Status st = Outages.status(schedule, now);
         // An old schedule says since when in place of the group (the line has room for one of them).
         String[] lines = OutageText.lines(this, schedule, st, old ? null : Outages.chosenGroup(this));
