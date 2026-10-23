@@ -23,6 +23,16 @@
     <string name="search">Найти</string>
     <string name="nothing_found">Ничего не найдено. Попробуйте иначе.</string>
     <string name="not_set">Не выбрано</string>
+    <string name="disable_message_saver">Заставка тоже станет стандартной.</string>
+    <string name="allow_again">Разрешить отладку снова</string>
+    <string name="allow_ok">Готово! Lehko снова может проверять себя после обновлений телевизора.</string>
+    <string name="allow_fixed">Готово! Lehko снова может проверять себя после обновлений телевизора. Только что исправлено: %s</string>
+    <string name="allow_not_remembered">Телевизор не запомнил разрешение. Нажмите «Разрешить отладку снова» ещё раз и отметьте в окне «Всегда разрешать с этого компьютера».</string>
+    <string name="verify_port_closed">«Отладка по USB» включена, но после перезагрузки телевизор закрыл порт отладки, поэтому Lehko не может проверить себя после обновлений. Включите «Отладка по сети», если она есть, или снова выполните с компьютера: adb tcpip 5555</string>
+    <string name="apps_on">Включить приложения обратно</string>
+    <string name="apps_on_summary">Выключено через Lehko: %d. Включите их перед удалением Lehko.</string>
+    <string name="result_apps_on">Готово! Всё, что выключал Lehko, снова включено.</string>
+    <string name="adb_no_answer">Служба отладки телевизора не ответила. Попробуйте ещё раз через минуту.</string>
     <string name="weather_pick_city">Выберите город в настройках Lehko</string>
     <string name="weather_loading">Загрузка погоды…</string>
     <string name="weather_old">Не обновлялось с %s</string>
@@ -47,6 +57,8 @@
     <string name="wx_snow_showers">Снегопад</string>
     <string name="wx_storm">Гроза</string>
     <string name="wx_storm_hail">Гроза с градом</string>
+    <string name="cleanup_wifi_owner_error">«%s» сохранил вашу сеть Wi-Fi, и если его выключить, Android её забудет. Зайдите в Настройки → Сеть и интернет, забудьте сеть, подключитесь заново и попробуйте ещё раз.</string>
+    <string name="cleanup_wifi_check_error">Lehko не смог проверить, какие приложения сохранили вашу сеть Wi-Fi, поэтому ничего не выключал (если выключить такое приложение, Android забудет сеть). Попробуйте ещё раз через минуту.</string>
     <string name="outages">График отключений</string>
     <string name="outages_off">Выключено</string>
     <string name="outage_pick_region">Ваш регион</string>
@@ -141,12 +153,13 @@
     <string name="section_memory">Скорость и память</string>
     <string name="about">О Lehko</string>
     <string name="about_summary">Версия %1$s · %2$s</string>
-    <string name="about_text">Lehko бесплатный и с открытым кодом: %s\n\nПогода от Open-Meteo, графики отключений от YASNO и ДТЭК (через проект outage-data-ua), курсы валют от Монобанка и НБУ. Без аккаунтов, рекламы и слежки.\n\nПеред удалением Lehko верните стандартный главный экран, иначе телевизор может остаться без него.</string>
+    <string name="about_text">Lehko бесплатный и с открытым кодом: %s\n\nПогода от Open-Meteo, графики отключений от YASNO и ДТЭК (через проект outage-data-ua), курсы валют от Монобанка и НБУ. Без аккаунтов, рекламы и слежки.\n\nПеред удалением Lehko верните стандартный главный экран (иначе телевизор может остаться без него) и включите приложения, которые выключали через Lehko.</string>
+    <string name="weather_offline">Погоды пока нет · нет соединения</string>
     <string name="enable_title">Сделать Lehko главным экраном</string>
     <string name="enable_intro">Сменить главный экран на Android TV можно только через режим отладки. Lehko пользуется им прямо на телевизоре, компьютер не нужен.</string>
     <string name="step_dev">Включите режим разработчика: Настройки → Система → Об устройстве → 7 раз нажмите «Сборка ОС Android TV».</string>
     <string name="step_adb">Включите «Отладка по USB»: Настройки → Система → Для разработчиков.</string>
-    <string name="step_allow">3.  Нажмите «Включить» и разрешите отладку в появившемся окне (отметьте «Всегда разрешать»).</string>
+    <string name="step_allow">"3.  Нажмите «Включить» и разрешите отладку в появившемся окне (отметьте «Всегда разрешать»)."</string>
     <string name="enable_full">Также выключить стандартный лаунчер</string>
     <string name="enable_full_hint">Освобождает больше всего памяти и убирает его рекламу. Он не удаляется и вернётся, когда вернёте стандартный экран. Сначала попробуйте без этого; если кнопка Home всё равно открывает стандартный экран, включите. В этом режиме всегда возвращайте стандартный экран перед удалением Lehko.</string>
     <string name="enable_button">Включить</string>
@@ -162,7 +175,7 @@
     <string name="step_enabling">Включаю приложения обратно (%1$d из %2$d)…</string>
     <string name="step_restoring_home">Возвращаю главный экран…</string>
     <string name="adb_waiting">Разрешите отладку в окне на экране: отметьте «Всегда разрешать с этого компьютера» и нажмите OK.</string>
-    <string name="adb_closed">Порт отладки закрыт. Проверьте, что «Отладка по USB» включена. На некоторых телевизорах есть ещё «Отладка по сети» (включите её) или нужно один раз выполнить с компьютера: adb tcpip 5555</string>
+    <string name="adb_closed">Порт отладки закрыт. Проверьте, что «Отладка по USB» включена. На некоторых телевизорах есть ещё «Отладка по сети» (включите её) или нужно после каждой перезагрузки телевизора выполнить с компьютера: adb tcpip 5555</string>
     <string name="adb_rejected">Отладка не разрешена. Попробуйте ещё раз и нажмите OK в окне на телевизоре.</string>
     <string name="adb_tls">Этот телевизор умеет только «Беспроводную отладку» с подключением по коду. Включите «Отладка по USB».</string>
     <string name="error_generic">Что-то пошло не так: %s</string>
@@ -188,14 +201,12 @@
     <string name="cleanup_hint_ambient">заставка Google</string>
     <string name="state_on">Включено</string>
     <string name="state_off">Выключено</string>
-    <string name="safe_mode_text">Экран Lehko перестал работать, поэтому возвращаю стандартный экран телевизора…
-
-Если телевизор спросит «Разрешить отладку по USB?», нажмите OK.</string>
+    <string name="safe_mode_text">Экран Lehko перестал работать, поэтому возвращаю стандартный экран телевизора…\n\nЕсли телевизор спросит «Разрешить отладку по USB?», нажмите OK.</string>
     <string name="safe_mode_retry">Попробовать ещё раз</string>
     <string name="result_home_failed">Не удалось вернуть стандартный экран. Попробуйте ещё раз или запустите scripts/revert с компьютера.</string>
     <string name="result_still_off">Всё ещё выключено: %s</string>
     <string name="verify_no_debugging">«Отладка по USB» выключена, поэтому Lehko не может проверить себя после обновлений телевизора. Включите её снова в параметрах разработчика.</string>
-    <string name="verify_no_permission">Телевизор забыл разрешение отладки для Lehko. Откройте настройки Lehko, нажмите «Главный экран» и разрешите отладку снова.</string>
+    <string name="verify_no_permission">Телевизор забыл разрешение отладки для Lehko. Откройте настройки Lehko, нажмите «Главный экран», а затем «Разрешить отладку снова».</string>
     <string name="wifi_check_error">Lehko не смог проверить, какие приложения сохранили вашу сеть Wi-Fi, поэтому ничего не выключал (если выключить такое приложение, Android забудет сеть). Попробуйте через минуту или включите Lehko без выключения стандартного лаунчера.</string>
     <string name="cleanup_system_warning">Это системное приложение телевизора. Выключение можно отменить здесь же, но некоторые функции телевизора могут не работать, пока не включите его обратно.</string>
     <string name="cleanup_turn_off">Выключить</string>
