@@ -265,7 +265,10 @@ public final class SettingsActivity extends Activity {
                 }
             });
         }
-        b.show();
+        AlertDialog d = b.show();
+        // The TV would focus the content first, which is the "also turn off the stock launcher" box: a reflex OK would
+        // tick it. Up from "Turn on" still reaches it.
+        d.getButton(DialogInterface.BUTTON_POSITIVE).requestFocus();
     }
 
     private void openSettings(String action) {
