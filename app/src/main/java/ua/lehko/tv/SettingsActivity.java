@@ -149,11 +149,7 @@ public final class SettingsActivity extends Activity {
                 if (HomeMode.isOn(this)) confirmDisable(); else enableDialog();
                 break;
             case APPS_ON:
-                run(new Task() {
-                    @Override public String run(HomeMode.Progress p) throws IOException {
-                        return HomeMode.enableApps(getApplicationContext(), p);
-                    }
-                });
+                confirmAppsOn();
                 break;
             case PREVIEW:
                 Apps.start(this, new Intent(this, HomeActivity.class));
@@ -305,6 +301,24 @@ public final class SettingsActivity extends Activity {
                         });
                     }
                 })
+                .show();
+    }
+
+    /** Asks first: the row sits right under "Home screen", and each app would have to be turned off again by hand. */
+    private void confirmAppsOn() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.apps_on)
+                .setMessage(getString(R.string.apps_on_summary, HomeMode.disabled(this).size()))
+                .setPositiveButton(R.string.apps_on, new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        run(new Task() {
+                            @Override public String run(HomeMode.Progress p) throws IOException {
+                                return HomeMode.enableApps(getApplicationContext(), p);
+                            }
+                        });
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
 
