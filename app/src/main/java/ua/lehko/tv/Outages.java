@@ -253,6 +253,9 @@ final class Outages {
         if (loading || !enabled(app) || !Net.stale(now, fetchedAt(app), MAX_AGE_MS) || !Net.stale(now, failedAt, RETRY_MS)) {
             return;
         }
+        // No network (the router down in an outage): a try would fail at once and hold off the first one after it is
+        // back. Not recorded as a failure: old() counts offline as old anyway.
+        if (!Net.online(app)) return;
         loading = true;
         App.NET.execute(new Runnable() {
             @Override public void run() {
