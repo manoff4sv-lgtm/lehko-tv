@@ -169,7 +169,7 @@ public final class SettingsActivity extends Activity {
                 if (!HomeMode.isOn(this)) enableDialog();
                 // In safe mode only the way back: turning the stock launcher off would leave a Lehko that keeps
                 // crashing as the only home screen.
-                else if (HomeMode.isFull(this) || Watchdog.safeMode(this)) confirmDisable();
+                else if (Watchdog.safeMode(this)) confirmDisable();
                 else homeChoice();
                 break;
             case APPS_ON:
@@ -296,23 +296,34 @@ public final class SettingsActivity extends Activity {
     }
 
     /**
-     * Lehko is on, the stock launcher isn't off: the hint says to turn it off if Home still opens the stock screen.
-     * Done from here, not by switching back and on again, which would turn every unneeded app back on and reset the
+     * Lehko is on. The stock launcher goes off (the hint says to, if Home still opens the stock screen) or back on
+     * from here, not by switching back and on again, which would turn every unneeded app back on and reset the
      * screensaver. "Allow debugging again" is listed too: Lehko's notices send people to it through this row.
      */
     private void homeChoice() {
+        final boolean full = HomeMode.isFull(this);
         new AlertDialog.Builder(this)
                 .setTitle(R.string.home_screen)
-                .setItems(new CharSequence[]{getString(R.string.enable_full), getString(R.string.allow_again),
-                                getString(R.string.home_bring_back)},
+                .setItems(new CharSequence[]{getString(full ? R.string.launcher_on : R.string.enable_full),
+                                getString(R.string.allow_again), getString(R.string.home_bring_back)},
                         new DialogInterface.OnClickListener() {
                             @Override public void onClick(DialogInterface d, int which) {
-                                if (which == 0) confirmFull();
+                                if (which == 0 && full) launcherOn();
+                                else if (which == 0) confirmFull();
                                 else if (which == 1) allowAgain();
                                 else confirmDisable();
                             }
                         })
                 .show();
+    }
+
+    /** Doesn't ask first: it only turns things back on, and they go off again from the same row. */
+    private void launcherOn() {
+        run(new Task() {
+            @Override public String run(HomeMode.Progress p) throws IOException {
+                return HomeMode.launcherOn(getApplicationContext(), p);
+            }
+        });
     }
 
     private void confirmFull() {

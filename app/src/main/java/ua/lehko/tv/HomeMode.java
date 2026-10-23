@@ -402,7 +402,7 @@ final class HomeMode {
 
     private static Restored restore(Env c, Adb adb, Progress p) throws IOException {
         Restored r = new Restored();
-        r.failed.addAll(enableRecorded(c, adb, p));
+        r.failed.addAll(enableRecorded(c, adb, p, disabled(c)));
         if (p != null) p.step(c.text(R.string.step_restoring_home));
         r.homeOk = restoreHome(adb, c.prefs().getString(K_HOME, ""));
         restoreScreensaver(c, adb);
@@ -424,14 +424,15 @@ final class HomeMode {
         }
     }
 
-    /** Turns every app Lehko turned off back on. Returns the ones that stay off (and stay recorded). */
-    private static List<String> enableRecorded(Env c, Adb adb, Progress p) throws IOException {
-        Set<String> disabled = disabled(c);
+    /** Turns the apps of {@code which} that Lehko turned off back on. Returns the ones that stay off (and recorded). */
+    private static List<String> enableRecorded(Env c, Adb adb, Progress p, Set<String> which) throws IOException {
+        Set<String> todo = disabled(c);
+        todo.retainAll(which);
         List<String> failed = new ArrayList<>();
         int i = 0;
-        for (String pkg : sorted(disabled)) {
+        for (String pkg : sorted(todo)) {
             i++;
-            if (p != null) p.step(c.text(R.string.step_enabling, i, disabled.size()));
+            if (p != null) p.step(c.text(R.string.step_enabling, i, todo.size()));
             if (!PACKAGE.matcher(pkg).matches()) continue;
             // Decided by pm's own answer, never by a package list that might have come back empty.
             String out = adb.shell("pm enable " + pkg);
@@ -439,7 +440,10 @@ final class HomeMode {
             if (out.contains("Unknown package") || out.contains("does not exist") || out.contains("not found")) continue;
             failed.add(pkg);
         }
-        setDisabled(c, new HashSet<>(failed));
+        Set<String> left = disabled(c);
+        left.removeAll(todo);
+        left.addAll(failed);
+        setDisabled(c, left);
         return failed;
     }
 
@@ -449,7 +453,7 @@ final class HomeMode {
      */
     static synchronized String enableApps(Env c, Progress p) throws IOException {
         try (Adb adb = connect(c, p)) {
-            List<String> failed = enableRecorded(c, adb, p);
+            List<String> failed = enableRecorded(c, adb, p, disabled(c));
             writeDeviceState(c, adb);
             return failed.isEmpty() ? c.text(R.string.result_apps_on)
                     : c.text(R.string.result_still_off, String.join(", ", failed));
@@ -458,6 +462,35 @@ final class HomeMode {
 
     static String enableApps(Context c, Progress p) throws IOException {
         return enableApps(env(c), p);
+    }
+
+    /**
+     * Full mode back to the lighter one: what it turned off (the stock launcher, Android TV's recommendations, Google
+     * TV's setup app) comes back on, and Lehko stays the home screen. Apps turned off on the "unneeded apps" screen
+     * and the screensaver stay as they are.
+     */
+    static synchronized String launcherOn(Env c, Progress p) throws IOException {
+        try (Adb adb = connect(c, p)) {
+            // connect() found it given back from a computer: everything is on already.
+            if (!isOn(c)) return c.text(R.string.home_status_off);
+            // As in targets(): the recommendations went with Android TV's launcher only; on other TVs they may be off
+            // from the "unneeded apps" screen.
+            String home = packageOf(c.prefs().getString(K_HOME, ""));
+            Set<String> launcher = new HashSet<>(Arrays.asList(home, SETUP));
+            if (ATV_HOME_PKG.equals(home)) launcher.add(ATV_RECOMMENDATIONS);
+            List<String> failed = enableRecorded(c, adb, p, launcher);
+            // Back on, the launcher may claim the Home button again.
+            adb.shell("cmd package set-home-activity --user 0 " + HOME);
+            // Still full while one stays off, so the row offers this again.
+            if (failed.isEmpty()) c.prefs().edit().putBoolean(K_FULL, false).commit();
+            writeDeviceState(c, adb);
+            return failed.isEmpty() ? c.text(R.string.result_launcher_on)
+                    : c.text(R.string.result_still_off, String.join(", ", failed));
+        }
+    }
+
+    static String launcherOn(Context c, Progress p) throws IOException {
+        return launcherOn(env(c), p);
     }
 
     /**

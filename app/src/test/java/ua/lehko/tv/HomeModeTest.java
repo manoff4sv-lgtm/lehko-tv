@@ -189,6 +189,27 @@ public class HomeModeTest {
         assertTrue(e.prefs.getBoolean(HomeMode.K_FULL, false));
     }
 
+    @Test public void launcherBackOnKeepsTheRest() throws Exception {
+        String games = "com.google.android.play.games";
+        Env e = new Env(keys);
+        HomeMode.enable(e, true, QUIET);
+        HomeMode.setAppEnabled(e, games, false, null);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        // Back to the lighter mode: only what full mode turned off comes back, Lehko stays the home screen.
+        assertEquals(e.text(R.string.result_launcher_on), HomeMode.launcherOn(e, QUIET));
+        JSONObject s = state();
+        assertEquals("ua.lehko.tv", s.getString("holder"));
+        assertTrue(enabled(s, LAUNCHERX));
+        assertTrue(enabled(s, SETUP));
+        assertFalse(enabled(s, games));
+        assertEquals(new HashSet<>(Arrays.asList(games)), HomeMode.disabled(e.prefs));
+        assertEquals(HomeMode.FIRE_DREAM, s.getJSONObject("settings").getJSONObject("secure")
+                .getString("screensaver_components"));
+        assertTrue(e.prefs.getBoolean(HomeMode.K_ON, false));
+        assertFalse(e.prefs.getBoolean(HomeMode.K_FULL, false));
+        assertTrue(s.getJSONObject("files").getString(HomeMode.STATE_FILE).contains("full=false"));
+    }
+
     @Test public void wifiOwnerIsNeverTurnedOff() throws Exception {
         tv("fake:networks " + SETUP);
         Env e = new Env(keys);
