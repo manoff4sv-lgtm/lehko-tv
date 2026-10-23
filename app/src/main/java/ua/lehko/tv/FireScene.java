@@ -81,7 +81,9 @@ final class FireScene {
         outage = new TextView(c);
         outage.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         outage.setTextColor(0xFFA8968A); // dim, but still 7:1 on the dark wall
-        outage.setMaxLines(1);
+        // A second line only for "no update since".
+        outage.setMaxLines(2);
+        outage.setGravity(Gravity.CENTER_HORIZONTAL);
         outage.setPadding(0, Math.round(4 * dp), 0, 0);
         box.addView(outage);
         root.addView(box, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -164,7 +166,13 @@ final class FireScene {
             return;
         }
         Outages.Schedule s = Outages.cached(context);
-        outage.setText(OutageText.status(context, s, Outages.status(s, System.currentTimeMillis())));
+        long now = System.currentTimeMillis();
+        String line = OutageText.status(context, s, Outages.status(s, now));
+        // Offline for hours the schedule may have changed: it says since when, as on the home screen.
+        if (s != null && Outages.old(context, now)) {
+            line += "\n" + context.getString(R.string.weather_old, OutageText.since(context, Outages.fetchedAt(context)));
+        }
+        outage.setText(line);
         outage.setVisibility(View.VISIBLE);
     }
 
