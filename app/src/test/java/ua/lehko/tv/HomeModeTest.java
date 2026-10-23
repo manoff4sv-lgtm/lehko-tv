@@ -331,24 +331,51 @@ public class HomeModeTest {
         assertEquals(e.text(R.string.verify_no_debugging), e.notice);
     }
 
-    @Test public void revertFromAComputerSticks() throws Exception {
-        Env e = new Env(keys);
-        HomeMode.enable(e, true, QUIET);
-        e.notice = null;
-        // scripts/revert.sh without --uninstall: everything back and the note removed; Lehko's own records stay.
+    /** scripts/revert.sh without --uninstall: everything back and the note removed; Lehko's own records stay. */
+    static void revertFromAComputer() throws IOException {
         tv("pm enable " + LAUNCHERX);
         tv("pm enable " + SETUP);
         tv("cmd package set-home-activity --user 0 " + LAUNCHERX + "/.home.HomeActivity");
         tv("settings delete global adb_allowed_connection_time");
         tv("rm -f " + HomeMode.STATE_FILE);
-        HomeMode.verify(e); // the next reboot
+    }
+
+    static void assertRevertedFromAComputer(Env e) throws Exception {
         JSONObject s = state();
         assertEquals(LAUNCHERX, s.getString("holder"));
         assertTrue(enabled(s, LAUNCHERX));
         assertTrue(enabled(s, SETUP));
         assertFalse(s.getJSONObject("settings").getJSONObject("global").has("adb_allowed_connection_time"));
         assertFalse(e.prefs.getBoolean(HomeMode.K_ON, false));
+    }
+
+    @Test public void revertFromAComputerSticks() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.enable(e, true, QUIET);
+        e.notice = null;
+        revertFromAComputer();
+        HomeMode.verify(e); // the next reboot
+        assertRevertedFromAComputer(e);
         assertNull(e.notice);
+    }
+
+    @Test public void revertFromAComputerSticksThroughLehkosNextChange() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.enable(e, true, QUIET);
+        revertFromAComputer();
+        // Before the next reboot: a change in Lehko writes the note again, which must not say "on" any more.
+        HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        assertFalse(e.prefs.getBoolean(HomeMode.K_ON, false));
+        HomeMode.verify(e);
+        assertRevertedFromAComputer(e);
+    }
+
+    @Test public void allowingDebuggingAgainAfterARevertFromAComputer() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.enable(e, true, QUIET);
+        revertFromAComputer();
+        assertEquals(e.text(R.string.home_status_off), HomeMode.allowAgain(e, QUIET));
+        assertRevertedFromAComputer(e); // and the timeout the script put back stays
     }
 
     @Test public void uninstalledWhileOnIsNotTakenOverAgain() throws Exception {

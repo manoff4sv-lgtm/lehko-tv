@@ -238,7 +238,10 @@ final class HomeMode {
 
     // MARK: - Connecting
 
-    /** Connects (asking for permission on the TV if needed) and takes over notes from an earlier install. */
+    /**
+     * Connects (asking for permission on the TV if needed), takes over notes from an earlier install and accepts a
+     * switch undone from a computer, before anything rewrites the note from Lehko's own records.
+     */
     static Adb connect(Env c, final Progress p) throws IOException {
         if (p != null) p.step(c.text(R.string.step_connecting));
         Adb adb = c.connect(90_000, p == null ? null : new Adb.Approval() {
@@ -248,6 +251,7 @@ final class HomeMode {
         });
         try {
             adopt(c, adb);
+            acceptOutsideRevert(c, adb);
         } catch (IOException | RuntimeException e) {
             adb.close();
             throw e;
@@ -510,18 +514,19 @@ final class HomeMode {
      * remembers the key (the checks after a reboot never ask) and runs the same check as they do.
      */
     static synchronized String allowAgain(Env c, Progress p) throws IOException {
-        try (Adb adb = connect(c, p)) {
-            keepDebuggingAllowed(c, adb);
-        }
+        // Only for "Allow USB debugging?". The timeout is kept off by check(), once it knows Lehko is still on.
+        connect(c, p).close();
+        // connect() found it given back from a computer: Lehko isn't the home screen any more.
+        if (!isOn(c)) return c.text(R.string.home_status_off);
         List<String> fixed = new ArrayList<>();
         try (Adb adb = c.connect(0, null)) {
-            if (isOn(c) && !Watchdog.safeMode(c.prefs())) fixed = check(c, adb);
+            if (!Watchdog.safeMode(c.prefs())) fixed = check(c, adb);
         } catch (Adb.Failure e) {
             // Allowed without "Always allow": the TV has forgotten it already.
             if (e.reason == Adb.Failure.NOT_ALLOWED) return c.text(R.string.allow_not_remembered);
             throw e;
         }
-        return fixed.isEmpty() ? c.text(R.string.allow_ok) : c.text(R.string.verify_fixed, String.join(", ", fixed));
+        return fixed.isEmpty() ? c.text(R.string.allow_ok) : c.text(R.string.allow_fixed, String.join(", ", fixed));
     }
 
     static String allowAgain(Context c, Progress p) throws IOException {
@@ -532,11 +537,7 @@ final class HomeMode {
     private static List<String> check(Env c, Adb adb) throws IOException {
         List<String> fixed = new ArrayList<>();
         adopt(c, adb);
-        if (!noteSaysOn(adb) && !homeHolder(adb).contains(PKG)) {
-            // Given back from a computer (scripts/revert removes the note; a TV update leaves it): accept that.
-            forgetSwitch(c, adb);
-            return fixed;
-        }
+        if (acceptOutsideRevert(c, adb)) return fixed;
         keepDebuggingAllowed(c, adb);
         if (!homeHolder(adb).contains(PKG)) {
             adb.shell("cmd package set-home-activity --user 0 " + HOME);
@@ -558,6 +559,16 @@ final class HomeMode {
         }
         if (!fixed.isEmpty()) writeDeviceState(c, adb);
         return fixed;
+    }
+
+    /**
+     * Lehko's records say on, but the note is gone and the home screen isn't Lehko: given back from a computer
+     * (scripts/revert removes the note; a TV update leaves it). Accepts that and returns true.
+     */
+    private static boolean acceptOutsideRevert(Env c, Adb adb) throws IOException {
+        if (!isOn(c) || noteSaysOn(adb) || homeHolder(adb).contains(PKG)) return false;
+        forgetSwitch(c, adb);
+        return true;
     }
 
     /** Whether the note on the TV still says Lehko is on. */
