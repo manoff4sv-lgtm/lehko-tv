@@ -777,22 +777,16 @@ public final class SettingsActivity extends Activity {
     }
 
     private String explain(Exception e) {
-        if (e instanceof Adb.Failure) {
-            switch (((Adb.Failure) e).reason) {
-                case Adb.Failure.PORT_CLOSED: return getString(R.string.adb_closed);
-                case Adb.Failure.NOT_ALLOWED: return getString(R.string.adb_rejected);
-                case Adb.Failure.TLS_ONLY: return getString(R.string.adb_tls);
-                default: return getString(R.string.adb_no_answer);
-            }
+        // Here a closed port always gets the port advice, which starts with checking "USB debugging": the shared
+        // text's "first make Lehko the home screen" is what is being done. The rest is as on the other screens.
+        if (e instanceof Adb.Failure && ((Adb.Failure) e).reason == Adb.Failure.PORT_CLOSED) {
+            return getString(R.string.adb_closed);
         }
+        String connection = HomeMode.explain(this, e);
+        if (connection != null) return connection;
         if (e instanceof HomeMode.WifiOwnerException) return getString(R.string.wifi_owner_error, e.getMessage());
         if (e instanceof HomeMode.WifiCheckException) return getString(R.string.wifi_check_error);
         if (e instanceof HomeMode.Refused) return getString(R.string.home_not_accepted);
-        // The TV stopped answering halfway: a timeout or a dropped connection.
-        if (e instanceof java.net.SocketTimeoutException || e instanceof java.io.EOFException
-                || e instanceof java.net.SocketException) {
-            return getString(R.string.adb_no_answer);
-        }
         // Exception texts are English: only the kind of error goes into the translated sentence.
         return getString(R.string.error_generic, e.getClass().getSimpleName());
     }

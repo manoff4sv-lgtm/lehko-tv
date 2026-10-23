@@ -263,9 +263,9 @@ final class HomeMode {
     }
 
     /**
-     * What went wrong with the debugging connection, or null if it wasn't the connection. For the screens that need
-     * debugging but don't switch the home screen: with "USB debugging" off, a closed port gets the advice to turn it
-     * on (or to make Lehko the home screen, which walks through that).
+     * What went wrong with the debugging connection, or null if it wasn't the connection. With "USB debugging" off, a
+     * closed port gets the advice to turn it on (or to make Lehko the home screen, which walks through that): the
+     * home screen switch in Settings handles a closed port itself.
      */
     static String explain(Context c, Exception e) {
         if (e instanceof Adb.Failure) {
