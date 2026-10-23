@@ -1,5 +1,8 @@
 package ua.lehko.tv;
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -55,6 +58,12 @@ final class Net {
     static boolean stale(long now, long savedAt, long maxAgeMs) {
         long age = now - savedAt;
         return age < 0 || age > maxAgeMs;
+    }
+
+    /** Is there a network at all (the router may be down in an outage)? Unknown counts as yes. */
+    static boolean online(Context c) {
+        ConnectivityManager cm = (ConnectivityManager) c.getSystemService(Context.CONNECTIVITY_SERVICE);
+        return cm == null || cm.getActiveNetwork() != null;
     }
 
     static String read(InputStream in, int limit) throws IOException {

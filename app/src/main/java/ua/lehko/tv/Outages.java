@@ -2,7 +2,6 @@ package ua.lehko.tv;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.net.ConnectivityManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -238,8 +237,7 @@ final class Outages {
      * back home after a film it is hours old, but renewed a second later.
      */
     static boolean old(Context c, long now) {
-        ConnectivityManager cm = (ConnectivityManager) c.getSystemService(Context.CONNECTIVITY_SERVICE);
-        return old(now, fetchedAt(c), failedAt, cm == null || cm.getActiveNetwork() != null);
+        return old(now, fetchedAt(c), failedAt, Net.online(c));
     }
 
     /** A fetch time ahead of the clock (it was put back since) can't be compared with a failure's: any failure counts. */

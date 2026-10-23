@@ -13,7 +13,6 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.media.tv.TvInputInfo;
 import android.media.tv.TvInputManager;
-import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.os.UserHandle;
@@ -857,17 +856,12 @@ public final class HomeActivity extends Activity {
     private void maybeRefresh() {
         // No network yet (just booted or woken, the router still starting): a try would fail at once and hold the
         // next one off for minutes. The minute ticker tries again.
-        if (!online()) return;
+        if (!Net.online(this)) return;
         long now = System.currentTimeMillis();
         if (Weather.stale(this) && Net.stale(now, weatherFailedAt, RETRY_AFTER_FAILURE_MS)) refreshWeather();
         if (Rates.due(this) && Net.stale(now, ratesFailedAt, RETRY_AFTER_FAILURE_MS)) refreshRates();
         // Shared with the fireplace: one download at a time, one pause after a failure.
         Outages.refreshIfStale(this, outageFetched);
-    }
-
-    private boolean online() {
-        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        return cm == null || cm.getActiveNetwork() != null;
     }
 
     /** For a hint that follows other text after a comma or a dot. */
@@ -908,7 +902,7 @@ public final class HomeActivity extends Activity {
             weatherTemp.setText("");
             if (Weather.place(this) == null) weatherText.setText(R.string.weather_pick_city);
             // Nothing cached yet: "loading" only while a download can still come.
-            else if (!weatherLoading && (weatherFailedAt != 0 || !online())) weatherText.setText(R.string.weather_offline);
+            else if (!weatherLoading && (weatherFailedAt != 0 || !Net.online(this))) weatherText.setText(R.string.weather_offline);
             else weatherText.setText(R.string.weather_loading);
             weatherHours.setVisibility(View.GONE);
             weatherSun.setVisibility(View.GONE);
@@ -922,7 +916,7 @@ public final class HomeActivity extends Activity {
         // "Cloudy, rain from 21:00": the hint (or an old forecast's warning) in amber after the sky.
         String hint = null;
         // Like the outage line's: an old forecast only warns once updating it has failed (or can't start).
-        if (Net.stale(now, Weather.cacheTime(this), Weather.OLD_MS) && (weatherFailedAt != 0 || !online())) {
+        if (Net.stale(now, Weather.cacheTime(this), Weather.OLD_MS) && (weatherFailedAt != 0 || !Net.online(this))) {
             hint = getString(R.string.weather_old, OutageText.since(this, Weather.cacheTime(this)));
         } else if (d.precipStart > now) {
             // Only while it is still ahead: offline, the forecast stays up for hours.

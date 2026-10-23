@@ -32,7 +32,6 @@ s("search", "Search", "Знайти", "Найти")
 s("nothing_found", "Nothing found. Try another spelling.", "Нічого не знайдено. Спробуйте інакше.", "Ничего не найдено. Попробуйте иначе.")
 s("not_set", "Not set", "Не вибрано", "Не выбрано")
 
-# FIX-STRINGS-SYS (temporary anchor: new strings of the 'sys' fixes go right below)
 s("enable_full_later", "Frees the most memory and removes its ads. It isn’t deleted, and you can turn it back on here at any time. While it is off, always bring back the TV’s home screen before uninstalling Lehko.", "Звільняє найбільше памʼяті й прибирає його рекламу. Він не видаляється, і його можна будь-коли знову ввімкнути тут. Поки він вимкнений, завжди повертайте стандартний екран перед видаленням Lehko.", "Освобождает больше всего памяти и убирает его рекламу. Он не удаляется, и его можно в любой момент снова включить здесь. Пока он выключен, всегда возвращайте стандартный экран перед удалением Lehko.")
 s("launcher_on", "Turn the stock launcher back on", "Увімкнути стандартний лаунчер знову", "Включить стандартный лаунчер снова")
 s("result_launcher_on", "Done! The stock launcher is on again, and Lehko is still the home screen.", "Готово! Стандартний лаунчер знову ввімкнено, а Lehko лишається головним екраном.", "Готово! Стандартный лаунчер снова включён, а Lehko остаётся главным экраном.")
@@ -75,7 +74,6 @@ s("wx_snow_showers", "Snow showers", "Снігопад", "Снегопад")
 s("wx_storm", "Thunderstorm", "Гроза", "Гроза")
 s("wx_storm_hail", "Thunderstorm with hail", "Гроза з градом", "Гроза с градом")
 
-# FIX-STRINGS-CLEAN (temporary anchor: new strings of the 'clean' fixes go right below)
 s("cleanup_wifi_owner_error", "“%s” saved your Wi-Fi network, and turning it off would make Android forget that network. Go to Settings → Network &amp; Internet, forget your network, connect again, then try once more.", "«%s» зберіг вашу мережу Wi-Fi, і якщо його вимкнути, Android її забуде. Зайдіть у Налаштування → Мережа та інтернет, забудьте мережу, підключіться знову і спробуйте ще раз.", "«%s» сохранил вашу сеть Wi-Fi, и если его выключить, Android её забудет. Зайдите в Настройки → Сеть и интернет, забудьте сеть, подключитесь заново и попробуйте ещё раз.")
 s("cleanup_wifi_check_error", "Lehko couldn’t check which apps saved your Wi-Fi network, so it turned nothing off (turning off such an app would make Android forget the network). Try again in a minute.", "Lehko не зміг перевірити, які додатки зберегли вашу мережу Wi-Fi, тому нічого не вимикав (якщо вимкнути такий додаток, Android забуде мережу). Спробуйте ще раз за хвилину.", "Lehko не смог проверить, какие приложения сохранили вашу сеть Wi-Fi, поэтому ничего не выключал (если выключить такое приложение, Android забудет сеть). Попробуйте ещё раз через минуту.")
 
@@ -139,7 +137,6 @@ s("dur_min", "%d min", "%d хв", "%d мин")
 s("dur_h", "%d h", "%d год", "%d ч")
 s("dur_h_min", "%1$d h %2$d min", "%1$d год %2$d хв", "%1$d ч %2$d мин")
 
-# FIX-STRINGS-DATA (temporary anchor: new strings of the 'data' fixes go right below)
 s("outage_then_maybe", "then a possible outage", "далі можливе відключення", "дальше возможное отключение")
 s("outage_then_maybe_tomorrow", "until %s tomorrow, then a possible outage", "до %s завтра, далі можливе відключення", "до %s завтра, дальше возможное отключение")
 s("outage_off_until_maybe", "No power until %s · then a possible outage", "Світла немає до %s · далі можливе відключення", "Света нет до %s · дальше возможное отключение")
@@ -187,7 +184,6 @@ s("about_text",
   "Lehko безкоштовний і з відкритим кодом: %s\\n\\nПогода від Open-Meteo, графіки відключень від YASNO і ДТЕК (через проєкт outage-data-ua), курси валют від Монобанку і НБУ. Без акаунтів, реклами і стеження.\\n\\nПеред видаленням Lehko поверніть стандартний головний екран (інакше телевізор може залишитися без нього) і ввімкніть додатки, які вимикали через Lehko.",
   "Lehko бесплатный и с открытым кодом: %s\\n\\nПогода от Open-Meteo, графики отключений от YASNO и ДТЭК (через проект outage-data-ua), курсы валют от Монобанка и НБУ. Без аккаунтов, рекламы и слежки.\\n\\nПеред удалением Lehko верните стандартный главный экран (иначе телевизор может остаться без него) и включите приложения, которые выключали через Lehko.")
 
-# FIX-STRINGS-HOME (temporary anchor: new strings of the 'home' fixes go right below)
 s("weather_offline", "No weather yet · no connection", "Погоди поки немає · немає зʼєднання", "Погоды пока нет · нет соединения")
 
 s("enable_title", "Make Lehko the home screen", "Зробити Lehko головним екраном", "Сделать Lehko главным экраном")
@@ -237,7 +233,6 @@ s("cleanup_hint_ambient", "Google’s screensaver", "заставка Google", "
 s("state_on", "On", "Увімкнено", "Включено")
 s("state_off", "Off", "Вимкнено", "Выключено")
 
-# FIX-STRINGS-APPS (temporary anchor: new strings of the 'apps' fixes go right below)
 
 s("safe_mode_text", "Lehko’s home screen stopped working, so the TV’s own home screen is coming back…\n\nIf the TV asks “Allow USB debugging?”, press OK.", "Екран Lehko перестав працювати, тому повертаю стандартний екран телевізора…\n\nЯкщо телевізор спитає «Дозволити налагодження USB?», натисніть OK.", "Экран Lehko перестал работать, поэтому возвращаю стандартный экран телевизора…\n\nЕсли телевизор спросит «Разрешить отладку по USB?», нажмите OK.")
 s("safe_mode_retry", "Try again", "Спробувати ще раз", "Попробовать ещё раз")
@@ -250,7 +245,6 @@ s("cleanup_system_warning", "This is a system app of your TV. Turning it off is 
 s("cleanup_turn_off", "Turn off", "Вимкнути", "Выключить")
 s("cleanup_system", "system", "системний", "системное")
 
-# FIX-STRINGS-BUILD (temporary anchor: new strings of the 'build' fixes go right below)
 
 res = sys.argv[1]
 for i, folder in enumerate(["values", "values-uk", "values-ru"]):

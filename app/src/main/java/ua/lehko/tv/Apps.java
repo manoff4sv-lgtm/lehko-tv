@@ -259,14 +259,10 @@ final class Apps {
     }
 
     /**
-     * Gives picture memory back. {@code all}: everything; otherwise all but the favorites' (their tiles on the home
-     * screen hold those bitmaps anyway, so dropping them would free nothing and only cost a reload).
+     * Gives picture memory back: all but the favorites' (their tiles on the home screen hold those bitmaps anyway, so
+     * dropping them would free nothing and only cost a reload).
      */
-    static void trimPictures(Context c, boolean all) {
-        if (all) {
-            PICTURES.evictAll();
-            return;
-        }
+    static void trimPictures(Context c) {
         java.util.Set<String> keep = new java.util.HashSet<>(Prefs.favorites(c));
         for (String pkg : PICTURES.snapshot().keySet()) if (!keep.contains(pkg)) PICTURES.remove(pkg);
     }

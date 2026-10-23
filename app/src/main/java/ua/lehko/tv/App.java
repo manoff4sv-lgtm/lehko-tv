@@ -73,6 +73,6 @@ public final class App extends Application {
      */
     @Override public void onTrimMemory(int level) {
         super.onTrimMemory(level);
-        if (level >= TRIM_MEMORY_RUNNING_LOW) Apps.trimPictures(this, false);
+        if (level >= TRIM_MEMORY_RUNNING_LOW) Apps.trimPictures(this);
     }
 }
