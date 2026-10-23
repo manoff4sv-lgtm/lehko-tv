@@ -228,12 +228,12 @@ final class HomeMode {
         return setScreensaver(env(c), which, p);
     }
 
-    static void setAppEnabled(Context c, String pkg, boolean enabled) throws IOException {
-        setAppEnabled(env(c), pkg, enabled);
+    static void setAppEnabled(Context c, String pkg, boolean enabled, Progress p) throws IOException {
+        setAppEnabled(env(c), pkg, enabled, p);
     }
 
-    static Set<String>[] systemState(Context c) throws IOException {
-        return systemState(env(c));
+    static Set<String>[] systemState(Context c, Progress p) throws IOException {
+        return systemState(env(c), p);
     }
 
     // MARK: - Connecting
@@ -727,9 +727,9 @@ final class HomeMode {
 
     // MARK: - Turning single apps off and on (the "unneeded apps" screen)
 
-    static synchronized void setAppEnabled(Env c, String pkg, boolean enabled) throws IOException {
+    static synchronized void setAppEnabled(Env c, String pkg, boolean enabled, Progress p) throws IOException {
         if (!PACKAGE.matcher(pkg).matches()) throw new Refused(pkg);
-        try (Adb adb = connect(c, null)) {
+        try (Adb adb = connect(c, p)) {
             if (enabled) {
                 String out = adb.shell("pm enable " + pkg);
                 if (!out.contains("new state: enabled")) throw new Refused(pkg);
@@ -746,8 +746,8 @@ final class HomeMode {
     }
 
     /** Packages currently disabled on the TV, and the Wi-Fi network owners, for the "unneeded apps" screen. */
-    static synchronized Set<String>[] systemState(Env c) throws IOException {
-        try (Adb adb = connect(c, null)) {
+    static synchronized Set<String>[] systemState(Env c, Progress p) throws IOException {
+        try (Adb adb = connect(c, p)) {
             Set<String> owners;
             try {
                 owners = wifiOwners(adb);

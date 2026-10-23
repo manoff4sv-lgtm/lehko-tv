@@ -270,7 +270,7 @@ public class HomeModeTest {
 
     @Test public void turnOnCountsOnlyWhatItTurnedOff() throws Exception {
         Env e = new Env(keys);
-        HomeMode.setAppEnabled(e, "com.google.android.play.games", false);
+        HomeMode.setAppEnabled(e, "com.google.android.play.games", false, null);
         assertEquals("the launcher and the setup app", e.text(R.string.result_on_full, 2), HomeMode.enable(e, true, QUIET));
     }
 
@@ -383,7 +383,7 @@ public class HomeModeTest {
         // Uninstalled from the TV's settings: Android gives the home screen back, the note still says "on".
         tv("cmd package set-home-activity --user 0 " + LAUNCHERX + "/.home.HomeActivity");
         Env fresh = new Env(Files.createTempDirectory("lehko-keys4").toFile());
-        HomeMode.systemState(fresh); // installed again, and the "unneeded apps" screen is the first to connect
+        HomeMode.systemState(fresh, null); // installed again, and the "unneeded apps" screen is the first to connect
         assertFalse(fresh.prefs.getBoolean(HomeMode.K_ON, false));
         assertTrue(state().getJSONObject("files").getString(HomeMode.STATE_FILE).contains("on=false"));
     }
@@ -393,7 +393,7 @@ public class HomeModeTest {
         // Uninstalled with the stock launcher still off: the TV has no home screen until "Original".
         tv("cmd role remove-role-holder --user 0 android.app.role.HOME ua.lehko.tv");
         Env fresh = new Env(Files.createTempDirectory("lehko-keys5").toFile());
-        HomeMode.systemState(fresh);
+        HomeMode.systemState(fresh, null);
         assertTrue(fresh.prefs.getBoolean(HomeMode.K_ON, false));
         HomeMode.disable(fresh, QUIET);
         assertEquals(LAUNCHERX, state().getString("holder"));
@@ -505,23 +505,23 @@ public class HomeModeTest {
 
     @Test public void unneededAppsScreen() throws Exception {
         Env e = new Env(keys);
-        HomeMode.setAppEnabled(e, "com.google.android.play.games", false);
+        HomeMode.setAppEnabled(e, "com.google.android.play.games", false, null);
         assertFalse(enabled(state(), "com.google.android.play.games"));
         try {
-            HomeMode.setAppEnabled(e, "com.android.tv.settings", false);
+            HomeMode.setAppEnabled(e, "com.android.tv.settings", false, null);
             fail("protected");
         } catch (HomeMode.Refused expected) {
             // ok
         }
         tv("fake:networks com.netflix.ninja");
         try {
-            HomeMode.setAppEnabled(e, "com.netflix.ninja", false);
+            HomeMode.setAppEnabled(e, "com.netflix.ninja", false, null);
             fail("saved Wi-Fi");
         } catch (HomeMode.WifiOwnerException expected) {
             // ok
         }
         try {
-            HomeMode.setAppEnabled(e, "x; reboot", false);
+            HomeMode.setAppEnabled(e, "x; reboot", false, null);
             fail("not a package name");
         } catch (HomeMode.Refused expected) {
             // ok
@@ -533,7 +533,7 @@ public class HomeModeTest {
 
     @Test public void appsTurnedOffWhileLehkoIsOffComeBackOn() throws Exception {
         Env e = new Env(keys);
-        HomeMode.setAppEnabled(e, "com.google.android.play.games", false);
+        HomeMode.setAppEnabled(e, "com.google.android.play.games", false, null);
         assertEquals(e.text(R.string.result_apps_on), HomeMode.enableApps(e, QUIET));
         JSONObject s = state();
         assertTrue(enabled(s, "com.google.android.play.games"));
