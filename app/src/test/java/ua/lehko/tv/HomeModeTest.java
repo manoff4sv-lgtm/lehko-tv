@@ -495,6 +495,25 @@ public class HomeModeTest {
                 state().getJSONObject("settings").getJSONObject("secure").getString("screensaver_components"));
     }
 
+    @Test public void tvsOwnScreensaverIsTurnedBackOnIfLehkoTurnedItOff() throws Exception {
+        String dreamx = "com.google.android.apps.tv.dreamx";
+        Env e = new Env(keys);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        tv("pm disable-user --user 0 " + dreamx); // off, but not by Lehko
+        HomeMode.setScreensaver(e, HomeMode.SAVER_SYSTEM, QUIET);
+        assertFalse("not Lehko's to turn on", enabled(state(), dreamx));
+
+        tv("pm enable " + dreamx);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        HomeMode.setAppEnabled(e, dreamx, false, null); // on the "unneeded apps" screen
+        HomeMode.setScreensaver(e, HomeMode.SAVER_SYSTEM, QUIET);
+        JSONObject s = state();
+        assertTrue(enabled(s, dreamx));
+        assertEquals(dreamx + "/.service.Backdrop", s.getJSONObject("settings").getJSONObject("secure")
+                .getString("screensaver_components"));
+        assertTrue(HomeMode.disabled(e.prefs).isEmpty());
+    }
+
     @Test public void lehkosOwnDreamIsNotTheTvsOwn() throws Exception {
         tv("settings put secure screensaver_components " + HomeMode.DREAM); // picked in the TV's settings
         Env e = new Env(keys);

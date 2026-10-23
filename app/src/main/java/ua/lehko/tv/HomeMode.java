@@ -687,6 +687,14 @@ final class HomeMode {
             if (saver.isEmpty() || "null".equals(saver) || !SETTING.matcher(saver).matches()) {
                 adb.shell("settings delete secure screensaver_components");
             } else {
+                // Turned off on the "unneeded apps" screen while Lehko's was set: a dream that is off shows nothing.
+                String pkg = packageOf(saver);
+                Set<String> disabled = disabled(c);
+                if (disabled.contains(pkg) && PACKAGE.matcher(pkg).matches()
+                        && adb.shell("pm enable " + pkg).contains("new state: enabled")) {
+                    disabled.remove(pkg);
+                    setDisabled(c, disabled);
+                }
                 adb.shell("settings put secure screensaver_components " + saver);
             }
             // Lehko turned it on; "Turn screen off" chosen since then (0) stays too.
