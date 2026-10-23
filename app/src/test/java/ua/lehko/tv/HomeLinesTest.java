@@ -45,6 +45,18 @@ public class HomeLinesTest {
         assertNull(h.until);
     }
 
+    /** Off, then only possibly on: nothing promises the power back. */
+    @Test public void noPowerThenMaybe() {
+        OutageText.Headline h = OutageText.headline(new Outages.Schedule(), st(Outages.OFF, 65, "23:00", Outages.MAYBE, false));
+        assertEquals("23:00", h.until);
+        assertEquals(R.string.outage_then_maybe, h.detail);
+        assertEquals(-1, h.detailMinutes);
+        h = OutageText.headline(new Outages.Schedule(), st(Outages.OFF, 180, "02:00", Outages.MAYBE, true));
+        assertNull(h.until);
+        assertEquals(R.string.outage_then_maybe_tomorrow, h.detail);
+        assertEquals("02:00", h.detailTime);
+    }
+
     @Test public void clearDaysEmergencyAndNothingYet() {
         Outages.Status clear = st(Outages.ON, -1, null, Outages.UNKNOWN, false);
         clear.clearAhead = true;

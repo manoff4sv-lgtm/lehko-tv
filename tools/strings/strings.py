@@ -134,6 +134,10 @@ s("dur_h", "%d h", "%d год", "%d ч")
 s("dur_h_min", "%1$d h %2$d min", "%1$d год %2$d хв", "%1$d ч %2$d мин")
 
 # FIX-STRINGS-DATA (temporary anchor: new strings of the 'data' fixes go right below)
+s("outage_then_maybe", "then a possible outage", "далі можливе відключення", "дальше возможное отключение")
+s("outage_then_maybe_tomorrow", "until %s tomorrow, then a possible outage", "до %s завтра, далі можливе відключення", "до %s завтра, дальше возможное отключение")
+s("outage_off_until_maybe", "No power until %s · then a possible outage", "Світла немає до %s · далі можливе відключення", "Света нет до %s · дальше возможное отключение")
+s("outage_off_until_tomorrow_maybe", "No power until %s tomorrow · then a possible outage", "Світла немає до %s завтра · далі можливе відключення", "Света нет до %s завтра · дальше возможное отключение")
 
 s("settings_title", "Lehko settings", "Налаштування Lehko", "Настройки Lehko")
 s("home_screen", "Home screen", "Головний екран", "Главный экран")

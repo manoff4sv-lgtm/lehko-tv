@@ -23,6 +23,11 @@ final class OutageText {
                         st.changeAt, duration(c, st.minutesToChange));
             case Outages.OFF:
                 if (st.minutesToChange < 0) return c.getString(R.string.outage_off_long);
+                // Then only a possible outage: no "back at", which would promise power.
+                if (st.next == Outages.MAYBE) {
+                    return c.getString(st.changeTomorrow ? R.string.outage_off_until_tomorrow_maybe
+                            : R.string.outage_off_until_maybe, st.changeAt);
+                }
                 if (st.changeTomorrow) return c.getString(R.string.outage_off_until_tomorrow, st.changeAt);
                 return c.getString(R.string.outage_off_until, st.changeAt, duration(c, st.minutesToChange));
             case Outages.MAYBE:
@@ -78,12 +83,17 @@ final class OutageText {
                 if (st.minutesToChange < 0) {
                     h.detail = R.string.outage_no_end;
                 } else if (st.changeTomorrow) {
-                    h.detail = R.string.outage_back_tomorrow;
+                    // Then only a possible outage: no "back", which would promise power.
+                    h.detail = st.next == Outages.MAYBE ? R.string.outage_then_maybe_tomorrow : R.string.outage_back_tomorrow;
                     h.detailTime = st.changeAt;
                 } else {
                     h.until = st.changeAt;
-                    h.detail = R.string.outage_back_in;
-                    h.detailMinutes = st.minutesToChange;
+                    if (st.next == Outages.MAYBE) {
+                        h.detail = R.string.outage_then_maybe;
+                    } else {
+                        h.detail = R.string.outage_back_in;
+                        h.detailMinutes = st.minutesToChange;
+                    }
                 }
                 return h;
             case Outages.MAYBE:
@@ -107,10 +117,12 @@ final class OutageText {
     }
 
     /** A day's bar for screen readers: "no power 08:00 to 12:00, 16:00 to 20:00; possibly no power 20:00 to 22:00". */
-    static String describe(Context c, byte[] slots) {
+    static String describe(Context c, Outages.Day day) {
+        // An emergency day has no schedule (its slots are all unknown): not "no outages".
+        if (day.emergency) return c.getString(R.string.outage_emergency_title);
         StringBuilder b = new StringBuilder();
-        part(c, b, Outages.runs(slots, Outages.OFF), R.string.outage_bar_off);
-        part(c, b, Outages.runs(slots, Outages.MAYBE), R.string.outage_bar_maybe);
+        part(c, b, Outages.runs(day.slots, Outages.OFF), R.string.outage_bar_off);
+        part(c, b, Outages.runs(day.slots, Outages.MAYBE), R.string.outage_bar_maybe);
         return b.length() > 0 ? b.toString() : c.getString(R.string.outage_bar_none);
     }
 

@@ -1114,13 +1114,16 @@ public final class HomeActivity extends Activity {
         Outages.Day today = schedule == null ? null : schedule.day(Outages.today());
         Outages.Day tomorrow = schedule == null ? null : schedule.day(Outages.tomorrow());
         dial.set(today == null ? null : today.slots, kyivMinute);
-        // Screen readers get today's ring in words with the second line.
-        if (today != null && detail != null) powerDetail.setContentDescription(detail + ". " + OutageText.describe(this, today.slots));
-        else powerDetail.setContentDescription(null);
+        // Screen readers get today's ring in words with the second line (not on an emergency day: the title says it).
+        if (today != null && detail != null && !today.emergency) {
+            powerDetail.setContentDescription(detail + ". " + OutageText.describe(this, today));
+        } else {
+            powerDetail.setContentDescription(null);
+        }
         tomorrowBox.setVisibility(tomorrow != null ? View.VISIBLE : View.GONE);
         if (tomorrow != null) {
             tomorrowBar.set(tomorrow.slots, -1);
-            tomorrowBar.setContentDescription(OutageText.describe(this, tomorrow.slots));
+            tomorrowBar.setContentDescription(OutageText.describe(this, tomorrow));
         }
     }
 
