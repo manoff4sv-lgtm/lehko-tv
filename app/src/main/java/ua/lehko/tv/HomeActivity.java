@@ -859,8 +859,8 @@ public final class HomeActivity extends Activity {
         // next one off for minutes. The minute ticker tries again.
         if (!online()) return;
         long now = System.currentTimeMillis();
-        if (Weather.stale(this) && now - weatherFailedAt > RETRY_AFTER_FAILURE_MS) refreshWeather();
-        if (Rates.due(this) && now - ratesFailedAt > RETRY_AFTER_FAILURE_MS) refreshRates();
+        if (Weather.stale(this) && Net.stale(now, weatherFailedAt, RETRY_AFTER_FAILURE_MS)) refreshWeather();
+        if (Rates.due(this) && Net.stale(now, ratesFailedAt, RETRY_AFTER_FAILURE_MS)) refreshRates();
         // Shared with the fireplace: one download at a time, one pause after a failure.
         Outages.refreshIfStale(this, outageFetched);
     }
@@ -924,9 +924,9 @@ public final class HomeActivity extends Activity {
         weatherTemp.setText(Weather.degrees(d.temp));
         // "Cloudy, rain from 21:00": the hint (or an old forecast's warning) in amber after the sky.
         String hint = null;
-        long age = System.currentTimeMillis() - Weather.cacheTime(this);
         // Like the outage line's: an old forecast only warns once updating it has failed (or can't start).
-        if (age > 3 * 3600_000L && (weatherFailedAt != 0 || !online())) {
+        if (Net.stale(System.currentTimeMillis(), Weather.cacheTime(this), Weather.OLD_MS)
+                && (weatherFailedAt != 0 || !online())) {
             hint = getString(R.string.weather_old, since(Weather.cacheTime(this)));
         } else if (d.precipAt != null) {
             hint = getString(d.precipSnow ? R.string.weather_snow_at : R.string.weather_rain_at, d.precipAt);
