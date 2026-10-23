@@ -183,7 +183,7 @@ final class FireScene {
         App.MAIN.post(drift);
         fire.setPaused(false);
         if (sound(context) && !musicPlaying()) {
-            crackle = new Crackle();
+            crackle = new Crackle(context);
             crackle.start();
         }
     }

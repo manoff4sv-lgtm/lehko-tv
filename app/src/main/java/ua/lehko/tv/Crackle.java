@@ -1,19 +1,28 @@
 package ua.lehko.tv;
 
+import android.content.Context;
 import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
 import android.media.AudioFormat;
+import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Process;
 
 /**
  * A quiet crackling fire, made on the fly (no sound files): soft brown noise for the rumble of the flames and short
- * random pops, sometimes in little bursts. One small thread streams it into an AudioTrack.
+ * random pops, sometimes in little bursts. One small thread streams it into an AudioTrack. It gives way to music:
+ * music started (or resumed with Play) while the fire burns takes the audio focus, and the crackle stops.
  */
 final class Crackle {
     static final int RATE = 22050;
 
+    private final AudioManager audio;
     private volatile boolean running;
     private Thread thread;
+
+    Crackle(Context c) {
+        audio = (AudioManager) c.getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
+    }
 
     void start() {
         if (running) return;
@@ -34,12 +43,25 @@ final class Crackle {
 
     private void play() {
         AudioTrack track = null;
+        AudioFocusRequest focus = null;
         try {
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO);
+            AudioAttributes attributes = new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
+            // "May duck": nothing else has to pause for it.
+            focus = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                    .setAudioAttributes(attributes)
+                    .setOnAudioFocusChangeListener(new AudioManager.OnAudioFocusChangeListener() {
+                        @Override public void onAudioFocusChange(int change) {
+                            // Something else plays (music, a video, the assistant): the crackle ends.
+                            if (change < 0) running = false;
+                        }
+                    }, App.MAIN)
+                    .build();
+            if (audio == null || audio.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) return;
             int min = AudioTrack.getMinBufferSize(RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
             track = new AudioTrack.Builder()
-                    .setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+                    .setAudioAttributes(attributes)
                     .setAudioFormat(new AudioFormat.Builder().setSampleRate(RATE)
                             .setEncoding(AudioFormat.ENCODING_PCM_16BIT).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
                     .setBufferSizeInBytes(Math.max(min, RATE / 5 * 2))
@@ -72,6 +94,7 @@ final class Crackle {
                 }
                 track.release();
             }
+            if (focus != null && audio != null) audio.abandonAudioFocusRequest(focus);
         }
     }
 
