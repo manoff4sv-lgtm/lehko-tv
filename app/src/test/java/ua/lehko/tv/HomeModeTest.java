@@ -450,6 +450,10 @@ public class HomeModeTest {
         HomeMode.disable(e, QUIET);
         assertEquals(LAUNCHERX, state().getString("holder"));
         assertFalse(e.prefs.contains(Prefs.NOTICE));
+
+        // A later safety net that gets in leaves no reason behind.
+        HomeMode.enable(e, true, QUIET);
+        e.prefs.edit().putBoolean("safe_mode", true).commit();
         assertTrue(HomeMode.revertAfterCrash(e, null));
         assertEquals(0, Watchdog.lastFailure);
     }

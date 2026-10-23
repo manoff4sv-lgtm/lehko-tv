@@ -466,17 +466,18 @@ final class HomeMode {
      * job can't undo a later "turn on". Returns true when the original home screen is back.
      */
     static synchronized boolean revertAfterCrash(Env c, Progress p) {
-        Watchdog.lastFailure = 0;
         if (!Watchdog.safeMode(c.prefs())) return true;
         if (!isOn(c)) {
             Watchdog.clear(c.prefs());
             return true;
         }
+        int failure = 0;
         try (Adb adb = c.connect(120_000, p == null ? null : approvalOf(p))) {
             adopt(c, adb);
             Restored r = restore(c, adb, p);
             goHome(adb);
             if (r.homeOk) {
+                Watchdog.lastFailure = 0;
                 String text = c.text(R.string.reverted_crash);
                 if (!r.failed.isEmpty()) text += " " + r.message(c);
                 c.notice(text);
@@ -484,10 +485,13 @@ final class HomeMode {
             }
         } catch (Adb.Failure e) {
             // The debugging port couldn't be reached: the safe screen says what to fix.
-            Watchdog.lastFailure = e.reason;
+            failure = e.reason;
         } catch (IOException e) {
             // Fall through: the safe screen stays and says what to do.
         }
+        // Only once this try is over: ModeJob's try isn't marked as reverting, and meanwhile the safe screen keeps the
+        // last reason instead of falling back to the general text.
+        Watchdog.lastFailure = failure;
         c.notice(c.text(R.string.reverted_crash_failed));
         return false;
     }
