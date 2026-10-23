@@ -108,22 +108,48 @@ public class OutagesTest {
         assertTrue(st.untilEndOfData);
     }
 
-    /** The countdown is real time: on the days the clocks change, the wall clock is an hour off. */
+    static long utc(int y, int mo, int d, int h, int mi) {
+        Calendar c = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
+        c.clear();
+        c.set(y, mo - 1, d, h, mi, 0);
+        return c.getTimeInMillis();
+    }
+
+    /**
+     * The countdown is real time: on the days the clocks change, the wall clock is an hour off. Changes that are past
+     * already, so the answers don't depend on what a JDK's time zone data says about future years.
+     */
     @Test public void countdownAcrossClockChanges() {
         Outages.Schedule s = new Outages.Schedule();
-        Outages.Day autumn = new Outages.Day("2026-10-25", Outages.ON);
+        Outages.Day autumn = new Outages.Day("2025-10-26", Outages.ON);
         autumn.slots[10] = Outages.OFF; // 05:00, after 04:00 summer time became 03:00
         s.days.add(autumn);
-        Outages.Status st = Outages.status(s, kyiv(2026, 10, 25, 2, 0));
+        Outages.Status st = Outages.status(s, kyiv(2025, 10, 26, 2, 0));
         assertEquals("05:00", st.changeAt);
         assertEquals(240, st.minutesToChange);
 
-        Outages.Day spring = new Outages.Day("2027-03-28", Outages.ON);
+        // 03:00-03:59 comes twice that night: a change then is the first time, unless that has passed.
+        autumn.slots[6] = Outages.OFF; // 03:00-03:30
+        st = Outages.status(s, utc(2025, 10, 25, 23, 50)); // 02:50 summer time
+        assertEquals("03:00", st.changeAt);
+        assertEquals(10, st.minutesToChange);
+        st = Outages.status(s, utc(2025, 10, 26, 0, 10)); // 03:10 summer time
+        assertEquals("03:30", st.changeAt);
+        assertEquals(20, st.minutesToChange);
+        st = Outages.status(s, utc(2025, 10, 26, 1, 10)); // 03:10 again, winter time
+        assertEquals("03:30", st.changeAt);
+        assertEquals(20, st.minutesToChange);
+
+        Outages.Day spring = new Outages.Day("2025-03-30", Outages.ON);
         spring.slots[10] = Outages.OFF; // 05:00, after 03:00 became 04:00
         s.days.add(spring);
-        st = Outages.status(s, kyiv(2027, 3, 28, 2, 0));
+        st = Outages.status(s, kyiv(2025, 3, 30, 2, 0));
         assertEquals("05:00", st.changeAt);
         assertEquals(120, st.minutesToChange);
+        spring.slots[6] = Outages.OFF; // 03:00, which that night is 04:00
+        st = Outages.status(s, kyiv(2025, 3, 30, 2, 0));
+        assertEquals("03:00", st.changeAt);
+        assertEquals(60, st.minutesToChange);
     }
 
     @Test public void statusLooksIntoTomorrow() {

@@ -645,7 +645,12 @@ final class Outages {
         at.set(Calendar.MINUTE, (k % 2) * 30);
         at.set(Calendar.SECOND, 0);
         at.set(Calendar.MILLISECOND, 0);
-        return (int) ((at.getTimeInMillis() - now.getTimeInMillis() / 60_000 * 60_000) / 60_000);
+        long from = now.getTimeInMillis() / 60_000 * 60_000, t = at.getTimeInMillis();
+        // When the clocks go back, 03:00-03:59 comes twice and Calendar takes the second time. The slot starts at the
+        // first, unless that has passed. (A time the clocks skip in spring comes out right: it is the hour after.)
+        long back = KYIV.getOffset(t - 3600_000L) - KYIV.getOffset(t);
+        if (back > 0 && t - back >= from) t -= back;
+        return (int) ((t - from) / 60_000);
     }
 
     // MARK: - Dates (Kyiv wall clock)
