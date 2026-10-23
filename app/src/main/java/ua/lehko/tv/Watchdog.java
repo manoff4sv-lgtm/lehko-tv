@@ -21,6 +21,8 @@ final class Watchdog {
     private static final long WINDOW_MS = 5 * 60_000L;
     private static final int LIMIT = 3;
     private static volatile boolean reverting;
+    /** Why the last switch back couldn't connect (an {@link Adb.Failure} reason), 0 if it could or failed otherwise. */
+    static volatile int lastFailure;
 
     static void install(final Context app) {
         final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();

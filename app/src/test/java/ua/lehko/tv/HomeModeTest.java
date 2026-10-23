@@ -414,6 +414,26 @@ public class HomeModeTest {
         assertFalse(e.prefs.getBoolean(HomeMode.K_ON, false));
     }
 
+    @Test public void crashSafetyNetThatCantGetIn() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.enable(e, true, QUIET);
+        e.prefs.edit().putBoolean("safe_mode", true).commit();
+        e.port = BASE + 9; // the TV closed the port after a restart
+        assertFalse(HomeMode.revertAfterCrash(e, null));
+        assertEquals("the safe screen says why", Adb.Failure.PORT_CLOSED, Watchdog.lastFailure);
+        String failed = e.text(R.string.reverted_crash_failed);
+        assertEquals(failed, e.notice);
+        e.prefs.edit().putString(Prefs.NOTICE, failed).commit(); // where the app keeps it
+
+        // Port open again, switched back from Lehko settings: the old notice mustn't show next time Lehko is on.
+        e.port = PORT;
+        HomeMode.disable(e, QUIET);
+        assertEquals(LAUNCHERX, state().getString("holder"));
+        assertFalse(e.prefs.contains(Prefs.NOTICE));
+        assertTrue(HomeMode.revertAfterCrash(e, null));
+        assertEquals(0, Watchdog.lastFailure);
+    }
+
     @Test public void homeThatCantComeBackKeepsLehkoOn() throws Exception {
         Env e = new Env(keys);
         HomeMode.enable(e, true, QUIET);

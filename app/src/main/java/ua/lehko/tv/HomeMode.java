@@ -410,9 +410,17 @@ final class HomeMode {
             // Only now is Lehko really off. Next time, the then-current launcher is recorded afresh.
             c.prefs().edit().putBoolean(K_ON, false).putBoolean(K_FULL, false).remove(K_HOME).commit();
             Watchdog.clear(c.prefs());
+            dropCrashNotice(c);
         }
         writeDeviceState(c, adb);
         return r;
+    }
+
+    /** The safety net's "couldn't switch back" notice is stale once the original home screen is back. */
+    private static void dropCrashNotice(Env c) {
+        if (c.text(R.string.reverted_crash_failed).equals(c.prefs().getString(Prefs.NOTICE, null))) {
+            c.prefs().edit().remove(Prefs.NOTICE).commit();
+        }
     }
 
     /** Turns every app Lehko turned off back on. Returns the ones that stay off (and stay recorded). */
@@ -457,6 +465,7 @@ final class HomeMode {
      * job can't undo a later "turn on". Returns true when the original home screen is back.
      */
     static synchronized boolean revertAfterCrash(Env c, Progress p) {
+        Watchdog.lastFailure = 0;
         if (!Watchdog.safeMode(c.prefs())) return true;
         if (!isOn(c)) {
             Watchdog.clear(c.prefs());
@@ -472,6 +481,9 @@ final class HomeMode {
                 c.notice(text);
                 return true;
             }
+        } catch (Adb.Failure e) {
+            // The debugging port couldn't be reached: the safe screen says what to fix.
+            Watchdog.lastFailure = e.reason;
         } catch (IOException e) {
             // Fall through: the safe screen stays and says what to do.
         }
@@ -590,6 +602,7 @@ final class HomeMode {
                 .putBoolean(K_ADB_TIME_CHANGED, false).remove(K_ADB_TIME)
                 .putStringSet(K_DISABLED, stillOff).commit();
         Watchdog.clear(c.prefs());
+        dropCrashNotice(c);
         writeDeviceState(c, adb);
     }
 
