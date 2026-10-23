@@ -48,16 +48,27 @@ public class HomeLinesTest {
     @Test public void clearDaysEmergencyAndNothingYet() {
         Outages.Status clear = st(Outages.ON, -1, null, Outages.UNKNOWN, false);
         clear.clearAhead = true;
-        Outages.Schedule none = new Outages.Schedule();
-        none.noSchedules = true;
-        assertEquals(R.string.outage_none_planned_lc, OutageText.headline(none, clear).detail);
         assertEquals(R.string.outage_none_ahead, OutageText.headline(new Outages.Schedule(), clear).detail);
-        Outages.Schedule emergency = new Outages.Schedule();
+        clear.noSchedules = true;
+        assertEquals(R.string.outage_none_planned_lc, OutageText.headline(new Outages.Schedule(), clear).detail);
+        Outages.Status emergency = st(Outages.UNKNOWN, -1, null, Outages.UNKNOWN, false);
         emergency.emergency = true;
-        assertEquals(R.string.outage_emergency_title, OutageText.headline(emergency, clear).title);
+        assertEquals(R.string.outage_emergency_title, OutageText.headline(new Outages.Schedule(), emergency).title);
         assertEquals(R.string.outage_loading, OutageText.headline(null, clear).title);
         assertEquals(R.string.outage_no_schedule,
                 OutageText.headline(new Outages.Schedule(), st(Outages.UNKNOWN, -1, null, Outages.UNKNOWN, false)).title);
+    }
+
+    /** Offline after midnight with the next day's schedule cached: yesterday's emergency doesn't stick. */
+    @Test public void emergencyEndsWithItsDay() {
+        Outages.Schedule s = new Outages.Schedule();
+        Outages.Day today = new Outages.Day("2026-10-22", Outages.UNKNOWN);
+        today.emergency = true;
+        s.days.add(today);
+        s.days.add(new Outages.Day("2026-10-23", Outages.ON));
+        long evening = OutagesTest.kyiv(2026, 10, 22, 20, 0), morning = OutagesTest.kyiv(2026, 10, 23, 9, 0);
+        assertEquals(R.string.outage_emergency_title, OutageText.headline(s, Outages.status(s, evening)).title);
+        assertEquals(R.string.outage_on, OutageText.headline(s, Outages.status(s, morning)).title);
     }
 
     @Test public void badges() {

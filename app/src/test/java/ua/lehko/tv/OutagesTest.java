@@ -40,10 +40,10 @@ public class OutagesTest {
     @Test public void yasnoSlots() throws Exception {
         Outages.Schedule s = Outages.parseYasno(YASNO, "1.1", "2026-10-22", "2026-10-23");
         assertNotNull(s);
-        assertFalse(s.emergency);
         assertFalse(s.noSchedules);
         Outages.Day d = s.day("2026-10-22");
         assertNotNull(d);
+        assertFalse(d.emergency);
         assertNull("tomorrow is not published yet", s.day("2026-10-23"));
         assertEquals(Outages.OFF, d.slots[0]);
         for (int k = 1; k <= 24; k++) assertEquals("slot " + k, Outages.ON, d.slots[k]);
@@ -154,7 +154,7 @@ public class OutagesTest {
 
         String emergency = "{\"5.1\":{\"today\":{\"slots\":[],\"date\":\"2026-10-22T00:00:00+03:00\",\"status\":\"EmergencyShutdowns\"}}}";
         s = Outages.parseYasno(emergency, "5.1", "2026-10-22", "2026-10-23");
-        assertTrue(s.emergency);
+        assertTrue(s.day("2026-10-22").emergency);
         st = Outages.status(s, kyiv(2026, 10, 22, 12, 0));
         assertTrue(st.emergency);
         assertEquals(Outages.UNKNOWN, st.state);
@@ -221,7 +221,7 @@ public class OutagesTest {
                 + "\"date\":\"2026-10-22T00:00:00+03:00\",\"status\":\"ScheduleApplies\"},"
                 + "\"tomorrow\":{\"slots\":[],\"date\":\"2026-10-23T00:00:00+03:00\",\"status\":\"EmergencyShutdowns\"}}}";
         s = Outages.fromJson(Outages.toJson(Outages.parseYasno(json, "5.1", "2026-10-22", "2026-10-23")));
-        assertFalse(s.emergency);
+        assertFalse(s.day("2026-10-22").emergency);
         assertFalse(Outages.status(s, kyiv(2026, 10, 22, 20, 0)).emergency);
         assertTrue(Outages.status(s, kyiv(2026, 10, 23, 1, 0)).emergency);
     }

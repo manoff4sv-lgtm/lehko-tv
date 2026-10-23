@@ -8,11 +8,11 @@ final class OutageText {
 
     static String status(Context c, Outages.Schedule s, Outages.Status st) {
         if (s == null) return c.getString(R.string.outage_loading);
-        if (s.emergency) return c.getString(R.string.outage_emergency);
+        if (st.emergency) return c.getString(R.string.outage_emergency);
         switch (st.state) {
             case Outages.ON:
                 if (st.clearAhead) {
-                    return c.getString(s.noSchedules ? R.string.outage_none_planned : R.string.outage_on_clear);
+                    return c.getString(st.noSchedules ? R.string.outage_none_planned : R.string.outage_on_clear);
                 }
                 if (st.minutesToChange < 0) return c.getString(R.string.outage_on);
                 if (st.changeTomorrow) {
@@ -54,7 +54,7 @@ final class OutageText {
             h.title = R.string.outage_loading;
             return h;
         }
-        if (s.emergency) {
+        if (st.emergency) {
             h.title = R.string.outage_emergency_title;
             h.detail = R.string.outage_emergency_detail;
             return h;
@@ -63,7 +63,7 @@ final class OutageText {
             case Outages.ON:
                 h.title = R.string.outage_on;
                 if (st.clearAhead) {
-                    h.detail = s.noSchedules ? R.string.outage_none_planned_lc : R.string.outage_none_ahead;
+                    h.detail = st.noSchedules ? R.string.outage_none_planned_lc : R.string.outage_none_ahead;
                 } else if (st.minutesToChange >= 0 && st.changeTomorrow) {
                     h.detail = st.next == Outages.MAYBE ? R.string.outage_maybe_tomorrow : R.string.outage_next_tomorrow;
                     h.detailTime = st.changeAt;

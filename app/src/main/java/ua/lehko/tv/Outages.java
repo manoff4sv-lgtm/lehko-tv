@@ -152,11 +152,12 @@ final class Outages {
     static final class Schedule {
         String group = "";
         final List<Day> days = new ArrayList<>();
-        /** Today (as of {@link #asOf}) is an emergency day; {@link Status#emergency} follows the clock. */
-        boolean emergency;
-        /** The source had no schedules at all on {@link #asOf} (no outage regime). */
+        /**
+         * The source had no schedules at all on {@link #asOf} (no outage regime); {@link Status#noSchedules} follows
+         * the clock.
+         */
         boolean noSchedules;
-        /** The Kyiv day ("yyyy-MM-dd") the source answered on: the flags above are about that day only. */
+        /** The Kyiv day ("yyyy-MM-dd") the source answered on: the flag above is about that day only. */
         String asOf = "";
         String source = "";
 
@@ -201,7 +202,7 @@ final class Outages {
                 failure = new IOException(e.getMessage());
             }
         }
-        boolean yasnoUsable = s != null && (s.noSchedules || s.emergency || s.day(today()) != null);
+        boolean yasnoUsable = s != null && (s.noSchedules || s.day(today()) != null);
         if (!yasnoUsable && r.mirror != null && (!r.yasno() || r.mirrorMatchesYasno)) {
             String json = Net.get(MIRROR + r.mirror + ".json", 15_000);
             Schedule m = parseMirror(json, group, epoch(today()), epoch(tomorrow()));
@@ -432,7 +433,6 @@ final class Outages {
             String status = d.optString("status", "");
             if (date.equals(today)) todayStatus = status;
             if ("EmergencyShutdowns".equals(status)) {
-                if (date.equals(today)) s.emergency = true;
                 Day day = new Day(date, UNKNOWN);
                 day.emergency = true;
                 s.days.add(day);
@@ -511,8 +511,8 @@ final class Outages {
     // MARK: - Cache format
 
     static JSONObject toJson(Schedule s) throws JSONException {
-        JSONObject o = new JSONObject().put("group", s.group).put("emergency", s.emergency)
-                .put("none", s.noSchedules).put("as_of", s.asOf).put("source", s.source);
+        JSONObject o = new JSONObject().put("group", s.group).put("none", s.noSchedules).put("as_of", s.asOf)
+                .put("source", s.source);
         JSONArray days = new JSONArray();
         for (Day d : s.days) {
             StringBuilder b = new StringBuilder(SLOTS);
@@ -527,7 +527,6 @@ final class Outages {
     static Schedule fromJson(JSONObject o) throws JSONException {
         Schedule s = new Schedule();
         s.group = o.optString("group", "");
-        s.emergency = o.optBoolean("emergency");
         s.noSchedules = o.optBoolean("none");
         s.asOf = o.optString("as_of", "");
         s.source = o.optString("source", "");
