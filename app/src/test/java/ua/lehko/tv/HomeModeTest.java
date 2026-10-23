@@ -426,7 +426,11 @@ public class HomeModeTest {
         Env fresh = new Env(Files.createTempDirectory("lehko-keys4").toFile());
         HomeMode.systemState(fresh, null); // installed again, and the "unneeded apps" screen is the first to connect
         assertFalse(fresh.prefs.getBoolean(HomeMode.K_ON, false));
-        assertTrue(state().getJSONObject("files").getString(HomeMode.STATE_FILE).contains("on=false"));
+        JSONObject s = state();
+        assertTrue(s.getJSONObject("files").getString(HomeMode.STATE_FILE).contains("on=false"));
+        assertFalse("Android's 7-day expiry is back", s.getJSONObject("settings").getJSONObject("global")
+                .has("adb_allowed_connection_time"));
+        assertFalse(fresh.prefs.getBoolean(HomeMode.K_ADB_TIME_CHANGED, false));
     }
 
     @Test public void uninstalledInFullModeKeepsTheWayBack() throws Exception {

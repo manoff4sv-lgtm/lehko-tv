@@ -309,7 +309,11 @@ final class HomeMode {
             if (p.getString(K_HOME, "").isEmpty() && !home.isEmpty()) e.putString(K_HOME, home);
         }
         e.putStringSet(K_DISABLED, disabled).commit();
-        if (on && !stillOn) writeDeviceState(c, adb);
+        if (on && !stillOn) {
+            // Not the home screen any more, and "Original" isn't offered: nothing needs the timeout kept off.
+            restoreDebuggingTimeout(c, adb);
+            writeDeviceState(c, adb);
+        }
     }
 
     // MARK: - Switches
