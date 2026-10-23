@@ -54,11 +54,23 @@ final class Memory {
         return Prefs.of(c).getBoolean(P_AUTO, true);
     }
 
+    /** What the button did: the text to show, and whether it says why nothing could be closed. */
+    static final class Result {
+        final String text;
+        /** A reason to read (often with a command to type), not a quick "Freed 180 MB". */
+        final boolean failed;
+
+        Result(String text, boolean failed) {
+            this.text = text;
+            this.failed = failed;
+        }
+    }
+
     /**
      * The button: closes background apps and says how much memory that freed. May show "Allow USB debugging?" (then
      * {@code p} hears about it). Slow: call on the ADB thread.
      */
-    static String clean(Context c, HomeMode.Progress p) {
+    static Result clean(Context c, HomeMode.Progress p) {
         long before = info(c).availMem;
         try {
             HomeMode.killAll(c, true, p);
@@ -67,7 +79,8 @@ final class Memory {
             if (android.os.Build.VERSION.SDK_INT >= 34) {
                 String why = HomeMode.explain(c, e);
                 // Exception texts are English: only the kind of error goes into the translated sentence.
-                return why != null ? why : c.getString(R.string.error_generic, e.getClass().getSimpleName());
+                return new Result(why != null ? why : c.getString(R.string.error_generic, e.getClass().getSimpleName()),
+                        true);
             }
             killBackground(c);
         }
@@ -78,7 +91,8 @@ final class Memory {
             Thread.currentThread().interrupt();
         }
         long freed = (info(c).availMem - before) / MB;
-        return freed >= 10 ? c.getString(R.string.memory_freed, freed) : c.getString(R.string.memory_nothing);
+        return new Result(freed >= 10 ? c.getString(R.string.memory_freed, freed) : c.getString(R.string.memory_nothing),
+                false);
     }
 
     /**

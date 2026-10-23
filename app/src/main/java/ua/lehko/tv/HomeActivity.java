@@ -834,19 +834,21 @@ public final class HomeActivity extends Activity {
         };
         App.ADB.execute(new Runnable() {
             @Override public void run() {
-                String text;
+                Memory.Result r;
                 try {
-                    text = Memory.clean(app, progress);
+                    r = Memory.clean(app, progress);
                 } catch (RuntimeException e) {
                     // Never let the button take the home screen down.
-                    text = app.getString(R.string.memory_nothing);
+                    r = new Memory.Result(app.getString(R.string.memory_nothing), false);
                 }
-                final String result = text;
+                final Memory.Result result = r;
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
                         cleaning = false;
                         if (isDestroyed()) return;
-                        showNotice(result, 6_000, 1_500);
+                        // "Freed 180 MB" is read at a glance; why nothing could be closed gets a notice's usual time.
+                        if (result.failed) showNotice(result.text);
+                        else showNotice(result.text, 6_000, 1_500);
                         updateMemoryTile();
                     }
                 });

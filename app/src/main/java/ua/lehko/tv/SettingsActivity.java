@@ -205,7 +205,7 @@ public final class SettingsActivity extends Activity {
             case MEMORY:
                 run(new Task() {
                     @Override public String run(HomeMode.Progress p) {
-                        return Memory.clean(getApplicationContext(), p);
+                        return Memory.clean(getApplicationContext(), p).text;
                     }
                 });
                 break;
