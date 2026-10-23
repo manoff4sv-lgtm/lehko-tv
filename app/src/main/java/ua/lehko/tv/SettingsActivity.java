@@ -133,7 +133,15 @@ public final class SettingsActivity extends Activity {
             }
             case FIRE_IDLE: {
                 int min = FireScene.idleMinutes(this);
-                return min > 0 ? getString(R.string.fireplace_after, min) : getString(R.string.state_off);
+                if (min <= 0) return getString(R.string.state_off);
+                // The home screen leaves the fireplace out when the TV's own timer is no longer: it would never show.
+                int tv = Settings.System.getInt(getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT, -1);
+                if (tv > 0 && tv <= min * 60_000L) {
+                    // With the fireplace as the screensaver it comes then anyway.
+                    return getString(saver() == HomeMode.SAVER_FIRE ? R.string.fireplace_after
+                            : R.string.fireplace_tv_first, (tv + 59_999) / 60_000);
+                }
+                return getString(R.string.fireplace_after, min);
             }
             case FIRE_SOUND: return getString(FireScene.sound(this) ? R.string.fireplace_sound_on : R.string.state_off);
             case CLEANUP: return getString(R.string.cleanup_summary);
