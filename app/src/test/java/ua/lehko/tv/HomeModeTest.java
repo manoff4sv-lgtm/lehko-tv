@@ -587,6 +587,21 @@ public class HomeModeTest {
         assertFalse("Android's default", state().getJSONObject("settings").getJSONObject("secure").has("screensaver_components"));
     }
 
+    @Test public void lehkosOwnDreamGoesForTheTvsOwnWithoutARecord() throws Exception {
+        tv("settings put secure screensaver_components " + HomeMode.FIRE_DREAM); // picked in the TV's settings
+        Env e = new Env(keys);
+        assertEquals(e.text(R.string.result_saver_off), HomeMode.setScreensaver(e, HomeMode.SAVER_SYSTEM, QUIET));
+        JSONObject secure = state().getJSONObject("settings").getJSONObject("secure");
+        assertFalse("Android's default", secure.has("screensaver_components"));
+        assertEquals("not Lehko's to change", "1", secure.getString("screensaver_enabled"));
+
+        String ambient = "com.google.android.apps.tv.dreamx/.service.Ambient";
+        tv("settings put secure screensaver_components " + ambient);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_SYSTEM, QUIET);
+        assertEquals("another app's stays", ambient,
+                state().getJSONObject("settings").getJSONObject("secure").getString("screensaver_components"));
+    }
+
     @Test public void unneededAppsScreen() throws Exception {
         Env e = new Env(keys);
         HomeMode.setAppEnabled(e, "com.google.android.play.games", false, null);

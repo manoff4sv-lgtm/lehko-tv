@@ -719,8 +719,12 @@ final class HomeMode {
                 }
                 adb.shell("settings put secure screensaver_components " + (which == SAVER_FIRE ? FIRE_DREAM : DREAM));
                 adb.shell("settings put secure screensaver_enabled 1");
-            } else {
+            } else if (c.prefs().getBoolean(K_SAVER_CHANGED, false)) {
                 restoreScreensaver(c, adb);
+            } else if (adb.shell("settings get secure screensaver_components").trim().startsWith(PKG + "/")) {
+                // Lehko's dream picked in the TV's settings, no record: the TV's own is Android's default, as above.
+                // Only the dream goes; Lehko didn't turn the screensaver on.
+                adb.shell("settings delete secure screensaver_components");
             }
             c.prefs().edit().putBoolean(Prefs.SCREENSAVER_LEHKO, lehko).putBoolean(Prefs.SCREENSAVER_FIRE, which == SAVER_FIRE)
                     .commit();
