@@ -725,7 +725,9 @@ public final class HomeActivity extends Activity {
     private boolean sameInputs(List<Inputs.Input> list) {
         if (list.size() != inputs.size()) return false;
         for (int i = 0; i < list.size(); i++) {
-            if (!list.get(i).id.equals(inputs.get(i).id) || !list.get(i).label.equals(inputs.get(i).label)) return false;
+            Inputs.Input a = list.get(i), b = inputs.get(i);
+            // The badge comes from the TV's own name, which can change under an unchanged custom label.
+            if (!a.id.equals(b.id) || !a.label.equals(b.label) || !a.badge.equals(b.badge)) return false;
         }
         return true;
     }
