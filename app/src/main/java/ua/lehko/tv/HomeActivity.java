@@ -45,7 +45,6 @@ import java.util.Locale;
  * details on focus), favorite apps and a row of round shortcut buttons.
  */
 public final class HomeActivity extends Activity {
-    private static final long OUTAGE_MAX_AGE_MS = 10 * 60_000L;
     /** No successful refresh for this long (offline in an outage): the schedule may be out of date, the line says so. */
     private static final long OUTAGE_OLD_MS = 2 * 3600_000L;
 
@@ -73,7 +72,7 @@ public final class HomeActivity extends Activity {
 
     private List<Apps.Entry> apps = new ArrayList<>();
     private List<Inputs.Input> inputs = new ArrayList<>();
-    private boolean appsDirty = true, resumed, weatherLoading, outageLoading, appsLoaded, focusedOnce, rebuilding;
+    private boolean appsDirty = true, resumed, weatherLoading, appsLoaded, focusedOnce, rebuilding;
     /** The favorites list the row was last built from, so coming back home only rebuilds it when it changed. */
     private String builtFavorites;
     /** What the row shows (see favoritesKey), so a package event for another app doesn't rebuild it. */
@@ -87,9 +86,8 @@ public final class HomeActivity extends Activity {
     private TextView safeText;
     /** After a failed download, wait a while before trying again (offline during an outage, for example). */
     private static final long RETRY_AFTER_FAILURE_MS = 5 * 60_000L;
-    private long weatherFailedAt, outageFailedAt, ratesFailedAt;
+    private long weatherFailedAt, ratesFailedAt;
     private boolean ratesLoading;
-    private Outages.Schedule schedule;
     private int tileW, tileH, gap, buttonGap;
     private String focusPkgAfterRebuild;
     /** The last weather shown (for "is it night?"). */
@@ -297,7 +295,6 @@ public final class HomeActivity extends Activity {
         buildQuickRow();
         showWeather(Weather.cached(this));
         showRates();
-        schedule = Outages.cached(this);
         showOutage();
     }
 
@@ -330,7 +327,6 @@ public final class HomeActivity extends Activity {
         loadInputs();
         showWeather(Weather.cached(this));
         showRates();
-        schedule = Outages.cached(this);
         showOutage();
         maybeRefresh();
         App.MAIN.removeCallbacks(ticker);
@@ -865,10 +861,8 @@ public final class HomeActivity extends Activity {
         long now = System.currentTimeMillis();
         if (Weather.stale(this) && now - weatherFailedAt > RETRY_AFTER_FAILURE_MS) refreshWeather();
         if (Rates.due(this) && now - ratesFailedAt > RETRY_AFTER_FAILURE_MS) refreshRates();
-        if (Outages.enabled(this) && now - Outages.fetchedAt(this) > OUTAGE_MAX_AGE_MS
-                && now - outageFailedAt > RETRY_AFTER_FAILURE_MS) {
-            refreshOutage();
-        }
+        // Shared with the fireplace: one download at a time, one pause after a failure.
+        Outages.refreshIfStale(this, outageFetched);
     }
 
     private boolean online() {
@@ -1052,31 +1046,12 @@ public final class HomeActivity extends Activity {
 
     // MARK: - Outages
 
-    private void refreshOutage() {
-        if (outageLoading) return;
-        outageLoading = true;
-        final Context app = getApplicationContext();
-        App.NET.execute(new Runnable() {
-            @Override public void run() {
-                Outages.Schedule s = null;
-                try {
-                    s = Outages.refresh(app);
-                } catch (Exception ignored) {
-                    // Keep the cached schedule; it is still right for today.
-                }
-                final Outages.Schedule result = s;
-                App.MAIN.post(new Runnable() {
-                    @Override public void run() {
-                        outageLoading = false;
-                        if (result == null) outageFailedAt = System.currentTimeMillis();
-                        if (isDestroyed()) return;
-                        if (result != null) schedule = result;
-                        showOutage();
-                    }
-                });
-            }
-        });
-    }
+    /** A download finished (or failed): the line now rather than in a minute. */
+    private final Runnable outageFetched = new Runnable() {
+        @Override public void run() {
+            if (!isDestroyed()) showOutage();
+        }
+    };
 
     /** The ring, the two power lines and tomorrow's bar (details). Without outages: a plain 24-hour ring. */
     private void showOutage() {
@@ -1088,12 +1063,15 @@ public final class HomeActivity extends Activity {
             tomorrowBox.setVisibility(View.GONE);
             return;
         }
+        // Read each time: the fireplace may have downloaded it, and after a failed try the cache may be gone (the
+        // weekly check moved the group), so an old schedule doesn't stay up under the new group's name.
+        Outages.Schedule schedule = Outages.cached(this);
         long now = System.currentTimeMillis();
         long fetched = Outages.fetchedAt(this);
         // Only once updating has failed (or can't start): back home after a film the schedule is hours old, but it is
         // renewed a second later.
         boolean old = schedule != null && fetched > 0 && now - fetched > OUTAGE_OLD_MS
-                && (outageFailedAt > fetched || !online());
+                && (Outages.lastFailure() > fetched || !online());
         Outages.Status st = Outages.status(schedule, now);
         // An old schedule says since when in place of the group (the line has room for one of them).
         String[] lines = OutageText.lines(this, schedule, st, old ? null : Outages.chosenGroup(this));

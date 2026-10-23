@@ -222,11 +222,16 @@ final class Outages {
     /** The schedule is downloaded again when older than this, but not within RETRY_MS of a failed try. */
     static final long MAX_AGE_MS = 10 * 60_000L, RETRY_MS = 5 * 60_000L;
     /**
-     * Main thread only. Shared by the fireplace and the fire screensaver, so when one takes over from the other it
-     * doesn't start a second download, or retry sooner after a failure.
+     * Main thread only. Shared by the home screen, the fireplace and the fire screensaver, so when one takes over from
+     * another it doesn't start a second download, or retry sooner after a failure.
      */
     private static boolean loading;
     private static long failedAt;
+
+    /** Main thread: when the last download failed (0: none yet). An old schedule says so only after a failure. */
+    static long lastFailure() {
+        return failedAt;
+    }
 
     /** Main thread: downloads the schedule in the background when it is old, then runs {@code done} on the main thread. */
     static void refreshIfStale(Context c, final Runnable done) {
