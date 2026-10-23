@@ -167,7 +167,9 @@ public final class SettingsActivity extends Activity {
         switch (row) {
             case HOME:
                 if (!HomeMode.isOn(this)) enableDialog();
-                else if (HomeMode.isFull(this)) confirmDisable();
+                // In safe mode only the way back: turning the stock launcher off would leave a Lehko that keeps
+                // crashing as the only home screen.
+                else if (HomeMode.isFull(this) || Watchdog.safeMode(this)) confirmDisable();
                 else homeChoice();
                 break;
             case APPS_ON:
@@ -296,15 +298,18 @@ public final class SettingsActivity extends Activity {
     /**
      * Lehko is on, the stock launcher isn't off: the hint says to turn it off if Home still opens the stock screen.
      * Done from here, not by switching back and on again, which would turn every unneeded app back on and reset the
-     * screensaver.
+     * screensaver. "Allow debugging again" is listed too: Lehko's notices send people to it through this row.
      */
     private void homeChoice() {
         new AlertDialog.Builder(this)
                 .setTitle(R.string.home_screen)
-                .setItems(new CharSequence[]{getString(R.string.enable_full), getString(R.string.home_bring_back)},
+                .setItems(new CharSequence[]{getString(R.string.enable_full), getString(R.string.allow_again),
+                                getString(R.string.home_bring_back)},
                         new DialogInterface.OnClickListener() {
                             @Override public void onClick(DialogInterface d, int which) {
-                                if (which == 0) confirmFull(); else confirmDisable();
+                                if (which == 0) confirmFull();
+                                else if (which == 1) allowAgain();
+                                else confirmDisable();
                             }
                         })
                 .show();
@@ -350,17 +355,21 @@ public final class SettingsActivity extends Activity {
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
-                // For "the TV forgot Lehko's debugging permission": allows it again and keeps Lehko on.
                 .setNeutralButton(R.string.allow_again, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
-                        run(new Task() {
-                            @Override public String run(HomeMode.Progress p) throws IOException {
-                                return HomeMode.allowAgain(getApplicationContext(), p);
-                            }
-                        });
+                        allowAgain();
                     }
                 })
                 .show();
+    }
+
+    /** For "the TV forgot Lehko's debugging permission": allows it again and keeps Lehko on. */
+    private void allowAgain() {
+        run(new Task() {
+            @Override public String run(HomeMode.Progress p) throws IOException {
+                return HomeMode.allowAgain(getApplicationContext(), p);
+            }
+        });
     }
 
     /** Asks first: the row sits right under "Home screen", and each app would have to be turned off again by hand. */
