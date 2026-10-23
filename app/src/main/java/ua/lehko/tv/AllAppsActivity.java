@@ -162,6 +162,11 @@ public final class AllAppsActivity extends Activity {
                 .show();
     }
 
+    /** What TalkBack says for a tile: favorites say so. Worked out when applied, as the menu can change it. */
+    private CharSequence describe(Apps.Entry a) {
+        return Apps.isFavorite(this, a.pkg) ? a.label + ", " + getString(R.string.in_favorites) : a.label;
+    }
+
     private final class Adapter extends BaseAdapter {
         @Override public int getCount() {
             return apps.size();
@@ -197,19 +202,31 @@ public final class AllAppsActivity extends Activity {
                 final Context app = getApplicationContext();
                 App.IO.execute(new Runnable() {
                     @Override public void run() {
+                        // Holding Down binds rows faster than pictures load: skip a tile the grid has since given to
+                        // another app (that app has its own load), and everything once the screen is closing.
+                        if (isFinishing() || !a.pkg.equals(t.key)) return;
                         final boolean[] banner = new boolean[1];
-                        final Drawable pic = Apps.picture(app, a, banner, tileW, tileH);
-                        Apps.remember(a, pic, banner[0]);
+                        // The grid binds its first tile again on every measure, so an earlier load may have done this.
+                        Drawable d = Apps.cached(a);
+                        if (d != null) {
+                            banner[0] = Apps.cachedIsBanner(a);
+                        } else {
+                            d = Apps.picture(app, a, banner, tileW, tileH);
+                            Apps.remember(a, d, banner[0]);
+                        }
+                        final Drawable pic = d;
                         App.MAIN.post(new Runnable() {
                             @Override public void run() {
-                                if (a.pkg.equals(t.key)) t.show(pic, banner[0], a.label);
+                                if (!a.pkg.equals(t.key)) return;
+                                // show() resets the description to the bare name.
+                                t.show(pic, banner[0], a.label);
+                                t.setContentDescription(describe(a));
                             }
                         });
                     }
                 });
             }
-            t.setContentDescription(Apps.isFavorite(AllAppsActivity.this, a.pkg)
-                    ? a.label + ", " + getString(R.string.in_favorites) : a.label);
+            t.setContentDescription(describe(a));
             return t;
         }
     }

@@ -130,7 +130,28 @@ final class Apps {
         Prefs.setFavorites(c, f);
     }
 
-    /** Moves a favorite one place left (-1) or right (+1). */
+    /**
+     * Moves a favorite one place left (-1) or right (+1) on the row as shown ({@code all}: the openable apps). Saved
+     * favorites that aren't shown (uninstalled, turned off) are stepped over and keep their place for when they return.
+     */
+    static void moveFavorite(Context c, List<Entry> all, String pkg, int delta) {
+        Map<String, Entry> shown = byPackage(all);
+        List<String> f = Prefs.favorites(c);
+        int i = f.indexOf(pkg), j = i + delta;
+        if (i < 0) return;
+        while (j >= 0 && j < f.size() && !shown.containsKey(f.get(j))) j += delta;
+        if (j < 0 || j >= f.size()) return;
+        Collections.swap(f, i, j);
+        Prefs.setFavorites(c, f);
+    }
+
+    /**
+     * Moves a favorite one place left (-1) or right (+1) in the saved list, where favorites that aren't shown count
+     * as places too, so a move next to one changes nothing on screen.
+     *
+     * @deprecated use {@link #moveFavorite(Context, List, String, int)}.
+     */
+    @Deprecated
     static void moveFavorite(Context c, String pkg, int delta) {
         List<String> f = Prefs.favorites(c);
         int i = f.indexOf(pkg), j = i + delta;
@@ -247,8 +268,9 @@ final class Apps {
     }
 
     static void remember(Entry a, Drawable d, boolean banner) {
-        PICTURES.put(a.pkg, d);
+        // The flag first: whoever finds the picture (from another thread too) must also find whether it's a banner.
         BANNER.put(a.pkg, banner);
+        PICTURES.put(a.pkg, d);
     }
 
     /**
