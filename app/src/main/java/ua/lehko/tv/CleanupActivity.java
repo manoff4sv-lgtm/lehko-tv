@@ -239,7 +239,7 @@ public final class CleanupActivity extends Activity {
 
     private void toggle(final Row r) {
         if (!r.disabled && r.wifiOwner) {
-            status.setText(getString(R.string.wifi_owner_error, r.label));
+            status.setText(getString(R.string.cleanup_wifi_owner_error, r.label));
             status.setVisibility(View.VISIBLE);
             return;
         }
@@ -271,7 +271,7 @@ public final class CleanupActivity extends Activity {
                 try {
                     HomeMode.setAppEnabled(app, r.pkg, enable);
                 } catch (HomeMode.WifiOwnerException e) {
-                    error = getString(R.string.wifi_owner_error, r.label);
+                    error = getString(R.string.cleanup_wifi_owner_error, r.label);
                 } catch (HomeMode.WifiCheckException e) {
                     error = getString(R.string.cleanup_wifi_check_error);
                 } catch (Adb.Failure e) {
