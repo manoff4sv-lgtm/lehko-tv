@@ -175,8 +175,10 @@ public class HomeModeTest {
         HomeMode.enable(e, false, QUIET);
         HomeMode.setAppEnabled(e, games, false, null);
         HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        e.prefs.edit().putLong(HomeMode.K_LAUNCHER_PSS, 300_000).commit(); // as measured while it was the home screen
         // Home still opened the stock screen: the launcher goes off now, without switching back first.
         assertEquals(e.text(R.string.result_on_full, 2), HomeMode.enable(e, true, QUIET));
+        assertEquals("not measured again in the background", 300_000L, e.prefs.getLong(HomeMode.K_LAUNCHER_PSS, 0));
         JSONObject s = state();
         assertEquals("ua.lehko.tv", s.getString("holder"));
         assertFalse(enabled(s, LAUNCHERX));

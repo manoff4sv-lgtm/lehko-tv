@@ -334,7 +334,8 @@ final class HomeMode {
                 for (String t : targets) if (owners.contains(t)) throw new WifiOwnerException(t);
             }
             keepDebuggingAllowed(c, adb);
-            measureLauncher(c, adb, original);
+            // Turned off later, the launcher has been in the background behind Lehko since and would measure small.
+            if (!isOn(c)) measureLauncher(c, adb, original);
 
             p.step(c.text(R.string.step_switching));
             Watchdog.clear(c.prefs());
