@@ -49,6 +49,8 @@ final class FireView extends View {
     private boolean boxFailed, visible, attached, paused;
     private float glowX, glowY, glowR, flicker = 0.75f, flickerTarget = 0.75f;
     private long lastFrame;
+    /** Runs on each of the fire's frames: views moved here are drawn in that frame, with no frames of their own. */
+    Runnable onFrame;
 
     private final Runnable frameTick = new Runnable() {
         @Override public void run() {
@@ -62,6 +64,7 @@ final class FireView extends View {
                 if (random.nextInt(5) == 0) flickerTarget = 0.55f + random.nextFloat() * 0.45f;
                 flicker += (flickerTarget - flicker) * 0.2f;
                 invalidate();
+                if (onFrame != null) onFrame.run();
             }
             postOnAnimation(this);
         }
@@ -69,7 +72,9 @@ final class FireView extends View {
 
     FireView(Context c) {
         super(c);
-        // Warm up, so the fire is already burning on the first frame.
+        // Warm up, so the fire is already burning on the first frame (and the still one with animations off is
+        // flames, not a low flat band).
+        fire.warm();
         for (int i = 0; i < 40; i++) fire.step();
         frame.setPixels(fire.pixels, 0, Fire.W, 0, 0, Fire.W, Fire.H);
     }

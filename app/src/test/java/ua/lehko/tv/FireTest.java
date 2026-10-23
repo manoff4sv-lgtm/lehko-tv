@@ -37,6 +37,26 @@ public class FireTest {
         assertEquals(Fire.PALETTE[f.heat[1234]], f.pixels[1234]);
     }
 
+    /** FireView's warm-up (also the still picture with animations off): tall flames at once, not a low band. */
+    @Test public void warmedUpFireIsTall() {
+        Fire cold = new Fire(3), warm = new Fire(3);
+        warm.warm();
+        for (int i = 0; i < 40; i++) {
+            cold.step();
+            warm.step();
+        }
+        assertEquals("from cold, 40 steps leave the upper half dark", 0, hotCells(cold, Fire.H / 2));
+        assertTrue(hotCells(warm, Fire.H / 2) > Fire.W * 10);
+        assertTrue("but rarely the very top", hotCells(warm, 1) < Fire.W / 4);
+    }
+
+    /** Burning cells in the top {@code rows} rows. */
+    private static int hotCells(Fire f, int rows) {
+        int n = 0;
+        for (int i = 0; i < rows * Fire.W; i++) if (f.heat[i] > 0) n++;
+        return n;
+    }
+
     @Test public void sameSeedSameFlames() {
         Fire a = new Fire(7), b = new Fire(7);
         for (int i = 0; i < 50; i++) {

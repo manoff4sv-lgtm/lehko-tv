@@ -74,8 +74,49 @@ public class OutagesTest {
 
         st = Outages.status(s, kyiv(2026, 10, 22, 20, 0));
         assertEquals(Outages.ON, st.state);
-        assertTrue("nothing more today and tomorrow unknown", st.clearAhead);
+        assertFalse("nothing more today, but tomorrow isn't published: not 'no outages ahead'", st.clearAhead);
         assertTrue(st.untilEndOfData);
+        assertEquals(-1, st.minutesToChange);
+    }
+
+    /** Tomorrow is an emergency day (all unknown): power isn't promised back at midnight, nor the day called clear. */
+    @Test public void noChangeIntoTheUnknown() {
+        Outages.Schedule s = new Outages.Schedule();
+        Outages.Day today = new Outages.Day("2026-10-22", Outages.ON);
+        s.days.add(today);
+        s.days.add(new Outages.Day("2026-10-23", Outages.UNKNOWN));
+        Outages.Status st = Outages.status(s, kyiv(2026, 10, 22, 20, 0));
+        assertEquals(Outages.ON, st.state);
+        assertFalse(st.clearAhead);
+        assertTrue(st.untilEndOfData);
+
+        today.slots[46] = Outages.OFF;
+        today.slots[47] = Outages.OFF;
+        st = Outages.status(s, kyiv(2026, 10, 22, 20, 0));
+        assertEquals(Outages.OFF, st.next);
+        assertEquals("23:00", st.changeAt);
+        st = Outages.status(s, kyiv(2026, 10, 22, 23, 10));
+        assertEquals(Outages.OFF, st.state);
+        assertEquals(-1, st.minutesToChange);
+        assertTrue(st.untilEndOfData);
+    }
+
+    /** The countdown is real time: on the days the clocks change, the wall clock is an hour off. */
+    @Test public void countdownAcrossClockChanges() {
+        Outages.Schedule s = new Outages.Schedule();
+        Outages.Day autumn = new Outages.Day("2026-10-25", Outages.ON);
+        autumn.slots[10] = Outages.OFF; // 05:00, after 04:00 summer time became 03:00
+        s.days.add(autumn);
+        Outages.Status st = Outages.status(s, kyiv(2026, 10, 25, 2, 0));
+        assertEquals("05:00", st.changeAt);
+        assertEquals(240, st.minutesToChange);
+
+        Outages.Day spring = new Outages.Day("2027-03-28", Outages.ON);
+        spring.slots[10] = Outages.OFF; // 05:00, after 03:00 became 04:00
+        s.days.add(spring);
+        st = Outages.status(s, kyiv(2027, 3, 28, 2, 0));
+        assertEquals("05:00", st.changeAt);
+        assertEquals(120, st.minutesToChange);
     }
 
     @Test public void statusLooksIntoTomorrow() {
@@ -109,10 +150,14 @@ public class OutagesTest {
         assertEquals(Outages.ON, st.state);
         assertTrue(st.clearAhead);
 
+        assertTrue(st.noSchedules);
+
         String emergency = "{\"5.1\":{\"today\":{\"slots\":[],\"date\":\"2026-10-22T00:00:00+03:00\",\"status\":\"EmergencyShutdowns\"}}}";
         s = Outages.parseYasno(emergency, "5.1", "2026-10-22", "2026-10-23");
         assertTrue(s.emergency);
-        assertEquals(Outages.UNKNOWN, Outages.status(s, kyiv(2026, 10, 22, 12, 0)).state);
+        st = Outages.status(s, kyiv(2026, 10, 22, 12, 0));
+        assertTrue(st.emergency);
+        assertEquals(Outages.UNKNOWN, st.state);
 
         String waiting = "{\"5.1\":{\"today\":{\"slots\":[],\"date\":\"2026-10-22T00:00:00+03:00\",\"status\":\"WaitingForSchedule\"}}}";
         s = Outages.parseYasno(waiting, "5.1", "2026-10-22", "2026-10-23");
@@ -151,6 +196,34 @@ public class OutagesTest {
         Outages.Schedule s = Outages.parseMirror("{\"fact\":{\"today\":1792530000,\"data\":[]}}", "1.1", 1792530000L, 1792616400L);
         assertTrue(s.noSchedules);
         assertTrue(Outages.status(s, kyiv(2026, 10, 21, 12, 0)).clearAhead);
+        // Offline the next day: "no outages planned" was about yesterday.
+        Outages.Status st = Outages.status(Outages.fromJson(Outages.toJson(s)), kyiv(2026, 10, 22, 12, 0));
+        assertFalse(st.noSchedules);
+        assertFalse(st.clearAhead);
+        assertEquals(Outages.UNKNOWN, st.state);
+    }
+
+    /** An emergency is about its own day: offline after midnight, the next day's published schedule applies. */
+    @Test public void emergencyIsForItsOwnDay() throws Exception {
+        String json = "{\"5.1\":{\"today\":{\"slots\":[],\"date\":\"2026-10-22T00:00:00+03:00\",\"status\":\"EmergencyShutdowns\"},"
+                + "\"tomorrow\":{\"slots\":[{\"start\":0,\"end\":600,\"type\":\"NotPlanned\"},{\"start\":600,\"end\":840,"
+                + "\"type\":\"Definite\"},{\"start\":840,\"end\":1440,\"type\":\"NotPlanned\"}],"
+                + "\"date\":\"2026-10-23T00:00:00+03:00\",\"status\":\"ScheduleApplies\"}}}";
+        Outages.Schedule s = Outages.fromJson(Outages.toJson(Outages.parseYasno(json, "5.1", "2026-10-22", "2026-10-23")));
+        assertTrue(Outages.status(s, kyiv(2026, 10, 22, 20, 0)).emergency);
+        Outages.Status st = Outages.status(s, kyiv(2026, 10, 23, 9, 0));
+        assertFalse(st.emergency);
+        assertEquals(Outages.ON, st.state);
+        assertEquals("10:00", st.changeAt);
+
+        // Tomorrow's emergency is still known after midnight.
+        json = "{\"5.1\":{\"today\":{\"slots\":[{\"start\":0,\"end\":1440,\"type\":\"NotPlanned\"}],"
+                + "\"date\":\"2026-10-22T00:00:00+03:00\",\"status\":\"ScheduleApplies\"},"
+                + "\"tomorrow\":{\"slots\":[],\"date\":\"2026-10-23T00:00:00+03:00\",\"status\":\"EmergencyShutdowns\"}}}";
+        s = Outages.fromJson(Outages.toJson(Outages.parseYasno(json, "5.1", "2026-10-22", "2026-10-23")));
+        assertFalse(s.emergency);
+        assertFalse(Outages.status(s, kyiv(2026, 10, 22, 20, 0)).emergency);
+        assertTrue(Outages.status(s, kyiv(2026, 10, 23, 1, 0)).emergency);
     }
 
     @Test public void daylightSavingDay() {
@@ -180,6 +253,22 @@ public class OutagesTest {
         List<String> g = new ArrayList<>(Arrays.asList("10.1", "1.2", "60.1", "2.1", "1.1"));
         Outages.sortGroups(g);
         assertEquals(Arrays.asList("1.1", "1.2", "2.1", "10.1", "60.1"), g);
+    }
+
+    /** Kyiv's mirror file: the preset still names the old "N.2" groups, only the "N.1" ones have schedules. */
+    @Test public void mirrorGroups() throws Exception {
+        String preset = "\"preset\":{\"sch_names\":{\"GPV1.1\":\"Черга 1.1\",\"GPV1.2\":\"Черга 1.2\","
+                + "\"GPV2.1\":\"Черга 2.1\",\"GPV2.2\":\"Черга 2.2\"}}";
+        String json = "{\"fact\":{\"today\":1792530000,\"data\":{\"1792530000\":{\"GPV1.1\":{\"1\":\"yes\"},"
+                + "\"GPV2.1\":{\"1\":\"no\"}},\"1792616400\":{\"GPV1.1\":{\"1\":\"no\"}}}}," + preset + "}";
+        List<String> g = Outages.mirrorGroups(json);
+        Outages.sortGroups(g);
+        assertEquals(Arrays.asList("1.1", "2.1"), g);
+        // No schedules in force: the preset's list.
+        g = Outages.mirrorGroups("{\"fact\":{\"today\":1792530000,\"data\":[]}," + preset + "}");
+        Outages.sortGroups(g);
+        assertEquals(Arrays.asList("1.1", "1.2", "2.1", "2.2"), g);
+        assertTrue(Outages.mirrorGroups("{}").isEmpty());
     }
 
     @Test public void cacheRoundTrip() throws Exception {

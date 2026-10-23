@@ -95,8 +95,11 @@ final class Outages {
         return chosenRegion(c) != null && !chosenGroup(c).isEmpty();
     }
 
-    /** Saves the region and group; street and house ids (YASNO) let Lehko re-check the group now and then. */
-    static void choose(Context c, Region r, String group, String address, long streetId, long houseId) {
+    /**
+     * Saves the region and group; street and house ids (YASNO) let Lehko re-check the group now and then.
+     * Synchronized with the cache writes in {@link #refresh}: a download for the old choice must not land after it.
+     */
+    static synchronized void choose(Context c, Region r, String group, String address, long streetId, long houseId) {
         SharedPreferences.Editor e = Prefs.of(c).edit()
                 .putString(P_REGION, r.id).putString(P_GROUP, group)
                 .remove(P_CACHE).remove(P_FETCHED).remove(P_ETAG);
@@ -109,7 +112,7 @@ final class Outages {
         e.apply();
     }
 
-    static void turnOff(Context c) {
+    static synchronized void turnOff(Context c) {
         Prefs.of(c).edit().remove(P_REGION).remove(P_GROUP).remove(P_ADDRESS).remove(P_STREET).remove(P_HOUSE)
                 .remove(P_RESOLVED).remove(P_CACHE).remove(P_FETCHED).remove(P_ETAG).apply();
     }
@@ -137,6 +140,8 @@ final class Outages {
         /** "yyyy-MM-dd" in Kyiv. */
         final String date;
         final byte[] slots = new byte[SLOTS];
+        /** The operator says emergency outages are on this day and there is no schedule (the slots are UNKNOWN). */
+        boolean emergency;
 
         Day(String date, byte fill) {
             this.date = date;
@@ -147,10 +152,12 @@ final class Outages {
     static final class Schedule {
         String group = "";
         final List<Day> days = new ArrayList<>();
-        /** The operator says emergency outages are on and the schedule doesn't apply. */
+        /** Today (as of {@link #asOf}) is an emergency day; {@link Status#emergency} follows the clock. */
         boolean emergency;
-        /** The source has no schedules at all right now (no outage regime). */
+        /** The source had no schedules at all on {@link #asOf} (no outage regime). */
         boolean noSchedules;
+        /** The Kyiv day ("yyyy-MM-dd") the source answered on: the flags above are about that day only. */
+        String asOf = "";
         String source = "";
 
         Day day(String date) {
@@ -163,11 +170,24 @@ final class Outages {
 
     /** Fetches the schedule for the chosen region and group, caches it and returns it. Network: off the UI thread. */
     static Schedule refresh(Context c) throws IOException, JSONException {
-        Region r = chosenRegion(c);
-        String group = chosenGroup(c);
-        if (r == null || group.isEmpty()) return null;
-        maybeRecheckGroup(c, r);
-        group = chosenGroup(c);
+        // A second round when another region or group was chosen during the download: the answer is for the old one.
+        for (int round = 0; round < 2; round++) {
+            Region r = chosenRegion(c);
+            if (r == null || chosenGroup(c).isEmpty()) return null;
+            maybeRecheckGroup(c, r);
+            String group = chosenGroup(c);
+            Schedule s = fetch(r, group);
+            synchronized (Outages.class) {
+                if (r != chosenRegion(c) || !group.equals(chosenGroup(c))) continue;
+                Prefs.of(c).edit().putString(P_CACHE, toJson(s).toString()).putLong(P_FETCHED, System.currentTimeMillis()).apply();
+            }
+            return s;
+        }
+        return null;
+    }
+
+    /** YASNO first; the DTEK mirror when YASNO fails or has nothing for today (and its groups are the same). */
+    private static Schedule fetch(Region r, String group) throws IOException, JSONException {
         Schedule s = null;
         IOException failure = null;
         if (r.yasno()) {
@@ -192,7 +212,6 @@ final class Outages {
             s = new Schedule();
             s.group = group;
         }
-        Prefs.of(c).edit().putString(P_CACHE, toJson(s).toString()).putLong(P_FETCHED, System.currentTimeMillis()).apply();
         return s;
     }
 
@@ -200,11 +219,50 @@ final class Outages {
         return Prefs.of(c).getLong(P_FETCHED, 0);
     }
 
+    /** The schedule is downloaded again when older than this, but not within RETRY_MS of a failed try. */
+    static final long MAX_AGE_MS = 10 * 60_000L, RETRY_MS = 5 * 60_000L;
+    /**
+     * Main thread only. Shared by the fireplace and the fire screensaver, so when one takes over from the other it
+     * doesn't start a second download, or retry sooner after a failure.
+     */
+    private static boolean loading;
+    private static long failedAt;
+
+    /** Main thread: downloads the schedule in the background when it is old, then runs {@code done} on the main thread. */
+    static void refreshIfStale(Context c, final Runnable done) {
+        final Context app = c.getApplicationContext();
+        long now = System.currentTimeMillis();
+        if (loading || !enabled(app) || !Net.stale(now, fetchedAt(app), MAX_AGE_MS) || !Net.stale(now, failedAt, RETRY_MS)) {
+            return;
+        }
+        loading = true;
+        App.NET.execute(new Runnable() {
+            @Override public void run() {
+                Schedule s = null;
+                try {
+                    s = refresh(app);
+                } catch (Exception ignored) {
+                    // Offline (e.g. during an outage): the cached schedule stays.
+                }
+                final boolean ok = s != null;
+                App.MAIN.post(new Runnable() {
+                    @Override public void run() {
+                        loading = false;
+                        if (!ok) failedAt = System.currentTimeMillis();
+                        done.run();
+                    }
+                });
+            }
+        });
+    }
+
+    /** The cached schedule, or null (also when it is another group's: the weekly re-check may have moved us). */
     static Schedule cached(Context c) {
         String raw = Prefs.of(c).getString(P_CACHE, null);
         if (raw == null) return null;
         try {
-            return fromJson(new JSONObject(raw));
+            Schedule s = fromJson(new JSONObject(raw));
+            return s.group.equals(chosenGroup(c)) ? s : null;
         } catch (JSONException e) {
             return null;
         }
@@ -215,15 +273,19 @@ final class Outages {
         SharedPreferences p = Prefs.of(c);
         long street = p.getLong(P_STREET, 0), house = p.getLong(P_HOUSE, 0);
         if (!r.yasno() || street <= 0 || house <= 0) return;
-        if (System.currentTimeMillis() - p.getLong(P_RESOLVED, 0) < 7L * 24 * 3600_000) return;
+        if (!Net.stale(System.currentTimeMillis(), p.getLong(P_RESOLVED, 0), 7L * 24 * 3600_000)) return;
         try {
             String group = groupByAddress(r, street, house);
-            SharedPreferences.Editor e = p.edit().putLong(P_RESOLVED, System.currentTimeMillis());
-            if (group != null && !group.equals(chosenGroup(c))) {
-                e.putString(P_GROUP, group);
-                Prefs.notice(c, c.getString(R.string.outage_group_changed, group));
+            synchronized (Outages.class) {
+                // Something else was chosen meanwhile: this answer is for the old address.
+                if (r != chosenRegion(c) || p.getLong(P_STREET, 0) != street || p.getLong(P_HOUSE, 0) != house) return;
+                SharedPreferences.Editor e = p.edit().putLong(P_RESOLVED, System.currentTimeMillis());
+                if (group != null && !group.equals(chosenGroup(c))) {
+                    e.putString(P_GROUP, group);
+                    Prefs.notice(c, c.getString(R.string.outage_group_changed, group));
+                }
+                e.apply();
             }
-            e.apply();
         } catch (IOException | JSONException ignored) {
             // Try again on the next refresh.
         }
@@ -276,22 +338,50 @@ final class Outages {
     /** The groups the source knows, sorted 1.1, 1.2, 2.1, ... 10.1 (for picking from a list). */
     static List<String> groups(Region r) throws IOException, JSONException {
         List<String> out = new ArrayList<>();
+        boolean mirror = r.mirror != null && (!r.yasno() || r.mirrorMatchesYasno);
         if (r.yasno()) {
-            JSONObject o = new JSONObject(Net.get(YASNO + "/regions/" + r.yasnoRegion + "/dsos/" + r.yasnoDso + "/planned-outages"));
-            for (Iterator<String> it = o.keys(); it.hasNext(); ) out.add(it.next());
-        } else if (r.mirror != null) {
-            JSONObject o = new JSONObject(Net.get(MIRROR + r.mirror + ".json", 15_000));
-            JSONObject preset = o.optJSONObject("preset");
-            JSONObject names = preset != null ? preset.optJSONObject("sch_names") : null;
-            if (names != null) {
-                for (Iterator<String> it = names.keys(); it.hasNext(); ) {
-                    String k = it.next();
-                    if (k.startsWith("GPV")) out.add(k.substring(3));
-                }
+            try {
+                JSONObject o = new JSONObject(Net.get(YASNO + "/regions/" + r.yasnoRegion + "/dsos/" + r.yasnoDso + "/planned-outages"));
+                for (Iterator<String> it = o.keys(); it.hasNext(); ) out.add(it.next());
+            } catch (IOException | JSONException e) {
+                // Kyiv's groups are the same in the DTEK mirror, which also stands in for YASNO's schedules.
+                if (!mirror) throw e;
             }
         }
+        if (out.isEmpty() && mirror) out = mirrorGroups(Net.get(MIRROR + r.mirror + ".json", 15_000));
         sortGroups(out);
         return out;
+    }
+
+    /**
+     * The groups in a mirror file: those with schedules in fact.data, else the preset's list. (Kyiv's preset still
+     * names the "N.2" groups it had before 2026-01-29, which have no schedules any more.)
+     */
+    static List<String> mirrorGroups(String json) throws JSONException {
+        JSONObject o = new JSONObject(json);
+        List<String> out = new ArrayList<>();
+        JSONObject fact = o.optJSONObject("fact");
+        JSONObject data = fact != null ? fact.optJSONObject("data") : null;
+        if (data != null) {
+            for (Iterator<String> it = data.keys(); it.hasNext(); ) {
+                JSONObject day = data.optJSONObject(it.next());
+                if (day != null) addGroups(day, out);
+            }
+        }
+        if (out.isEmpty()) {
+            JSONObject preset = o.optJSONObject("preset");
+            JSONObject names = preset != null ? preset.optJSONObject("sch_names") : null;
+            if (names != null) addGroups(names, out);
+        }
+        return out;
+    }
+
+    /** "GPV11.1" keys as "11.1", once each. */
+    private static void addGroups(JSONObject keys, List<String> out) {
+        for (Iterator<String> it = keys.keys(); it.hasNext(); ) {
+            String k = it.next();
+            if (k.startsWith("GPV") && !out.contains(k.substring(3))) out.add(k.substring(3));
+        }
     }
 
     static void sortGroups(List<String> groups) {
@@ -326,6 +416,7 @@ final class Outages {
         Schedule s = new Schedule();
         s.group = group;
         s.source = "yasno";
+        s.asOf = today;
         String todayStatus = "";
         for (String key : new String[]{"today", "tomorrow"}) {
             JSONObject d = g.optJSONObject(key);
@@ -337,7 +428,9 @@ final class Outages {
             if (date.equals(today)) todayStatus = status;
             if ("EmergencyShutdowns".equals(status)) {
                 if (date.equals(today)) s.emergency = true;
-                s.days.add(new Day(date, UNKNOWN));
+                Day day = new Day(date, UNKNOWN);
+                day.emergency = true;
+                s.days.add(day);
                 continue;
             }
             if ("NoOutages".equals(status)) {
@@ -374,6 +467,7 @@ final class Outages {
         Schedule s = new Schedule();
         s.group = group;
         s.source = "dtek";
+        s.asOf = dateOf(todayEpoch);
         Object data = fact.opt("data");
         if (!(data instanceof JSONObject)) {
             s.noSchedules = true;
@@ -413,12 +507,14 @@ final class Outages {
 
     static JSONObject toJson(Schedule s) throws JSONException {
         JSONObject o = new JSONObject().put("group", s.group).put("emergency", s.emergency)
-                .put("none", s.noSchedules).put("source", s.source);
+                .put("none", s.noSchedules).put("as_of", s.asOf).put("source", s.source);
         JSONArray days = new JSONArray();
         for (Day d : s.days) {
             StringBuilder b = new StringBuilder(SLOTS);
             for (byte x : d.slots) b.append((char) ('0' + x));
-            days.put(new JSONObject().put("date", d.date).put("slots", b.toString()));
+            JSONObject day = new JSONObject().put("date", d.date).put("slots", b.toString());
+            if (d.emergency) day.put("emergency", true);
+            days.put(day);
         }
         return o.put("days", days);
     }
@@ -428,6 +524,7 @@ final class Outages {
         s.group = o.optString("group", "");
         s.emergency = o.optBoolean("emergency");
         s.noSchedules = o.optBoolean("none");
+        s.asOf = o.optString("as_of", "");
         s.source = o.optString("source", "");
         JSONArray days = o.optJSONArray("days");
         if (days != null) {
@@ -437,6 +534,7 @@ final class Outages {
                 if (slots.length() != SLOTS) continue;
                 Day day = new Day(d.getString("date"), UNKNOWN);
                 for (int k = 0; k < SLOTS; k++) day.slots[k] = (byte) Math.max(0, Math.min(3, slots.charAt(k) - '0'));
+                day.emergency = d.optBoolean("emergency");
                 s.days.add(day);
             }
         }
@@ -452,20 +550,27 @@ final class Outages {
         int minutesToChange = -1;
         /** When it changes, "HH:mm" in Kyiv; "24:00" for midnight. */
         String changeAt;
-        /** What it changes to. */
+        /** What it changes to: ON, OFF or MAYBE. */
         byte next = UNKNOWN;
         /** The change is tomorrow (after midnight). */
         boolean changeTomorrow;
-        /** No change until the end of the schedules we have. */
+        /** No change until the end of what the schedules tell (their last day, or an unknown stretch). */
         boolean untilEndOfData;
-        /** Today and tomorrow (if known) have no outages at all. */
+        /** No outages for the rest of today and all of tomorrow, or no outage regime at all. */
         boolean clearAhead;
+        /** Today is an emergency day: the operator says the schedule doesn't apply. */
+        boolean emergency;
+        /** The source says there are no schedules today (no outage regime). */
+        boolean noSchedules;
     }
 
-    /** What's happening at {@code nowMs} and what comes next, from the cached days. */
+    /**
+     * What's happening at {@code nowMs} and what comes next, from the cached days. The source's flags count only on
+     * their own day: offline after midnight, yesterday's emergency or "no outages" must not stick.
+     */
     static Status status(Schedule s, long nowMs) {
         Status st = new Status();
-        if (s == null || s.emergency) return st;
+        if (s == null) return st;
         Calendar now = Calendar.getInstance(KYIV);
         now.setTimeInMillis(nowMs);
         String today = format(now);
@@ -473,8 +578,13 @@ final class Outages {
         next.add(Calendar.DAY_OF_MONTH, 1);
         String tomorrow = format(next);
         Day d0 = s.day(today), d1 = s.day(tomorrow);
+        st.noSchedules = s.noSchedules && today.equals(s.asOf);
+        if (d0 != null && d0.emergency) {
+            st.emergency = true;
+            return st;
+        }
         if (d0 == null) {
-            if (s.noSchedules) {
+            if (st.noSchedules) {
                 st.state = ON;
                 st.clearAhead = true;
             }
@@ -486,21 +596,36 @@ final class Outages {
         byte[] ahead = new byte[d1 != null ? SLOTS * 2 : SLOTS];
         System.arraycopy(d0.slots, 0, ahead, 0, SLOTS);
         if (d1 != null) System.arraycopy(d1.slots, 0, ahead, SLOTS, SLOTS);
-        boolean anyOutage = false;
-        for (int k = slot; k < ahead.length; k++) if (ahead[k] == OFF || ahead[k] == MAYBE) anyOutage = true;
-        st.clearAhead = st.state == ON && !anyOutage;
+        // Clear only when nothing but power lies ahead and tomorrow is known too: an unpublished tomorrow isn't clear.
+        st.clearAhead = st.state == ON && (d1 != null || st.noSchedules);
+        for (int k = slot; k < ahead.length && st.clearAhead; k++) if (ahead[k] != ON) st.clearAhead = false;
         for (int k = slot + 1; k < ahead.length; k++) {
-            if (ahead[k] != st.state) {
-                st.next = ahead[k];
-                st.minutesToChange = k * 30 - minute;
-                int hm = k * 30 % 1440;
-                st.changeAt = k == SLOTS ? "24:00" : String.format(Locale.ROOT, "%02d:%02d", hm / 60, hm % 60);
-                st.changeTomorrow = k > SLOTS;
-                return st;
-            }
+            if (ahead[k] == st.state) continue;
+            // An emergency day or a gap in the data: no change we can promise.
+            if (ahead[k] == UNKNOWN) break;
+            st.next = ahead[k];
+            st.minutesToChange = minutesUntil(now, k);
+            int hm = k * 30 % 1440;
+            st.changeAt = k == SLOTS ? "24:00" : String.format(Locale.ROOT, "%02d:%02d", hm / 60, hm % 60);
+            st.changeTomorrow = k > SLOTS;
+            return st;
         }
         st.untilEndOfData = true;
         return st;
+    }
+
+    /**
+     * Real minutes from {@code now} (a Kyiv calendar) to the start of slot {@code k}, counted from today's midnight.
+     * Not just the difference on the wall clock: the days the clocks change are 23 and 25 hours long.
+     */
+    private static int minutesUntil(Calendar now, int k) {
+        Calendar at = (Calendar) now.clone();
+        at.add(Calendar.DAY_OF_MONTH, k / SLOTS);
+        at.set(Calendar.HOUR_OF_DAY, (k % SLOTS) / 2);
+        at.set(Calendar.MINUTE, (k % 2) * 30);
+        at.set(Calendar.SECOND, 0);
+        at.set(Calendar.MILLISECOND, 0);
+        return (int) ((at.getTimeInMillis() - now.getTimeInMillis() / 60_000 * 60_000) / 60_000);
     }
 
     // MARK: - Dates (Kyiv wall clock)

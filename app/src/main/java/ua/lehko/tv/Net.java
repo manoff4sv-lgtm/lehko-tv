@@ -48,6 +48,15 @@ final class Net {
         }
     }
 
+    /**
+     * Is what was downloaded at {@code savedAt} older than {@code maxAgeMs}? A time after {@code now} counts as old too:
+     * the clock was ahead then and has been put right, so its age is unknown (and waiting for it would take as long).
+     */
+    static boolean stale(long now, long savedAt, long maxAgeMs) {
+        long age = now - savedAt;
+        return age < 0 || age > maxAgeMs;
+    }
+
     static String read(InputStream in, int limit) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         byte[] buf = new byte[8192];

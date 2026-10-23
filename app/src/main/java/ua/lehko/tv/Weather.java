@@ -8,6 +8,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
@@ -20,13 +21,17 @@ final class Weather {
     static final String CACHE = "weather_json", CACHE_TIME = "weather_time";
     /** Refresh after this long. */
     static final long MAX_AGE_MS = 30 * 60_000L;
+    /** Older than this, a forecast is marked old on the home screen and left out of the clock screensaver. */
+    static final long OLD_MS = 3 * 3600_000L;
 
     static final class Data {
         double temp, max, min;
         int code;
         boolean day;
-        /** "HH:mm" of the first rain or snow in the next hours (not counting what falls right now), or null. */
+        /** "HH:mm" (city time) of the first rain or snow in the next hours (not counting what falls right now), or null. */
         String precipAt;
+        /** The same as a moment, or 0: to show it only while it is ahead, in the TV's own time format. */
+        long precipStart;
         boolean precipSnow;
         /** The coming hours, from the current one on (a few at most). */
         final List<Hour> hours = new ArrayList<>();
@@ -57,26 +62,42 @@ final class Weather {
     }
 
     static boolean fahrenheit() {
-        return "US".equals(Locale.getDefault().getCountry());
+        return fahrenheit(Locale.getDefault(), TimeZone.getDefault().getID());
     }
 
-    static String url(double lat, double lon, boolean fahrenheit) {
+    /**
+     * Degrees Fahrenheit? As the TV's regional preference says (Android 14), else for a US language in an American
+     * time zone only: English (United States) is the usual English on TVs everywhere, and a TV in Kyiv keeps Celsius.
+     */
+    static boolean fahrenheit(Locale l, String tz) {
+        String unit = l.getUnicodeLocaleType("mu");
+        if (unit != null) return "fahrenhe".equals(unit);
+        return "US".equals(l.getCountry()) && (tz.startsWith("America/") || tz.startsWith("US/") || tz.startsWith("Pacific/"));
+    }
+
+    /** Always in Celsius (converted for showing): the cache then never holds the other unit. */
+    static String url(double lat, double lon) {
         return "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon
                 + "&current=temperature_2m,weather_code,is_day"
-                + "&hourly=temperature_2m,weather_code,is_day&forecast_hours=6"
+                // The current hour and six more: five still to come for the whole half hour until the next download.
+                + "&hourly=temperature_2m,weather_code,is_day&forecast_hours=7"
                 + "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset"
-                + "&minutely_15=precipitation&forecast_minutely_15=16&forecast_days=2&timezone=auto"
-                + (fahrenheit ? "&temperature_unit=fahrenheit" : "");
+                + "&minutely_15=precipitation&forecast_minutely_15=16&forecast_days=2&timezone=auto";
     }
 
     /** Fetches and caches; returns the fresh data. Network: call off the UI thread. */
     static Data refresh(Context c) throws IOException, JSONException {
-        double[] p = place(c);
-        if (p == null) return null;
-        String json = Net.get(url(p[0], p[1], fahrenheit()));
-        Data d = parse(json);
-        Prefs.of(c).edit().putString(CACHE, json).putLong(CACHE_TIME, System.currentTimeMillis()).apply();
-        return d;
+        // A second round when the city was changed during the download: the answer is for the old one.
+        for (int round = 0; round < 2; round++) {
+            double[] p = place(c);
+            if (p == null) return null;
+            String json = Net.get(url(p[0], p[1]));
+            Data d = parse(json);
+            if (!Arrays.equals(p, place(c))) continue;
+            Prefs.of(c).edit().putString(CACHE, json).putLong(CACHE_TIME, System.currentTimeMillis()).apply();
+            return d;
+        }
+        return null;
     }
 
     /** The cached data (any age), or null. */
@@ -95,7 +116,7 @@ final class Weather {
     }
 
     static boolean stale(Context c) {
-        return System.currentTimeMillis() - cacheTime(c) > MAX_AGE_MS;
+        return Net.stale(System.currentTimeMillis(), cacheTime(c), MAX_AGE_MS);
     }
 
     /** The chosen city, or Kyiv on a TV set to the Kyiv time zone, or null (then the card asks to choose a city). */
@@ -121,15 +142,19 @@ final class Weather {
     static Data parse(String json) throws JSONException {
         JSONObject o = new JSONObject(json);
         JSONObject cur = o.getJSONObject("current");
+        // Asked for in Celsius; a cache from before may still be in Fahrenheit.
+        JSONObject units = o.optJSONObject("current_units");
+        boolean f = units != null && units.optString("temperature_2m", "").contains("F");
         Data d = new Data();
-        d.temp = cur.getDouble("temperature_2m");
+        double temp = cur.getDouble("temperature_2m");
+        d.temp = celsius(temp, f);
         d.code = cur.optInt("weather_code", 0);
         d.day = cur.optInt("is_day", 1) == 1;
         int offset = o.optInt("utc_offset_seconds", 0);
         JSONObject daily = o.optJSONObject("daily");
         if (daily != null) {
-            d.max = daily.getJSONArray("temperature_2m_max").optDouble(0, d.temp);
-            d.min = daily.getJSONArray("temperature_2m_min").optDouble(0, d.temp);
+            d.max = celsius(daily.getJSONArray("temperature_2m_max").optDouble(0, temp), f);
+            d.min = celsius(daily.getJSONArray("temperature_2m_min").optDouble(0, temp), f);
             JSONArray rise = daily.optJSONArray("sunrise"), set = daily.optJSONArray("sunset");
             if (rise != null && set != null) {
                 d.sunriseAt = epoch(rise.optString(0, ""), offset);
@@ -156,7 +181,7 @@ final class Weather {
                     Hour h = new Hour();
                     h.time = hhmm(t);
                     h.at = epoch(t, offset);
-                    h.temp = temps.optDouble(i, 0);
+                    h.temp = celsius(temps.optDouble(i, 0), f);
                     h.code = codes == null ? 0 : codes.optInt(i, 0);
                     h.day = days == null || days.optInt(i, 1) == 1;
                     d.hours.add(h);
@@ -172,7 +197,8 @@ final class Weather {
                     if (t.compareTo(now) <= 0) continue;
                     if (precip.optDouble(i, 0) >= 0.1) {
                         d.precipAt = t.length() >= 16 ? t.substring(11, 16) : t;
-                        d.precipSnow = isSnow(d.code) || d.temp <= (o.toString().contains("\"°F\"") ? 33 : 0.5);
+                        d.precipStart = epoch(t, offset);
+                        d.precipSnow = isSnow(d.code) || d.temp <= 0.5;
                         break;
                     }
                 }
@@ -265,9 +291,18 @@ final class Weather {
         }
     }
 
-    static String degrees(double v) {
-        long r = Math.round(v);
-        return (r > 0 ? "+" : r < 0 ? "−" : "") + Math.abs(r) + "°";
+    /** "+12°", or "+54°F" where the TV wants Fahrenheit. */
+    static String degrees(double celsius) {
+        return degrees(celsius, fahrenheit());
+    }
+
+    static String degrees(double celsius, boolean fahrenheit) {
+        long r = Math.round(fahrenheit ? celsius * 9 / 5 + 32 : celsius);
+        return (r > 0 ? "+" : r < 0 ? "−" : "") + Math.abs(r) + (fahrenheit ? "°F" : "°");
+    }
+
+    private static double celsius(double v, boolean fahrenheit) {
+        return fahrenheit ? (v - 32) * 5 / 9 : v;
     }
 
     // MARK: - City search (Open-Meteo geocoding)

@@ -43,14 +43,36 @@ public final class FireplaceActivity extends Activity {
         else if (!hasFocus) scene.stop();
     }
 
-    /** Volume keys still change the volume; every other key ends the fireplace (on release, so home doesn't get it). */
+    /**
+     * Volume and playback keys work as usual and the fire stays (music may be playing under it); Search still opens
+     * the assistant; every other key ends the fireplace (on release, so home doesn't get it).
+     */
     @Override public boolean dispatchKeyEvent(KeyEvent e) {
-        int k = e.getKeyCode();
-        if (k == KeyEvent.KEYCODE_VOLUME_UP || k == KeyEvent.KEYCODE_VOLUME_DOWN || k == KeyEvent.KEYCODE_VOLUME_MUTE) {
-            return super.dispatchKeyEvent(e);
+        switch (e.getKeyCode()) {
+            case KeyEvent.KEYCODE_VOLUME_UP:
+            case KeyEvent.KEYCODE_VOLUME_DOWN:
+            case KeyEvent.KEYCODE_VOLUME_MUTE:
+            case KeyEvent.KEYCODE_MEDIA_PLAY:
+            case KeyEvent.KEYCODE_MEDIA_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_STOP:
+            case KeyEvent.KEYCODE_MEDIA_NEXT:
+            case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+            case KeyEvent.KEYCODE_MEDIA_REWIND:
+            case KeyEvent.KEYCODE_HEADSETHOOK:
+                // Not handled here, so the window hands them to the playing app's media session.
+                return super.dispatchKeyEvent(e);
+            case KeyEvent.KEYCODE_SEARCH: {
+                // Press and release both go on: the window opens the assistant on a release it saw pressed.
+                boolean handled = super.dispatchKeyEvent(e);
+                if (e.getAction() == KeyEvent.ACTION_UP && !isFinishing()) finish();
+                return handled;
+            }
+            default:
+                if (e.getAction() == KeyEvent.ACTION_UP && !isFinishing()) finish();
+                return true;
         }
-        if (e.getAction() == KeyEvent.ACTION_UP && !isFinishing()) finish();
-        return true;
     }
 
     @Override public boolean dispatchTouchEvent(MotionEvent e) {

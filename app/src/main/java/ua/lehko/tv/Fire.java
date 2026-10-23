@@ -42,6 +42,17 @@ final class Fire {
         }
     }
 
+    /**
+     * Fills the grid with a steady fire's usual shape (heat drops by one every two rows on average), so a few steps
+     * later it burns as if lit long ago. From cold, the flames need about a hundred steps to climb.
+     */
+    void warm() {
+        for (int y = 0; y < H; y++) {
+            int cool = (H - 1 - y) / 2;
+            for (int x = 0; x < W; x++) heat[y * W + x] = (byte) Math.max(0, source[x] - cool);
+        }
+    }
+
     /** xorshift32: fast and good enough for flames. */
     private int next() {
         int s = seed;

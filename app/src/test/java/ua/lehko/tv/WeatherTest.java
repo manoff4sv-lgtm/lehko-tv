@@ -8,6 +8,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.Locale;
 
 public class WeatherTest {
     static final String FORECAST = "{\"latitude\":50.45,\"longitude\":30.52,\"timezone\":\"Europe/Kiev\","
@@ -16,8 +17,8 @@ public class WeatherTest {
             + "\"minutely_15\":{\"time\":[\"2026-10-22T13:15\",\"2026-10-22T13:30\",\"2026-10-22T13:45\",\"2026-10-22T14:00\"],"
             + "\"precipitation\":[0.3,0.0,0.05,0.4]},"
             + "\"hourly\":{\"time\":[\"2026-10-22T13:00\",\"2026-10-22T14:00\",\"2026-10-22T15:00\",\"2026-10-22T16:00\","
-            + "\"2026-10-22T17:00\",\"2026-10-22T18:00\"],\"temperature_2m\":[12.4,12.9,13.3,12.1,10.8,9.6],"
-            + "\"weather_code\":[3,3,61,61,2,1],\"is_day\":[1,1,1,1,0,0]},"
+            + "\"2026-10-22T17:00\",\"2026-10-22T18:00\",\"2026-10-22T19:00\"],\"temperature_2m\":[12.4,12.9,13.3,12.1,10.8,9.6,8.9],"
+            + "\"weather_code\":[3,3,61,61,2,1,1],\"is_day\":[1,1,1,1,0,0,0]},"
             + "\"daily\":{\"time\":[\"2026-10-22\",\"2026-10-23\"],\"weather_code\":[61,3],\"temperature_2m_max\":[14.6,13.0],"
             + "\"temperature_2m_min\":[7.5,6.0],\"sunrise\":[\"2026-10-22T07:23\",\"2026-10-23T07:25\"],"
             + "\"sunset\":[\"2026-10-22T17:41\",\"2026-10-23T17:39\"]}}";
@@ -34,12 +35,13 @@ public class WeatherTest {
         assertEquals(7.5, d.min, 0.001);
         // The slot at "now" is skipped; 0.05 mm is below the threshold; 14:00 is the first real rain.
         assertEquals("14:00", d.precipAt);
+        assertEquals(NOW + 45 * 60_000L, d.precipStart);
         assertFalse(d.precipSnow);
     }
 
     @Test public void comingHours() throws Exception {
         Weather.Data d = Weather.parse(FORECAST);
-        assertEquals(6, d.hours.size());
+        assertEquals(7, d.hours.size());
         assertEquals("13:00", d.hours.get(0).time);
         assertEquals(1792663200000L, d.hours.get(0).at);
         List<Weather.Hour> next = Weather.next(d, NOW, 5);
@@ -49,8 +51,8 @@ public class WeatherTest {
         assertEquals(61, next.get(1).code);
         assertEquals("18:00", next.get(4).time);
         assertFalse(next.get(4).day);
-        // An hour later only four are left until the next download.
-        assertEquals(4, Weather.next(d, NOW + HOUR, 5).size());
+        // Past the next full hour, before the download half an hour after this one, five are still left.
+        assertEquals(5, Weather.next(d, NOW + HOUR, 5).size());
     }
 
     @Test public void sunriseAndSunset() throws Exception {
@@ -83,12 +85,34 @@ public class WeatherTest {
     @Test public void noHintWhileItAlreadyRains() throws Exception {
         Weather.Data d = Weather.parse(FORECAST.replace("\"weather_code\":3", "\"weather_code\":63"));
         assertNull(d.precipAt);
+        assertEquals(0, d.precipStart);
     }
 
     @Test public void degrees() {
-        assertEquals("+12°", Weather.degrees(12.4));
-        assertEquals("−3°", Weather.degrees(-2.6));
-        assertEquals("0°", Weather.degrees(-0.4));
+        assertEquals("+12°", Weather.degrees(12.4, false));
+        assertEquals("−3°", Weather.degrees(-2.6, false));
+        assertEquals("0°", Weather.degrees(-0.4, false));
+        assertEquals("+54°F", Weather.degrees(12.4, true));
+        assertEquals("−40°F", Weather.degrees(-40, true));
+    }
+
+    /** English (United States) is the usual English on TVs anywhere: Fahrenheit only in America. */
+    @Test public void fahrenheitWhere() {
+        assertFalse(Weather.fahrenheit(Locale.US, "Europe/Kiev"));
+        assertTrue(Weather.fahrenheit(Locale.US, "America/New_York"));
+        assertFalse(Weather.fahrenheit(Locale.forLanguageTag("uk-UA"), "America/New_York"));
+        assertTrue(Weather.fahrenheit(Locale.forLanguageTag("en-GB-u-mu-fahrenhe"), "Europe/London"));
+        assertFalse(Weather.fahrenheit(Locale.forLanguageTag("en-US-u-mu-celsius"), "America/Chicago"));
+    }
+
+    /** Asked for in Celsius now; a cache from a US TV before that is still read right. */
+    @Test public void olderCacheInFahrenheit() throws Exception {
+        Weather.Data d = Weather.parse("{\"current_units\":{\"temperature_2m\":\"°F\"},"
+                + "\"current\":{\"time\":\"2026-10-22T13:15\",\"temperature_2m\":50,\"weather_code\":3,\"is_day\":1},"
+                + "\"daily\":{\"temperature_2m_max\":[59],\"temperature_2m_min\":[41]}}");
+        assertEquals(10, d.temp, 0.001);
+        assertEquals(15, d.max, 0.001);
+        assertEquals(5, d.min, 0.001);
     }
 
     @Test public void places() throws Exception {

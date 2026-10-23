@@ -17,6 +17,9 @@ public final class ClockDream extends DreamService {
     private final Random random = new Random();
     private LinearLayout box;
     private FrameLayout root;
+    private TextView weather;
+    private long weatherAt;
+    private boolean placed;
 
     private final Runnable move = new Runnable() {
         @Override public void run() {
@@ -25,15 +28,27 @@ public final class ClockDream extends DreamService {
             if (w > 0 && h > 0) {
                 final View b = box;
                 final float x = random.nextInt(w), y = random.nextInt(h);
-                b.animate().alpha(0f).setDuration(600).withEndAction(new Runnable() {
-                    @Override public void run() {
-                        b.setTranslationX(x);
-                        b.setTranslationY(y);
-                        b.animate().alpha(1f).setDuration(600).start();
-                    }
-                }).start();
+                if (!placed) {
+                    // Invisible until laid out: it fades in at its first spot, not in the corner.
+                    placed = true;
+                    b.setTranslationX(x);
+                    b.setTranslationY(y);
+                    b.animate().alpha(1f).setDuration(600).start();
+                } else {
+                    b.animate().alpha(0f).setDuration(600).withEndAction(new Runnable() {
+                        @Override public void run() {
+                            // The dream downloads nothing: a forecast that got old meanwhile goes, while unseen.
+                            if (weather != null && Net.stale(System.currentTimeMillis(), weatherAt, Weather.OLD_MS)) {
+                                weather.setVisibility(View.GONE);
+                            }
+                            b.setTranslationX(x);
+                            b.setTranslationY(y);
+                            b.animate().alpha(1f).setDuration(600).start();
+                        }
+                    }).start();
+                }
             }
-            App.MAIN.postDelayed(this, 60_000);
+            App.MAIN.postDelayed(this, placed ? 60_000 : 200);
         }
     };
 
@@ -48,6 +63,7 @@ public final class ClockDream extends DreamService {
         box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setGravity(Gravity.CENTER_HORIZONTAL);
+        box.setAlpha(0f);
 
         TextClock clock = new TextClock(this);
         clock.setFormat12Hour("h:mm");
@@ -65,9 +81,11 @@ public final class ClockDream extends DreamService {
         date.setTextColor(0xFF7A828C);
         box.addView(date);
 
+        // Only a recent forecast: next to the clock, an old temperature would pass for the current one.
         Weather.Data d = Weather.cached(this);
-        if (d != null) {
-            TextView weather = new TextView(this);
+        weatherAt = Weather.cacheTime(this);
+        if (d != null && !Net.stale(System.currentTimeMillis(), weatherAt, Weather.OLD_MS)) {
+            weather = new TextView(this);
             weather.setText(Weather.degrees(d.temp) + "  " + getString(Weather.text(d.code)));
             weather.setTextSize(20);
             weather.setTextColor(0xFF7A828C);
@@ -81,7 +99,8 @@ public final class ClockDream extends DreamService {
 
     @Override public void onDreamingStarted() {
         super.onDreamingStarted();
-        App.MAIN.postDelayed(move, 1_000);
+        App.MAIN.removeCallbacks(move);
+        App.MAIN.post(move);
     }
 
     @Override public void onDreamingStopped() {
@@ -93,6 +112,7 @@ public final class ClockDream extends DreamService {
         App.MAIN.removeCallbacks(move);
         root = null;
         box = null;
+        weather = null;
         super.onDetachedFromWindow();
     }
 }

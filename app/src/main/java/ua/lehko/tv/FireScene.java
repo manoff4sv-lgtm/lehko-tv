@@ -1,7 +1,10 @@
 package ua.lehko.tv;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Typeface;
+import android.media.AudioManager;
+import android.os.SystemClock;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -31,6 +34,9 @@ final class FireScene {
         return Prefs.of(c).getBoolean(P_SOUND, false);
     }
 
+    /** How long the clock and the scene take to drift to their next spot. */
+    private static final long GLIDE_MS = 40_000;
+
     final FrameLayout root;
     private final Context context;
     private final FireView fire;
@@ -38,8 +44,11 @@ final class FireScene {
     private final TextView outage;
     private final Random random = new Random();
     private final int shift;
+    /** The drift's start and end: the clock box's x and y, then the fire's. */
+    private final float[] from = new float[4], to = new float[4];
+    private long glideStart;
     private Crackle crackle;
-    private boolean started, placed;
+    private boolean started, placed, gliding;
 
     FireScene(Context c) {
         context = c;
@@ -49,6 +58,7 @@ final class FireScene {
         root = new FrameLayout(c);
         fire = new FireView(c);
         fire.setPaused(true);
+        fire.onFrame = glide;
         // A little larger than the screen, so the slow drift never shows an edge.
         FrameLayout.LayoutParams fp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT);
@@ -81,10 +91,15 @@ final class FireScene {
         updateOutage();
     }
 
-    /** Every minute: the outage line, and a new spot for the clock (and the scene) to drift to. */
+    /**
+     * Every minute: the outage line, and a new spot for the clock (and the scene) to drift to. The home screen is
+     * paused under the fire (and may not have been shown for hours before a FireDream), so the schedule is
+     * downloaded from here too.
+     */
     private final Runnable drift = new Runnable() {
         @Override public void run() {
             updateOutage();
+            Outages.refreshIfStale(context, outageFetched);
             int w = root.getWidth(), h = root.getHeight();
             if (w > 0 && box.getWidth() > 0) {
                 // Under the arch, above the flames.
@@ -93,15 +108,53 @@ final class FireScene {
                 float fx = random.nextInt(2 * shift + 1) - shift, fy = random.nextInt(2 * shift + 1) - shift;
                 if (!placed) {
                     placed = true;
-                    box.setTranslationX(x);
-                    box.setTranslationY(y);
+                    box.setTranslationX(Math.round(x));
+                    box.setTranslationY(Math.round(y));
                     box.setVisibility(View.VISIBLE);
                 } else {
-                    box.animate().translationX(x).translationY(y).setDuration(40_000).start();
-                    fire.animate().translationX(fx).translationY(fy).setDuration(40_000).start();
+                    from[0] = box.getTranslationX();
+                    from[1] = box.getTranslationY();
+                    from[2] = fire.getTranslationX();
+                    from[3] = fire.getTranslationY();
+                    to[0] = x;
+                    to[1] = y;
+                    to[2] = fx;
+                    to[3] = fy;
+                    glideStart = SystemClock.uptimeMillis();
+                    // With animations off the fire stands still and brings no frames: straight there.
+                    gliding = ValueAnimator.areAnimatorsEnabled();
+                    if (!gliding) moveTo(1);
                 }
             }
             App.MAIN.postDelayed(this, placed ? 60_000 : 200);
+        }
+    };
+
+    /**
+     * The drift, a step on each of the fire's own frames. (A ViewPropertyAnimator would redraw the whole scene on
+     * every vsync for the 40 seconds, twice the fire's rate.)
+     */
+    private final Runnable glide = new Runnable() {
+        @Override public void run() {
+            if (!gliding) return;
+            float t = Math.min(1f, (SystemClock.uptimeMillis() - glideStart) / (float) GLIDE_MS);
+            gliding = t < 1;
+            moveTo(t * t * (3 - 2 * t));
+        }
+    };
+
+    /** The clock and the fire {@code f} of the way along; whole pixels, so text and bricks aren't resampled. */
+    private void moveTo(float f) {
+        box.setTranslationX(Math.round(from[0] + (to[0] - from[0]) * f));
+        box.setTranslationY(Math.round(from[1] + (to[1] - from[1]) * f));
+        fire.setTranslationX(Math.round(from[2] + (to[2] - from[2]) * f));
+        fire.setTranslationY(Math.round(from[3] + (to[3] - from[3]) * f));
+    }
+
+    /** A download finished: the new line now rather than in a minute. */
+    private final Runnable outageFetched = new Runnable() {
+        @Override public void run() {
+            if (started) updateOutage();
         }
     };
 
@@ -121,18 +174,22 @@ final class FireScene {
         App.MAIN.removeCallbacks(drift);
         App.MAIN.post(drift);
         fire.setPaused(false);
-        if (sound(context)) {
+        if (sound(context) && !musicPlaying()) {
             crackle = new Crackle();
             crackle.start();
         }
+    }
+
+    /** Music left playing in the background: no crackle over it. (Asked before ours starts, which would count too.) */
+    private boolean musicPlaying() {
+        AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        return am != null && am.isMusicActive();
     }
 
     void stop() {
         started = false;
         fire.setPaused(true);
         App.MAIN.removeCallbacks(drift);
-        box.animate().cancel();
-        fire.animate().cancel();
         if (crackle != null) {
             crackle.stop();
             crackle = null;
