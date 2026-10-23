@@ -378,7 +378,14 @@ public final class HomeActivity extends Activity {
         notice.setVisibility(View.VISIBLE);
         // The notice takes the free room above the favorites, so nothing moves. When that is too small (a long notice)
         // it borrows the name line's room as well, so the buttons stay inside the screen's safe area.
-        focusName.setVisibility(noticeFits() ? View.VISIBLE : View.GONE);
+        if (header.isLaidOut()) {
+            focusName.setVisibility(noticeFits() ? View.VISIBLE : View.GONE);
+        } else {
+            // Taken in the first onResume, before the first layout: decided just before the first frame instead.
+            ViewTreeObserver o = notice.getViewTreeObserver();
+            o.removeOnPreDrawListener(fitFirstNotice);
+            o.addOnPreDrawListener(fitFirstNotice);
+        }
         noticeKeepUntil = SystemClock.uptimeMillis() + readMs;
         App.MAIN.removeCallbacks(hideNotice);
         App.MAIN.postDelayed(hideNotice, ms);
@@ -388,13 +395,24 @@ public final class HomeActivity extends Activity {
     private boolean noticeFits() {
         View root = (View) notice.getParent();
         int w = root.getWidth() - root.getPaddingLeft() - root.getPaddingRight();
-        if (w <= 0) return false; // not laid out yet: take the name line's room to be safe
         int any = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
         notice.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), any);
         focusName.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), any);
-        int room = quickScroll.getTop() - header.getBottom() - favoritesScroll.getHeight() - focusName.getMeasuredHeight();
+        // The buttons' place at the bottom, not quickScroll.getTop(): a notice that doesn't fit pushes them down.
+        int quickTop = root.getHeight() - root.getPaddingBottom() - quickScroll.getHeight();
+        int room = quickTop - header.getBottom() - favoritesScroll.getHeight() - focusName.getMeasuredHeight();
         return notice.getMeasuredHeight() + ((ViewGroup.MarginLayoutParams) notice.getLayoutParams()).bottomMargin <= room;
     }
+
+    /** showNotice's choice for a notice that came before the first layout, made before anything is drawn. */
+    private final ViewTreeObserver.OnPreDrawListener fitFirstNotice = new ViewTreeObserver.OnPreDrawListener() {
+        @Override public boolean onPreDraw() {
+            notice.getViewTreeObserver().removeOnPreDrawListener(this);
+            if (notice.getVisibility() != View.VISIBLE || noticeFits()) return true;
+            focusName.setVisibility(View.GONE);
+            return false; // laid out again without the name line before anything is drawn
+        }
+    };
 
     @Override protected void onPause() {
         if (safe) {
