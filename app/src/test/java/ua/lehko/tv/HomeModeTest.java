@@ -169,6 +169,47 @@ public class HomeModeTest {
         assertEquals(LAUNCHERX, state().getString("holder"));
     }
 
+    @Test public void fullModeLaterKeepsTheRest() throws Exception {
+        String games = "com.google.android.play.games";
+        Env e = new Env(keys);
+        HomeMode.enable(e, false, QUIET);
+        HomeMode.setAppEnabled(e, games, false, null);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        e.prefs.edit().putLong(HomeMode.K_LAUNCHER_PSS, 300_000).commit(); // as measured while it was the home screen
+        // Home still opened the stock screen: the launcher goes off now, without switching back first.
+        assertEquals(e.text(R.string.result_on_full, 2), HomeMode.enable(e, true, QUIET));
+        assertEquals("not measured again in the background", 300_000L, e.prefs.getLong(HomeMode.K_LAUNCHER_PSS, 0));
+        JSONObject s = state();
+        assertEquals("ua.lehko.tv", s.getString("holder"));
+        assertFalse(enabled(s, LAUNCHERX));
+        assertFalse(enabled(s, games));
+        assertEquals(new HashSet<>(Arrays.asList(LAUNCHERX, SETUP, games)), HomeMode.disabled(e.prefs));
+        assertEquals(HomeMode.FIRE_DREAM, s.getJSONObject("settings").getJSONObject("secure")
+                .getString("screensaver_components"));
+        assertTrue(e.prefs.getBoolean(HomeMode.K_FULL, false));
+    }
+
+    @Test public void launcherBackOnKeepsTheRest() throws Exception {
+        String games = "com.google.android.play.games";
+        Env e = new Env(keys);
+        HomeMode.enable(e, true, QUIET);
+        HomeMode.setAppEnabled(e, games, false, null);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        // Back to the lighter mode: only what full mode turned off comes back, Lehko stays the home screen.
+        assertEquals(e.text(R.string.result_launcher_on), HomeMode.launcherOn(e, QUIET));
+        JSONObject s = state();
+        assertEquals("ua.lehko.tv", s.getString("holder"));
+        assertTrue(enabled(s, LAUNCHERX));
+        assertTrue(enabled(s, SETUP));
+        assertFalse(enabled(s, games));
+        assertEquals(new HashSet<>(Arrays.asList(games)), HomeMode.disabled(e.prefs));
+        assertEquals(HomeMode.FIRE_DREAM, s.getJSONObject("settings").getJSONObject("secure")
+                .getString("screensaver_components"));
+        assertTrue(e.prefs.getBoolean(HomeMode.K_ON, false));
+        assertFalse(e.prefs.getBoolean(HomeMode.K_FULL, false));
+        assertTrue(s.getJSONObject("files").getString(HomeMode.STATE_FILE).contains("full=false"));
+    }
+
     @Test public void wifiOwnerIsNeverTurnedOff() throws Exception {
         tv("fake:networks " + SETUP);
         Env e = new Env(keys);
@@ -270,7 +311,7 @@ public class HomeModeTest {
 
     @Test public void turnOnCountsOnlyWhatItTurnedOff() throws Exception {
         Env e = new Env(keys);
-        HomeMode.setAppEnabled(e, "com.google.android.play.games", false);
+        HomeMode.setAppEnabled(e, "com.google.android.play.games", false, null);
         assertEquals("the launcher and the setup app", e.text(R.string.result_on_full, 2), HomeMode.enable(e, true, QUIET));
     }
 
@@ -383,7 +424,7 @@ public class HomeModeTest {
         // Uninstalled from the TV's settings: Android gives the home screen back, the note still says "on".
         tv("cmd package set-home-activity --user 0 " + LAUNCHERX + "/.home.HomeActivity");
         Env fresh = new Env(Files.createTempDirectory("lehko-keys4").toFile());
-        HomeMode.systemState(fresh); // installed again, and the "unneeded apps" screen is the first to connect
+        HomeMode.systemState(fresh, null); // installed again, and the "unneeded apps" screen is the first to connect
         assertFalse(fresh.prefs.getBoolean(HomeMode.K_ON, false));
         assertTrue(state().getJSONObject("files").getString(HomeMode.STATE_FILE).contains("on=false"));
     }
@@ -393,7 +434,7 @@ public class HomeModeTest {
         // Uninstalled with the stock launcher still off: the TV has no home screen until "Original".
         tv("cmd role remove-role-holder --user 0 android.app.role.HOME ua.lehko.tv");
         Env fresh = new Env(Files.createTempDirectory("lehko-keys5").toFile());
-        HomeMode.systemState(fresh);
+        HomeMode.systemState(fresh, null);
         assertTrue(fresh.prefs.getBoolean(HomeMode.K_ON, false));
         HomeMode.disable(fresh, QUIET);
         assertEquals(LAUNCHERX, state().getString("holder"));
@@ -412,6 +453,30 @@ public class HomeModeTest {
         assertTrue(enabled(s, SETUP));
         assertFalse(Watchdog.safeMode(e.prefs));
         assertFalse(e.prefs.getBoolean(HomeMode.K_ON, false));
+    }
+
+    @Test public void crashSafetyNetThatCantGetIn() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.enable(e, true, QUIET);
+        e.prefs.edit().putBoolean("safe_mode", true).commit();
+        e.port = BASE + 9; // the TV closed the port after a restart
+        assertFalse(HomeMode.revertAfterCrash(e, null));
+        assertEquals("the safe screen says why", Adb.Failure.PORT_CLOSED, Watchdog.lastFailure);
+        String failed = e.text(R.string.reverted_crash_failed);
+        assertEquals(failed, e.notice);
+        e.prefs.edit().putString(Prefs.NOTICE, failed).commit(); // where the app keeps it
+
+        // Port open again, switched back from Lehko settings: the old notice mustn't show next time Lehko is on.
+        e.port = PORT;
+        HomeMode.disable(e, QUIET);
+        assertEquals(LAUNCHERX, state().getString("holder"));
+        assertFalse(e.prefs.contains(Prefs.NOTICE));
+
+        // A later safety net that gets in leaves no reason behind.
+        HomeMode.enable(e, true, QUIET);
+        e.prefs.edit().putBoolean("safe_mode", true).commit();
+        assertTrue(HomeMode.revertAfterCrash(e, null));
+        assertEquals(0, Watchdog.lastFailure);
     }
 
     @Test public void homeThatCantComeBackKeepsLehkoOn() throws Exception {
@@ -495,6 +560,25 @@ public class HomeModeTest {
                 state().getJSONObject("settings").getJSONObject("secure").getString("screensaver_components"));
     }
 
+    @Test public void tvsOwnScreensaverIsTurnedBackOnIfLehkoTurnedItOff() throws Exception {
+        String dreamx = "com.google.android.apps.tv.dreamx";
+        Env e = new Env(keys);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        tv("pm disable-user --user 0 " + dreamx); // off, but not by Lehko
+        HomeMode.setScreensaver(e, HomeMode.SAVER_SYSTEM, QUIET);
+        assertFalse("not Lehko's to turn on", enabled(state(), dreamx));
+
+        tv("pm enable " + dreamx);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        HomeMode.setAppEnabled(e, dreamx, false, null); // on the "unneeded apps" screen
+        HomeMode.setScreensaver(e, HomeMode.SAVER_SYSTEM, QUIET);
+        JSONObject s = state();
+        assertTrue(enabled(s, dreamx));
+        assertEquals(dreamx + "/.service.Backdrop", s.getJSONObject("settings").getJSONObject("secure")
+                .getString("screensaver_components"));
+        assertTrue(HomeMode.disabled(e.prefs).isEmpty());
+    }
+
     @Test public void lehkosOwnDreamIsNotTheTvsOwn() throws Exception {
         tv("settings put secure screensaver_components " + HomeMode.DREAM); // picked in the TV's settings
         Env e = new Env(keys);
@@ -505,23 +589,23 @@ public class HomeModeTest {
 
     @Test public void unneededAppsScreen() throws Exception {
         Env e = new Env(keys);
-        HomeMode.setAppEnabled(e, "com.google.android.play.games", false);
+        HomeMode.setAppEnabled(e, "com.google.android.play.games", false, null);
         assertFalse(enabled(state(), "com.google.android.play.games"));
         try {
-            HomeMode.setAppEnabled(e, "com.android.tv.settings", false);
+            HomeMode.setAppEnabled(e, "com.android.tv.settings", false, null);
             fail("protected");
         } catch (HomeMode.Refused expected) {
             // ok
         }
         tv("fake:networks com.netflix.ninja");
         try {
-            HomeMode.setAppEnabled(e, "com.netflix.ninja", false);
+            HomeMode.setAppEnabled(e, "com.netflix.ninja", false, null);
             fail("saved Wi-Fi");
         } catch (HomeMode.WifiOwnerException expected) {
             // ok
         }
         try {
-            HomeMode.setAppEnabled(e, "x; reboot", false);
+            HomeMode.setAppEnabled(e, "x; reboot", false, null);
             fail("not a package name");
         } catch (HomeMode.Refused expected) {
             // ok
@@ -533,7 +617,7 @@ public class HomeModeTest {
 
     @Test public void appsTurnedOffWhileLehkoIsOffComeBackOn() throws Exception {
         Env e = new Env(keys);
-        HomeMode.setAppEnabled(e, "com.google.android.play.games", false);
+        HomeMode.setAppEnabled(e, "com.google.android.play.games", false, null);
         assertEquals(e.text(R.string.result_apps_on), HomeMode.enableApps(e, QUIET));
         JSONObject s = state();
         assertTrue(enabled(s, "com.google.android.play.games"));

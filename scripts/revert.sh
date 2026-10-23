@@ -41,14 +41,18 @@ elif tv pm path com.google.android.apps.tv.launcherx | grep -q package:; then
   tv cmd package set-home-activity --user 0 com.google.android.apps.tv.launcherx/.home.HomeActivity
 fi
 tv cmd role remove-role-holder --user 0 android.app.role.HOME ua.lehko.tv >/dev/null 2>&1
-if [ "$SAVER_CHANGED" = "true" ]; then
+# Only while Lehko's screensaver is still set, as in the app: one picked in the TV's settings since then stays.
+if [ "$SAVER_CHANGED" = "true" ] && [[ "$(tv settings get secure screensaver_components)" == ua.lehko.tv/* ]]; then
   if [[ "$SAVER" =~ ^[A-Za-z0-9_.\$/,:]+$ ]] && [ "$SAVER" != "null" ]; then
     tv settings put secure screensaver_components "$SAVER"
   else
     tv settings delete secure screensaver_components
   fi
-  if [[ "$SAVER_ENABLED" =~ ^-?[0-9]+$ ]]; then tv settings put secure screensaver_enabled "$SAVER_ENABLED"
-  else tv settings delete secure screensaver_enabled; fi
+  # Lehko turned it on; "Turn screen off" chosen since then (0) stays too.
+  if [ "$(tv settings get secure screensaver_enabled)" = "1" ]; then
+    if [[ "$SAVER_ENABLED" =~ ^-?[0-9]+$ ]]; then tv settings put secure screensaver_enabled "$SAVER_ENABLED"
+    else tv settings delete secure screensaver_enabled; fi
+  fi
 fi
 if [ "$ADB_TIME_CHANGED" = "true" ]; then
   if [[ "$ADB_TIME" =~ ^-?[0-9]+$ ]]; then tv settings put global adb_allowed_connection_time "$ADB_TIME"

@@ -1174,7 +1174,14 @@ public final class HomeActivity extends Activity {
                 finish();
                 return;
             }
-            if (!Watchdog.isReverting()) safeText.setText(R.string.reverted_crash_failed);
+            if (!Watchdog.isReverting()) {
+                // The debugging port couldn't be reached: say what to fix (Lehko settings would need it as well).
+                int reason = Watchdog.lastFailure, fix = reason == Adb.Failure.PORT_CLOSED ? R.string.adb_closed
+                        : reason == Adb.Failure.NOT_ALLOWED ? R.string.adb_rejected
+                        : reason == Adb.Failure.TLS_ONLY ? R.string.adb_tls : 0;
+                safeText.setText(fix == 0 ? getString(R.string.reverted_crash_failed)
+                        : getString(R.string.safe_mode_failed) + "\n\n" + getString(fix));
+            }
             App.MAIN.postDelayed(this, 3_000);
         }
     };

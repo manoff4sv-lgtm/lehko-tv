@@ -47,13 +47,22 @@ if defined HOMEOK (
   adb -s %TV% shell cmd package set-home-activity --user 0 com.google.android.apps.tv.launcherx/.home.HomeActivity
 )
 adb -s %TV% shell cmd role remove-role-holder --user 0 android.app.role.HOME ua.lehko.tv >nul 2>nul
+rem Only while Lehko's screensaver is still set, as in the app: one picked in the TV's settings since then stays.
+rem And screensaver_enabled only while it is 1, as Lehko set it: "Turn screen off" chosen since then stays too.
+set SAVERNOW=
+for /f "usebackq delims=" %%s in (`adb -s %TV% shell settings get secure screensaver_components`) do set SAVERNOW=%%s
+if not "!SAVERNOW:~0,12!"=="ua.lehko.tv/" set SAVERCHANGED=
+set SENOW=
+for /f "usebackq delims=" %%s in (`adb -s %TV% shell settings get secure screensaver_enabled`) do set SENOW=%%s
 if "!SAVERCHANGED!"=="true" (
   set SAVEROK=
   if not "!SAVER!"=="" if not "!SAVER!"=="null" echo !SAVER!| findstr /R /X "[A-Za-z0-9_.$/,:]*" >nul && set SAVEROK=1
   if defined SAVEROK (adb -s %TV% shell settings put secure screensaver_components !SAVER!) else (adb -s %TV% shell settings delete secure screensaver_components)
-  set SEOK=
-  echo !SAVERENABLED!| findstr /R /X "[0-9-][0-9-]*" >nul && set SEOK=1
-  if defined SEOK (adb -s %TV% shell settings put secure screensaver_enabled !SAVERENABLED!) else (adb -s %TV% shell settings delete secure screensaver_enabled)
+  if "!SENOW:~0,1!"=="1" (
+    set SEOK=
+    echo !SAVERENABLED!| findstr /R /X "[0-9-][0-9-]*" >nul && set SEOK=1
+    if defined SEOK (adb -s %TV% shell settings put secure screensaver_enabled !SAVERENABLED!) else (adb -s %TV% shell settings delete secure screensaver_enabled)
+  )
 )
 if "!ADBCHANGED!"=="true" (
   set ATOK=

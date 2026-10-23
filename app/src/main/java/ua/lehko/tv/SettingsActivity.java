@@ -41,6 +41,8 @@ public final class SettingsActivity extends Activity {
     private final RowAdapter adapter = new RowAdapter();
     private boolean busy;
     private long lastClick;
+    /** On screen. Back on Android 12+ only moves Settings behind, so a result may arrive while nobody sees it. */
+    private boolean visible;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -59,10 +61,20 @@ public final class SettingsActivity extends Activity {
         });
     }
 
+    @Override protected void onStart() {
+        super.onStart();
+        visible = true;
+    }
+
     @Override protected void onResume() {
         super.onResume();
         buildRows();
         list.requestFocus();
+    }
+
+    @Override protected void onStop() {
+        visible = false;
+        super.onStop();
     }
 
     private void buildRows() {
@@ -133,7 +145,15 @@ public final class SettingsActivity extends Activity {
             }
             case FIRE_IDLE: {
                 int min = FireScene.idleMinutes(this);
-                return min > 0 ? getString(R.string.fireplace_after, min) : getString(R.string.state_off);
+                if (min <= 0) return getString(R.string.state_off);
+                // The home screen leaves the fireplace out when the TV's own timer is no longer: it would never show.
+                int tv = Settings.System.getInt(getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT, -1);
+                if (tv > 0 && tv <= min * 60_000L) {
+                    // With the fireplace as the screensaver it comes then anyway.
+                    return getString(saver() == HomeMode.SAVER_FIRE ? R.string.fireplace_after
+                            : R.string.fireplace_tv_first, (tv + 59_999) / 60_000);
+                }
+                return getString(R.string.fireplace_after, min);
             }
             case FIRE_SOUND: return getString(FireScene.sound(this) ? R.string.fireplace_sound_on : R.string.state_off);
             case CLEANUP: return getString(R.string.cleanup_summary);
@@ -146,7 +166,11 @@ public final class SettingsActivity extends Activity {
     private void click(int row) {
         switch (row) {
             case HOME:
-                if (HomeMode.isOn(this)) confirmDisable(); else enableDialog();
+                if (!HomeMode.isOn(this)) enableDialog();
+                // In safe mode only the way back: turning the stock launcher off would leave a Lehko that keeps
+                // crashing as the only home screen.
+                else if (Watchdog.safeMode(this)) confirmDisable();
+                else homeChoice();
                 break;
             case APPS_ON:
                 confirmAppsOn();
@@ -265,7 +289,59 @@ public final class SettingsActivity extends Activity {
                 }
             });
         }
-        b.show();
+        AlertDialog d = b.show();
+        // The TV would focus the content first, which is the "also turn off the stock launcher" box: a reflex OK would
+        // tick it. Up from "Turn on" still reaches it.
+        d.getButton(DialogInterface.BUTTON_POSITIVE).requestFocus();
+    }
+
+    /**
+     * Lehko is on. The stock launcher goes off (the hint says to, if Home still opens the stock screen) or back on
+     * from here, not by switching back and on again, which would turn every unneeded app back on and reset the
+     * screensaver. "Allow debugging again" is listed too: Lehko's notices send people to it through this row.
+     */
+    private void homeChoice() {
+        final boolean full = HomeMode.isFull(this);
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.home_screen)
+                .setItems(new CharSequence[]{getString(full ? R.string.launcher_on : R.string.enable_full),
+                                getString(R.string.allow_again), getString(R.string.home_bring_back)},
+                        new DialogInterface.OnClickListener() {
+                            @Override public void onClick(DialogInterface d, int which) {
+                                if (which == 0 && full) launcherOn();
+                                else if (which == 0) confirmFull();
+                                else if (which == 1) allowAgain();
+                                else confirmDisable();
+                            }
+                        })
+                .show();
+    }
+
+    /** Doesn't ask first: it only turns things back on, and they go off again from the same row. */
+    private void launcherOn() {
+        run(new Task() {
+            @Override public String run(HomeMode.Progress p) throws IOException {
+                return HomeMode.launcherOn(getApplicationContext(), p);
+            }
+        });
+    }
+
+    private void confirmFull() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.enable_full)
+                // Not the turn-on hint: its "try without it first" is what was just done.
+                .setMessage(R.string.enable_full_later)
+                .setPositiveButton(R.string.enable_button, new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        run(new Task() {
+                            @Override public String run(HomeMode.Progress p) throws IOException {
+                                return HomeMode.enable(getApplicationContext(), true, p);
+                            }
+                        });
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void openSettings(String action) {
@@ -291,17 +367,21 @@ public final class SettingsActivity extends Activity {
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
-                // For "the TV forgot Lehko's debugging permission": allows it again and keeps Lehko on.
                 .setNeutralButton(R.string.allow_again, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
-                        run(new Task() {
-                            @Override public String run(HomeMode.Progress p) throws IOException {
-                                return HomeMode.allowAgain(getApplicationContext(), p);
-                            }
-                        });
+                        allowAgain();
                     }
                 })
                 .show();
+    }
+
+    /** For "the TV forgot Lehko's debugging permission": allows it again and keeps Lehko on. */
+    private void allowAgain() {
+        run(new Task() {
+            @Override public String run(HomeMode.Progress p) throws IOException {
+                return HomeMode.allowAgain(getApplicationContext(), p);
+            }
+        });
     }
 
     /** Asks first: the row sits right under "Home screen", and each app would have to be turned off again by hand. */
@@ -679,11 +759,13 @@ public final class SettingsActivity extends Activity {
                 final boolean err = error;
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
-                        if (isDestroyed() || isFinishing()) {
-                            // Only Lehko's home shows notices: with Lehko off this one would pop up, stale, next time.
-                            if (HomeMode.isOn(getApplicationContext())) Prefs.notice(getApplicationContext(), m);
-                            return;
+                        boolean gone = isDestroyed() || isFinishing();
+                        // Gone or out of sight: the home screen says it. Only Lehko's home shows notices: with Lehko
+                        // off this one would pop up, stale, next time.
+                        if ((gone || !visible) && HomeMode.isOn(getApplicationContext())) {
+                            Prefs.notice(getApplicationContext(), m);
                         }
+                        if (gone) return;
                         setBusy(false);
                         showStatus(m, err);
                         buildRows();

@@ -86,9 +86,11 @@
             android:screenOrientation="landscape"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode" />
 
+        <!-- singleTop: a quick second OK on its row in Settings doesn't open a second copy. -->
         <activity
             android:name=".CleanupActivity"
             android:exported="false"
+            android:launchMode="singleTop"
             android:taskAffinity="ua.lehko.tv.settings"
             android:screenOrientation="landscape"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode" />

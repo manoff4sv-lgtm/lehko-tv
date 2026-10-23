@@ -228,12 +228,12 @@ final class HomeMode {
         return setScreensaver(env(c), which, p);
     }
 
-    static void setAppEnabled(Context c, String pkg, boolean enabled) throws IOException {
-        setAppEnabled(env(c), pkg, enabled);
+    static void setAppEnabled(Context c, String pkg, boolean enabled, Progress p) throws IOException {
+        setAppEnabled(env(c), pkg, enabled, p);
     }
 
-    static Set<String>[] systemState(Context c) throws IOException {
-        return systemState(env(c));
+    static Set<String>[] systemState(Context c, Progress p) throws IOException {
+        return systemState(env(c), p);
     }
 
     // MARK: - Connecting
@@ -334,7 +334,8 @@ final class HomeMode {
                 for (String t : targets) if (owners.contains(t)) throw new WifiOwnerException(t);
             }
             keepDebuggingAllowed(c, adb);
-            measureLauncher(c, adb, original);
+            // Turned off later, the launcher has been in the background behind Lehko since and would measure small.
+            if (!isOn(c)) measureLauncher(c, adb, original);
 
             p.step(c.text(R.string.step_switching));
             Watchdog.clear(c.prefs());
@@ -401,7 +402,7 @@ final class HomeMode {
 
     private static Restored restore(Env c, Adb adb, Progress p) throws IOException {
         Restored r = new Restored();
-        r.failed.addAll(enableRecorded(c, adb, p));
+        r.failed.addAll(enableRecorded(c, adb, p, disabled(c)));
         if (p != null) p.step(c.text(R.string.step_restoring_home));
         r.homeOk = restoreHome(adb, c.prefs().getString(K_HOME, ""));
         restoreScreensaver(c, adb);
@@ -410,19 +411,28 @@ final class HomeMode {
             // Only now is Lehko really off. Next time, the then-current launcher is recorded afresh.
             c.prefs().edit().putBoolean(K_ON, false).putBoolean(K_FULL, false).remove(K_HOME).commit();
             Watchdog.clear(c.prefs());
+            dropCrashNotice(c);
         }
         writeDeviceState(c, adb);
         return r;
     }
 
-    /** Turns every app Lehko turned off back on. Returns the ones that stay off (and stay recorded). */
-    private static List<String> enableRecorded(Env c, Adb adb, Progress p) throws IOException {
-        Set<String> disabled = disabled(c);
+    /** The safety net's "couldn't switch back" notice is stale once the original home screen is back. */
+    private static void dropCrashNotice(Env c) {
+        if (c.text(R.string.reverted_crash_failed).equals(c.prefs().getString(Prefs.NOTICE, null))) {
+            c.prefs().edit().remove(Prefs.NOTICE).commit();
+        }
+    }
+
+    /** Turns the apps of {@code which} that Lehko turned off back on. Returns the ones that stay off (and recorded). */
+    private static List<String> enableRecorded(Env c, Adb adb, Progress p, Set<String> which) throws IOException {
+        Set<String> todo = disabled(c);
+        todo.retainAll(which);
         List<String> failed = new ArrayList<>();
         int i = 0;
-        for (String pkg : sorted(disabled)) {
+        for (String pkg : sorted(todo)) {
             i++;
-            if (p != null) p.step(c.text(R.string.step_enabling, i, disabled.size()));
+            if (p != null) p.step(c.text(R.string.step_enabling, i, todo.size()));
             if (!PACKAGE.matcher(pkg).matches()) continue;
             // Decided by pm's own answer, never by a package list that might have come back empty.
             String out = adb.shell("pm enable " + pkg);
@@ -430,7 +440,10 @@ final class HomeMode {
             if (out.contains("Unknown package") || out.contains("does not exist") || out.contains("not found")) continue;
             failed.add(pkg);
         }
-        setDisabled(c, new HashSet<>(failed));
+        Set<String> left = disabled(c);
+        left.removeAll(todo);
+        left.addAll(failed);
+        setDisabled(c, left);
         return failed;
     }
 
@@ -440,7 +453,7 @@ final class HomeMode {
      */
     static synchronized String enableApps(Env c, Progress p) throws IOException {
         try (Adb adb = connect(c, p)) {
-            List<String> failed = enableRecorded(c, adb, p);
+            List<String> failed = enableRecorded(c, adb, p, disabled(c));
             writeDeviceState(c, adb);
             return failed.isEmpty() ? c.text(R.string.result_apps_on)
                     : c.text(R.string.result_still_off, String.join(", ", failed));
@@ -449,6 +462,35 @@ final class HomeMode {
 
     static String enableApps(Context c, Progress p) throws IOException {
         return enableApps(env(c), p);
+    }
+
+    /**
+     * Full mode back to the lighter one: what it turned off (the stock launcher, Android TV's recommendations, Google
+     * TV's setup app) comes back on, and Lehko stays the home screen. Apps turned off on the "unneeded apps" screen
+     * and the screensaver stay as they are.
+     */
+    static synchronized String launcherOn(Env c, Progress p) throws IOException {
+        try (Adb adb = connect(c, p)) {
+            // connect() found it given back from a computer: everything is on already.
+            if (!isOn(c)) return c.text(R.string.home_status_off);
+            // As in targets(): the recommendations went with Android TV's launcher only; on other TVs they may be off
+            // from the "unneeded apps" screen.
+            String home = packageOf(c.prefs().getString(K_HOME, ""));
+            Set<String> launcher = new HashSet<>(Arrays.asList(home, SETUP));
+            if (ATV_HOME_PKG.equals(home)) launcher.add(ATV_RECOMMENDATIONS);
+            List<String> failed = enableRecorded(c, adb, p, launcher);
+            // Back on, the launcher may claim the Home button again.
+            adb.shell("cmd package set-home-activity --user 0 " + HOME);
+            // Still full while one stays off, so the row offers this again.
+            if (failed.isEmpty()) c.prefs().edit().putBoolean(K_FULL, false).commit();
+            writeDeviceState(c, adb);
+            return failed.isEmpty() ? c.text(R.string.result_launcher_on)
+                    : c.text(R.string.result_still_off, String.join(", ", failed));
+        }
+    }
+
+    static String launcherOn(Context c, Progress p) throws IOException {
+        return launcherOn(env(c), p);
     }
 
     /**
@@ -462,19 +504,27 @@ final class HomeMode {
             Watchdog.clear(c.prefs());
             return true;
         }
+        int failure = 0;
         try (Adb adb = c.connect(120_000, p == null ? null : approvalOf(p))) {
             adopt(c, adb);
             Restored r = restore(c, adb, p);
             goHome(adb);
             if (r.homeOk) {
+                Watchdog.lastFailure = 0;
                 String text = c.text(R.string.reverted_crash);
                 if (!r.failed.isEmpty()) text += " " + r.message(c);
                 c.notice(text);
                 return true;
             }
+        } catch (Adb.Failure e) {
+            // The debugging port couldn't be reached: the safe screen says what to fix.
+            failure = e.reason;
         } catch (IOException e) {
             // Fall through: the safe screen stays and says what to do.
         }
+        // Only once this try is over: ModeJob's try isn't marked as reverting, and meanwhile the safe screen keeps the
+        // last reason instead of falling back to the general text.
+        Watchdog.lastFailure = failure;
         c.notice(c.text(R.string.reverted_crash_failed));
         return false;
     }
@@ -590,6 +640,7 @@ final class HomeMode {
                 .putBoolean(K_ADB_TIME_CHANGED, false).remove(K_ADB_TIME)
                 .putStringSet(K_DISABLED, stillOff).commit();
         Watchdog.clear(c.prefs());
+        dropCrashNotice(c);
         writeDeviceState(c, adb);
     }
 
@@ -687,6 +738,14 @@ final class HomeMode {
             if (saver.isEmpty() || "null".equals(saver) || !SETTING.matcher(saver).matches()) {
                 adb.shell("settings delete secure screensaver_components");
             } else {
+                // Turned off on the "unneeded apps" screen while Lehko's was set: a dream that is off shows nothing.
+                String pkg = packageOf(saver);
+                Set<String> disabled = disabled(c);
+                if (disabled.contains(pkg) && PACKAGE.matcher(pkg).matches()
+                        && adb.shell("pm enable " + pkg).contains("new state: enabled")) {
+                    disabled.remove(pkg);
+                    setDisabled(c, disabled);
+                }
                 adb.shell("settings put secure screensaver_components " + saver);
             }
             // Lehko turned it on; "Turn screen off" chosen since then (0) stays too.
@@ -727,9 +786,9 @@ final class HomeMode {
 
     // MARK: - Turning single apps off and on (the "unneeded apps" screen)
 
-    static synchronized void setAppEnabled(Env c, String pkg, boolean enabled) throws IOException {
+    static synchronized void setAppEnabled(Env c, String pkg, boolean enabled, Progress p) throws IOException {
         if (!PACKAGE.matcher(pkg).matches()) throw new Refused(pkg);
-        try (Adb adb = connect(c, null)) {
+        try (Adb adb = connect(c, p)) {
             if (enabled) {
                 String out = adb.shell("pm enable " + pkg);
                 if (!out.contains("new state: enabled")) throw new Refused(pkg);
@@ -746,8 +805,8 @@ final class HomeMode {
     }
 
     /** Packages currently disabled on the TV, and the Wi-Fi network owners, for the "unneeded apps" screen. */
-    static synchronized Set<String>[] systemState(Env c) throws IOException {
-        try (Adb adb = connect(c, null)) {
+    static synchronized Set<String>[] systemState(Env c, Progress p) throws IOException {
+        try (Adb adb = connect(c, p)) {
             Set<String> owners;
             try {
                 owners = wifiOwners(adb);
