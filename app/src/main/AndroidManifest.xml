@@ -41,7 +41,9 @@
         android:usesCleartextTraffic="false"
         android:theme="@style/Lehko">
 
-        <!-- The home screen. It only becomes the TV's home after you turn Lehko on in its settings. -->
+        <!-- The home screen. It only becomes the TV's home after you turn Lehko on in its settings.
+             No locale, fontScale or density in configChanges (here and below): many texts and sizes are set once,
+             so a new language, text size or display size has to recreate the screen. -->
         <activity
             android:name=".HomeActivity"
             android:exported="true"
@@ -52,7 +54,7 @@
             android:excludeFromRecents="true"
             android:taskAffinity=""
             android:screenOrientation="landscape"
-            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
             android:theme="@style/Lehko.Home">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -69,7 +71,7 @@
             android:launchMode="singleTask"
             android:taskAffinity="ua.lehko.tv.settings"
             android:screenOrientation="landscape"
-            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection">
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
@@ -82,14 +84,14 @@
             android:exported="false"
             android:excludeFromRecents="true"
             android:screenOrientation="landscape"
-            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection" />
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode" />
 
         <activity
             android:name=".CleanupActivity"
             android:exported="false"
             android:taskAffinity="ua.lehko.tv.settings"
             android:screenOrientation="landscape"
-            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection" />
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode" />
 
         <!-- The fireplace after a few idle minutes on the home screen (any key goes back). -->
         <activity
@@ -98,7 +100,7 @@
             android:excludeFromRecents="true"
             android:noHistory="true"
             android:screenOrientation="landscape"
-            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
             android:theme="@style/Lehko.Fire" />
 
         <!-- Optional screensaver: a clock with the weather that slowly moves (no burn-in). -->

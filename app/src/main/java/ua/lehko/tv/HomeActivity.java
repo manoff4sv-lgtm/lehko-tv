@@ -7,9 +7,13 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.LauncherApps;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.media.tv.TvInputInfo;
+import android.media.tv.TvInputManager;
+import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.os.UserHandle;
@@ -18,6 +22,7 @@ import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
+import android.text.format.DateUtils;
 import android.text.style.ForegroundColorSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -41,16 +46,20 @@ import java.util.Locale;
  */
 public final class HomeActivity extends Activity {
     private static final long OUTAGE_MAX_AGE_MS = 10 * 60_000L;
+    /** No successful refresh for this long (offline in an outage): the schedule may be out of date, the line says so. */
+    private static final long OUTAGE_OLD_MS = 2 * 3600_000L;
 
     private LinearLayout favoritesRow, quickRow, weatherHours, info;
-    private View details, tomorrowBox;
+    private View details, tomorrowBox, header, quickScroll;
     private ScrollRow favoritesScroll;
     private ImageView weatherIcon;
     private TextView weatherTemp, weatherText, weatherSun, powerTitle, powerDetail, notice, focusName, ratesLine;
     /** The rates line's two versions: short, and full while the details are open. */
     private CharSequence ratesShort, ratesLong;
-    /** The favorite that had focus last, so Down from the details goes back to it. */
-    private View lastFavorite;
+    /** The key of the favorite that had focus last, so Down from the details goes back to it (even after a rebuild). */
+    private Object lastFavorite;
+    /** A favorite's menu while it is open (Home closes it). */
+    private AlertDialog menu;
     private DialView dial;
     /** The next hours under the current weather. */
     private static final int HOURS = 5;
@@ -67,6 +76,12 @@ public final class HomeActivity extends Activity {
     private boolean appsDirty = true, resumed, weatherLoading, outageLoading, appsLoaded, focusedOnce, rebuilding;
     /** The favorites list the row was last built from, so coming back home only rebuilds it when it changed. */
     private String builtFavorites;
+    /** What the row shows (see favoritesKey), so a package event for another app doesn't rebuild it. */
+    private String builtKey;
+    /** A favorite's own package changed since the row was built. */
+    private boolean favoriteChanged;
+    /** Counts app list loads: two can overlap on the IO pool, and only the latest one counts. */
+    private int appsLoads;
     /** Safe mode (see Watchdog): this activity shows only a plain message and does nothing else. */
     private boolean safe;
     private TextView safeText;
@@ -128,32 +143,86 @@ public final class HomeActivity extends Activity {
     /** Until when (uptime) a key press leaves the notice up: it has to be readable first. */
     private long noticeKeepUntil;
 
+    /** Notices written while the home screen is up (the check after a boot, a group change) show at once. */
+    private final SharedPreferences.OnSharedPreferenceChangeListener noticeWatch =
+            new SharedPreferences.OnSharedPreferenceChangeListener() {
+        @Override public void onSharedPreferenceChanged(SharedPreferences p, String key) {
+            if (!resumed || !Prefs.NOTICE.equals(key)) return;
+            String n = Prefs.takeNotice(HomeActivity.this);
+            if (n != null) showNotice(n);
+        }
+    };
+
     private final LauncherApps.Callback packages = new LauncherApps.Callback() {
         @Override public void onPackageRemoved(String pkg, UserHandle user) {
             Apps.forget(pkg);
-            changed();
+            changed(pkg);
         }
 
         @Override public void onPackageAdded(String pkg, UserHandle user) {
-            changed();
+            changed(pkg);
         }
 
         @Override public void onPackageChanged(String pkg, UserHandle user) {
             Apps.forget(pkg);
-            changed();
+            changed(pkg);
         }
 
         @Override public void onPackagesAvailable(String[] pkgs, UserHandle user, boolean replacing) {
-            changed();
+            changed(pkgs);
         }
 
         @Override public void onPackagesUnavailable(String[] pkgs, UserHandle user, boolean replacing) {
+            changed(pkgs);
+        }
+
+        private void changed(String... pkgs) {
+            appsDirty = true;
+            // A favorite's own change (an update may bring a new banner) rebuilds the row even if nothing else differs.
+            List<String> favs = Prefs.favorites(HomeActivity.this);
+            for (String p : pkgs) if (favs.contains(p)) favoriteChanged = true;
+            // Updates and component changes come in bursts: one reload after them.
+            if (resumed) {
+                App.MAIN.removeCallbacks(reloadApps);
+                App.MAIN.postDelayed(reloadApps, 1_000);
+            }
+        }
+    };
+
+    private final Runnable reloadApps = new Runnable() {
+        @Override public void run() {
+            if (resumed && appsDirty) loadApps();
+        }
+    };
+
+    /** Inputs that show up late (after a boot the HDMI service may still be starting) or change: the buttons follow. */
+    private final TvInputManager.TvInputCallback inputWatch = new TvInputManager.TvInputCallback() {
+        @Override public void onInputAdded(String id) {
+            changed();
+        }
+
+        @Override public void onInputRemoved(String id) {
+            changed();
+        }
+
+        @Override public void onInputUpdated(String id) {
+            changed();
+        }
+
+        @Override public void onTvInputInfoUpdated(TvInputInfo info) {
             changed();
         }
 
         private void changed() {
-            appsDirty = true;
-            if (resumed) loadApps();
+            // At boot they come one per port: one reload after the burst. Away from home, onResume reloads anyway.
+            App.MAIN.removeCallbacks(reloadInputs);
+            App.MAIN.postDelayed(reloadInputs, 1_000);
+        }
+    };
+
+    private final Runnable reloadInputs = new Runnable() {
+        @Override public void run() {
+            if (resumed) loadInputs();
         }
     };
 
@@ -168,6 +237,8 @@ public final class HomeActivity extends Activity {
         favoritesRow = findViewById(R.id.favorites);
         favoritesScroll = findViewById(R.id.favorites_scroll);
         quickRow = findViewById(R.id.quick);
+        quickScroll = findViewById(R.id.quick_scroll);
+        header = findViewById(R.id.header);
         weatherIcon = findViewById(R.id.weather_icon);
         weatherTemp = findViewById(R.id.weather_temp);
         weatherText = findViewById(R.id.weather_text);
@@ -220,6 +291,8 @@ public final class HomeActivity extends Activity {
 
         LauncherApps la = (LauncherApps) getSystemService(Context.LAUNCHER_APPS_SERVICE);
         if (la != null) la.registerCallback(packages, App.MAIN);
+        TvInputManager tim = tvInputs();
+        if (tim != null) tim.registerCallback(inputWatch, App.MAIN);
 
         buildQuickRow();
         showWeather(Weather.cached(this));
@@ -233,9 +306,14 @@ public final class HomeActivity extends Activity {
         if (!safe) {
             LauncherApps la = (LauncherApps) getSystemService(Context.LAUNCHER_APPS_SERVICE);
             if (la != null) la.unregisterCallback(packages);
+            TvInputManager tim = tvInputs();
+            if (tim != null) tim.unregisterCallback(inputWatch);
+            App.MAIN.removeCallbacks(reloadInputs);
+            App.MAIN.removeCallbacks(reloadApps);
             App.MAIN.removeCallbacks(hideNotice);
             App.MAIN.removeCallbacks(ticker);
             App.MAIN.removeCallbacks(idle);
+            if (menu != null) menu.dismiss();
             ambientFade.cancel();
             getWindow().getDecorView().getViewTreeObserver().removeOnGlobalFocusChangeListener(focusWatch);
         }
@@ -259,6 +337,8 @@ public final class HomeActivity extends Activity {
         App.MAIN.postDelayed(ticker, 60_000 - System.currentTimeMillis() % 60_000 + 200);
         String n = Prefs.takeNotice(this);
         if (n != null) showNotice(n);
+        // Held weakly by the preferences: a field.
+        Prefs.of(this).registerOnSharedPreferenceChangeListener(noticeWatch);
         updateMemoryTile();
         Memory.maybeAutoClean(this);
         scheduleIdle();
@@ -280,8 +360,11 @@ public final class HomeActivity extends Activity {
 
     private void scheduleIdle() {
         App.MAIN.removeCallbacks(idle);
-        int minutes = FireScene.idleMinutes(this);
-        if (resumed && minutes > 0) App.MAIN.postDelayed(idle, minutes * 60_000L);
+        long delay = FireScene.idleMinutes(this) * 60_000L;
+        // The TV's screensaver (or sleep) timer counts from the same key press. When it is no longer than ours it wins:
+        // the fireplace would never show, or only flash before the screensaver covers it.
+        int tv = Settings.System.getInt(getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT, -1);
+        if (resumed && delay > 0 && (tv <= 0 || tv > delay)) App.MAIN.postDelayed(idle, delay);
     }
 
     /** Results of background checks: up to 20 seconds, a key press puts it away after 4. */
@@ -293,12 +376,43 @@ public final class HomeActivity extends Activity {
     private void showNotice(String text, long ms, long readMs) {
         notice.setText(text);
         notice.setVisibility(View.VISIBLE);
-        // The notice borrows the name line's room, so the buttons stay inside the screen's safe area.
-        focusName.setVisibility(View.GONE);
+        // The notice takes the free room above the favorites, so nothing moves. When that is too small (a long notice)
+        // it borrows the name line's room as well, so the buttons stay inside the screen's safe area.
+        if (header.isLaidOut()) {
+            focusName.setVisibility(noticeFits() ? View.VISIBLE : View.GONE);
+        } else {
+            // Taken in the first onResume, before the first layout: decided just before the first frame instead.
+            ViewTreeObserver o = notice.getViewTreeObserver();
+            o.removeOnPreDrawListener(fitFirstNotice);
+            o.addOnPreDrawListener(fitFirstNotice);
+        }
         noticeKeepUntil = SystemClock.uptimeMillis() + readMs;
         App.MAIN.removeCallbacks(hideNotice);
         App.MAIN.postDelayed(hideNotice, ms);
     }
+
+    /** Whether the notice fits between the header and the favorites with the name line still in its place. */
+    private boolean noticeFits() {
+        View root = (View) notice.getParent();
+        int w = root.getWidth() - root.getPaddingLeft() - root.getPaddingRight();
+        int any = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
+        notice.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), any);
+        focusName.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), any);
+        // The buttons' place at the bottom, not quickScroll.getTop(): a notice that doesn't fit pushes them down.
+        int quickTop = root.getHeight() - root.getPaddingBottom() - quickScroll.getHeight();
+        int room = quickTop - header.getBottom() - favoritesScroll.getHeight() - focusName.getMeasuredHeight();
+        return notice.getMeasuredHeight() + ((ViewGroup.MarginLayoutParams) notice.getLayoutParams()).bottomMargin <= room;
+    }
+
+    /** showNotice's choice for a notice that came before the first layout, made before anything is drawn. */
+    private final ViewTreeObserver.OnPreDrawListener fitFirstNotice = new ViewTreeObserver.OnPreDrawListener() {
+        @Override public boolean onPreDraw() {
+            notice.getViewTreeObserver().removeOnPreDrawListener(this);
+            if (notice.getVisibility() != View.VISIBLE || noticeFits()) return true;
+            focusName.setVisibility(View.GONE);
+            return false; // laid out again without the name line before anything is drawn
+        }
+    };
 
     @Override protected void onPause() {
         if (safe) {
@@ -306,42 +420,80 @@ public final class HomeActivity extends Activity {
             return;
         }
         resumed = false;
+        Prefs.of(this).unregisterOnSharedPreferenceChangeListener(noticeWatch);
+        App.MAIN.removeCallbacks(reloadApps); // appsDirty stays set: onResume reloads
         App.MAIN.removeCallbacks(ticker);
         App.MAIN.removeCallbacks(idle);
         super.onPause();
     }
 
-    /** Home pressed while already home: back to the first favorite. */
+    /** Home pressed while already home: a clean home screen, at the first favorite. */
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        // Started as the TV's home from now on (onBackPressed tells the home from the preview by this).
+        if (intent.hasCategory(Intent.CATEGORY_HOME)) setIntent(intent);
         if (safe) return;
+        if (menu != null) menu.dismiss();
+        toFirstFavorite();
+    }
+
+    @Override public void onBackPressed() {
+        // Back closes the details, like Down.
+        if (!safe && info.hasFocus() && backToFavorite()) return;
+        // "Try the Lehko home screen" from Lehko settings (not the TV's home): Back goes back there.
+        if (!getIntent().hasCategory(Intent.CATEGORY_HOME)) {
+            finish();
+            return;
+        }
+        // The home screen has nowhere to go back to.
+        if (!safe) toFirstFavorite();
+    }
+
+    private void toFirstFavorite() {
         favoritesScroll.smoothScrollTo(0, 0);
         if (favoritesRow.getChildCount() > 0) favoritesRow.getChildAt(0).requestFocus();
     }
 
-    @Override public void onBackPressed() {
-        // The home screen has nowhere to go back to.
-        onNewIntent(getIntent());
+    /** Focus back to the favorite the details were opened from, or the first one if it is gone. */
+    private boolean backToFavorite() {
+        View back = favoritesRow.getChildCount() > 0 ? favoritesRow.getChildAt(0) : null;
+        for (int i = 0; i < favoritesRow.getChildCount(); i++) {
+            if (((Tile) favoritesRow.getChildAt(i)).key.equals(lastFavorite)) back = favoritesRow.getChildAt(i);
+        }
+        return back != null && back.requestFocus();
     }
 
     // MARK: - Apps
 
     private void loadApps() {
         appsDirty = false;
+        final int load = ++appsLoads;
         final Context app = getApplicationContext();
         App.IO.execute(new Runnable() {
             @Override public void run() {
                 final List<Apps.Entry> all = Apps.load(app);
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
-                        if (isDestroyed()) return;
+                        if (isDestroyed() || load != appsLoads) return;
                         apps = all;
                         appsLoaded = true;
-                        buildFavorites();
+                        // Most package events are about other apps: the row stays as it is (no rebuild, no flicker).
+                        if (favoriteChanged || !favoritesKey(Apps.favorites(HomeActivity.this, all)).equals(builtKey)) {
+                            buildFavorites();
+                        }
                     }
                 });
             }
         });
+    }
+
+    /** What the favorites row shows of the apps: which activity each tile opens, and its name. */
+    private static String favoritesKey(List<Apps.Entry> favs) {
+        StringBuilder b = new StringBuilder();
+        for (Apps.Entry a : favs) {
+            b.append(a.component.flattenToShortString()).append(' ').append(a.leanback).append(' ').append(a.label).append('\n');
+        }
+        return b.toString();
     }
 
     private void buildFavorites() {
@@ -359,6 +511,8 @@ public final class HomeActivity extends Activity {
         View focused = getCurrentFocus();
         boolean hadFocus = focused != null && focused.getParent() == favoritesRow;
         Object focusedKey = hadFocus ? ((Tile) focused).key : null;
+        // If the focused app is gone (removed from the favorites), focus stays at its place in the row.
+        int focusedIndex = hadFocus ? favoritesRow.indexOfChild(focused) : -1;
         if (focusPkgAfterRebuild != null) {
             focusedKey = focusPkgAfterRebuild;
             hadFocus = true;
@@ -367,6 +521,8 @@ public final class HomeActivity extends Activity {
         favoritesRow.removeAllViews();
         List<Apps.Entry> favs = Apps.favorites(this, apps);
         builtFavorites = Prefs.of(this).getString(Prefs.FAVORITES, "");
+        builtKey = favoritesKey(favs);
+        favoriteChanged = false;
         Tile toFocus = null;
         for (final Apps.Entry a : favs) {
             Tile t = appTile(a, tileW, tileH);
@@ -389,8 +545,12 @@ public final class HomeActivity extends Activity {
             }
         });
         addWithGap(favoritesRow, add);
+        // Back from All apps through this tile: focus stays on it, with a newly added app right beside it.
+        if (add.key.equals(focusedKey)) toFocus = add;
         if (toFocus != null) {
             toFocus.requestFocus();
+        } else if (focusedIndex >= 0) {
+            favoritesRow.getChildAt(Math.min(focusedIndex, favoritesRow.getChildCount() - 1)).requestFocus();
         } else if (getCurrentFocus() == null || hadFocus || !focusedOnce) {
             // On a cold start the buttons exist first; the first favorite is where people expect to be.
             favoritesRow.getChildAt(0).requestFocus();
@@ -436,7 +596,7 @@ public final class HomeActivity extends Activity {
 
     private void focusChanged(View focused) {
         ambient(focused);
-        if (focused.getParent() == favoritesRow) lastFavorite = focused;
+        if (focused.getParent() == favoritesRow) lastFavorite = ((Tile) focused).key;
         boolean named = focused.getParent() == favoritesRow || focused.getParent() == quickRow;
         CharSequence name = named ? focused.getContentDescription() : null;
         showFocusName(name == null ? "" : name);
@@ -464,7 +624,8 @@ public final class HomeActivity extends Activity {
     /** Tints the background after the focused favorite's picture; anything else gets the plain background. */
     private void ambient(View focused) {
         String pkg = favoritePkg(focused);
-        Integer mean = pkg == null ? null : Ambient.mean(pkg, Apps.cached(pkg));
+        // The tile's own picture: Android may have emptied the picture cache while an app was in front.
+        Integer mean = pkg == null ? null : Ambient.mean(pkg, ((Tile) focused).picture());
         fadeTo(mean == null ? bgTop : Ambient.tone(mean, night()));
         if (pkg != null) ((Tile) focused).glow(mean == null ? 0xFF000000 : Ambient.glow(mean));
     }
@@ -490,11 +651,11 @@ public final class HomeActivity extends Activity {
 
     @Override public boolean onKeyDown(int keyCode, KeyEvent event) {
         View current = getCurrentFocus();
-        // Down from the details: back to the favorite we came from, not the one nearest the panel's middle.
-        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && current == info) {
-            View back = lastFavorite != null && lastFavorite.getParent() == favoritesRow ? lastFavorite
-                    : favoritesRow.getChildCount() > 0 ? favoritesRow.getChildAt(0) : null;
-            if (back != null && back.requestFocus()) return true;
+        if (current == info) {
+            // Down from the details: back to the favorite we came from, not the one nearest the panel's middle.
+            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN && backToFavorite()) return true;
+            // Nothing is beside the panel: Left and Right stay put instead of jumping to some tile below.
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) return true;
         }
         // Right at the end of a row stays there (the wide details panel above would otherwise catch it).
         if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && current != null && (current.getParent() == quickRow
@@ -528,7 +689,7 @@ public final class HomeActivity extends Activity {
         actions.add(R.string.uninstall);
         CharSequence[] labels = new CharSequence[actions.size()];
         for (int i = 0; i < labels.length; i++) labels[i] = getString(actions.get(i));
-        new AlertDialog.Builder(this)
+        menu = new AlertDialog.Builder(this)
                 .setTitle(a.label)
                 .setItems(labels, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
@@ -574,10 +735,17 @@ public final class HomeActivity extends Activity {
         });
     }
 
+    /** The application's manager, so a recreated screen doesn't add another one to the system. Null without TV inputs. */
+    private TvInputManager tvInputs() {
+        return (TvInputManager) getApplicationContext().getSystemService(Context.TV_INPUT_SERVICE);
+    }
+
     private boolean sameInputs(List<Inputs.Input> list) {
         if (list.size() != inputs.size()) return false;
         for (int i = 0; i < list.size(); i++) {
-            if (!list.get(i).id.equals(inputs.get(i).id) || !list.get(i).label.equals(inputs.get(i).label)) return false;
+            Inputs.Input a = list.get(i), b = inputs.get(i);
+            // The badge comes from the TV's own name, which can change under an unchanged custom label.
+            if (!a.id.equals(b.id) || !a.label.equals(b.label) || !a.badge.equals(b.badge)) return false;
         }
         return true;
     }
@@ -588,6 +756,7 @@ public final class HomeActivity extends Activity {
         quickRow.removeAllViews();
         for (final Inputs.Input in : inputs) {
             IconButton t = shortcut("input:" + in.id, in.tuner ? R.drawable.ic_live_tv : R.drawable.ic_input, in.label);
+            t.setBadge(in.badge);
             t.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
                     Inputs.open(HomeActivity.this, in);
@@ -611,7 +780,7 @@ public final class HomeActivity extends Activity {
             }
         });
         updateMemoryTile();
-        IconButton lehko = new IconButton(this, "lehko", getDrawable(R.drawable.ic_lehko), getString(R.string.settings_title), false);
+        IconButton lehko = new IconButton(this, "lehko", getDrawable(R.drawable.ic_lehko_button), getString(R.string.settings_title), false);
         addWithGap(quickRow, lehko);
         lehko.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
@@ -641,7 +810,8 @@ public final class HomeActivity extends Activity {
     private void updateMemoryTile() {
         if (memoryButton == null) return;
         memoryButton.setName(getString(R.string.memory_button, memoryLabel()));
-        if (memoryButton.isFocused()) showFocusName(memoryButton.getContentDescription());
+        // Only the number changed: the new text without the fade, which is for a focus change.
+        if (memoryButton.isFocused()) focusName.setText(memoryButton.getContentDescription());
     }
 
     /** The memory tile: closes background apps (asking for debugging if needed) and says how much that freed. */
@@ -687,6 +857,9 @@ public final class HomeActivity extends Activity {
 
     /** Downloads what is stale, but not again within a few minutes of a failure. */
     private void maybeRefresh() {
+        // No network yet (just booted or woken, the router still starting): a try would fail at once and hold the
+        // next one off for minutes. The minute ticker tries again.
+        if (!online()) return;
         long now = System.currentTimeMillis();
         if (Weather.stale(this) && now - weatherFailedAt > RETRY_AFTER_FAILURE_MS) refreshWeather();
         if (Rates.due(this) && now - ratesFailedAt > RETRY_AFTER_FAILURE_MS) refreshRates();
@@ -694,6 +867,23 @@ public final class HomeActivity extends Activity {
                 && now - outageFailedAt > RETRY_AFTER_FAILURE_MS) {
             refreshOutage();
         }
+    }
+
+    private boolean online() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        return cm == null || cm.getActiveNetwork() != null;
+    }
+
+    /** A past moment for "no update since": the time if it was today, else the date too. In the TV's 12/24-hour style. */
+    private String since(long t) {
+        if (DateUtils.isToday(t)) return DateFormat.getTimeFormat(this).format(t);
+        return DateUtils.formatDateTime(this, t,
+                DateUtils.FORMAT_SHOW_DATE | DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_ABBREV_MONTH);
+    }
+
+    /** For a hint that follows other text after a comma or a dot. */
+    private static String lowerFirst(String s) {
+        return s.substring(0, 1).toLowerCase(Locale.getDefault()) + s.substring(1);
     }
 
     private void refreshWeather() {
@@ -712,7 +902,7 @@ public final class HomeActivity extends Activity {
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
                         weatherLoading = false;
-                        if (result == null) weatherFailedAt = System.currentTimeMillis();
+                        weatherFailedAt = result == null ? System.currentTimeMillis() : 0;
                         if (!isDestroyed()) showWeather(result != null ? result : Weather.cached(HomeActivity.this));
                     }
                 });
@@ -726,7 +916,10 @@ public final class HomeActivity extends Activity {
         if (Weather.place(this) == null || d == null) {
             weatherIcon.setImageDrawable(null);
             weatherTemp.setText("");
-            weatherText.setText(d == null && Weather.place(this) != null ? R.string.weather_loading : R.string.weather_pick_city);
+            if (Weather.place(this) == null) weatherText.setText(R.string.weather_pick_city);
+            // Nothing cached yet: "loading" only while a download can still come.
+            else if (!weatherLoading && (weatherFailedAt != 0 || !online())) weatherText.setText(R.string.weather_offline);
+            else weatherText.setText(R.string.weather_loading);
             weatherHours.setVisibility(View.GONE);
             weatherSun.setVisibility(View.GONE);
             return;
@@ -736,8 +929,9 @@ public final class HomeActivity extends Activity {
         // "Cloudy, rain from 21:00": the hint (or an old forecast's warning) in amber after the sky.
         String hint = null;
         long age = System.currentTimeMillis() - Weather.cacheTime(this);
-        if (age > 3 * 3600_000L) {
-            hint = getString(R.string.weather_old, DateFormat.getTimeFormat(this).format(Weather.cacheTime(this)));
+        // Like the outage line's: an old forecast only warns once updating it has failed (or can't start).
+        if (age > 3 * 3600_000L && (weatherFailedAt != 0 || !online())) {
+            hint = getString(R.string.weather_old, since(Weather.cacheTime(this)));
         } else if (d.precipAt != null) {
             hint = getString(d.precipSnow ? R.string.weather_snow_at : R.string.weather_rain_at, d.precipAt);
         }
@@ -745,7 +939,7 @@ public final class HomeActivity extends Activity {
         if (hint == null) {
             weatherText.setText(sky);
         } else {
-            String h = hint.substring(0, 1).toLowerCase(Locale.getDefault()) + hint.substring(1);
+            String h = lowerFirst(hint);
             SpannableString t = new SpannableString(sky + ", " + h);
             t.setSpan(new ForegroundColorSpan(getColor(R.color.accent)), sky.length() + 2, t.length(),
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -893,8 +1087,14 @@ public final class HomeActivity extends Activity {
             return;
         }
         long now = System.currentTimeMillis();
+        long fetched = Outages.fetchedAt(this);
+        // Only once updating has failed (or can't start): back home after a film the schedule is hours old, but it is
+        // renewed a second later.
+        boolean old = schedule != null && fetched > 0 && now - fetched > OUTAGE_OLD_MS
+                && (outageFailedAt > fetched || !online());
         Outages.Status st = Outages.status(schedule, now);
-        String[] lines = OutageText.lines(this, schedule, st, Outages.chosenGroup(this));
+        // An old schedule says since when in place of the group (the line has room for one of them).
+        String[] lines = OutageText.lines(this, schedule, st, old ? null : Outages.chosenGroup(this));
         // "Power is on  until 22:00": the state large, the time smaller and lighter. No power is ember, maybe amber.
         SpannableString title = new SpannableString(lines[1] == null ? lines[0] : lines[0] + "  " + lines[1]);
         int color = getColor(st.state == Outages.OFF ? R.color.ember : st.state == Outages.MAYBE ? R.color.power_maybe
@@ -908,8 +1108,18 @@ public final class HomeActivity extends Activity {
         }
         powerTitle.setText(title);
         powerTitle.setVisibility(View.VISIBLE);
-        powerDetail.setText(lines[2]);
-        powerDetail.setVisibility(lines[2] == null ? View.GONE : View.VISIBLE);
+        CharSequence detail = lines[2];
+        if (old) {
+            // "Outage in 2 h · no update since 09:00", the warning in amber like the weather's.
+            String h = getString(R.string.weather_old, since(fetched));
+            if (lines[2] != null) h = lowerFirst(h);
+            SpannableString t = new SpannableString(lines[2] == null ? h : lines[2] + " · " + h);
+            t.setSpan(new ForegroundColorSpan(getColor(R.color.accent)), t.length() - h.length(), t.length(),
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            detail = t;
+        }
+        powerDetail.setText(detail);
+        powerDetail.setVisibility(detail == null ? View.GONE : View.VISIBLE);
 
         Calendar k = Calendar.getInstance(Outages.KYIV);
         int kyivMinute = k.get(Calendar.HOUR_OF_DAY) * 60 + k.get(Calendar.MINUTE);
@@ -917,7 +1127,7 @@ public final class HomeActivity extends Activity {
         Outages.Day tomorrow = schedule == null ? null : schedule.day(Outages.tomorrow());
         dial.set(today == null ? null : today.slots, kyivMinute);
         // Screen readers get today's ring in words with the second line.
-        if (today != null && lines[2] != null) powerDetail.setContentDescription(lines[2] + ". " + OutageText.describe(this, today.slots));
+        if (today != null && detail != null) powerDetail.setContentDescription(detail + ". " + OutageText.describe(this, today.slots));
         else powerDetail.setContentDescription(null);
         tomorrowBox.setVisibility(tomorrow != null ? View.VISIBLE : View.GONE);
         if (tomorrow != null) {
@@ -956,11 +1166,22 @@ public final class HomeActivity extends Activity {
                 Apps.start(HomeActivity.this, new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             }
         });
+        // When the switch back fails, the text sends people to Lehko settings: its "Home screen" row turns Lehko off
+        // and says what went wrong. Nothing else leads there from here (the TV's own home is off or not home).
+        android.widget.Button lehko = new android.widget.Button(this);
+        lehko.setText(R.string.settings_title);
+        lehko.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Apps.start(HomeActivity.this, new Intent(HomeActivity.this, SettingsActivity.class));
+            }
+        });
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = pad / 2;
         box.addView(retry, lp);
         box.addView(settings, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        box.addView(lehko, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         box.setBackgroundColor(0xFF0B0D11);
         setContentView(box);

@@ -115,6 +115,11 @@ final class Tile extends FrameLayout {
         show(null, false, text);
     }
 
+    /** The picture on show (banner or icon), or null while it is loading. */
+    Drawable picture() {
+        return banner.getVisibility() == VISIBLE ? banner.getDrawable() : icon.getDrawable();
+    }
+
     /** The colour of the focused tile's shadow: a soft glow in the background's tint (Android 9+). */
     void glow(int color) {
         if (Build.VERSION.SDK_INT >= 28) {
