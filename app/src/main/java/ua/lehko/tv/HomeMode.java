@@ -653,10 +653,13 @@ final class HomeMode {
         boolean lehko = which == SAVER_CLOCK || which == SAVER_FIRE;
         try (Adb adb = connect(c, p)) {
             if (lehko) {
-                if (!c.prefs().getBoolean(K_SAVER_CHANGED, false)) {
-                    String current = adb.shell("settings get secure screensaver_components").trim();
+                String current = adb.shell("settings get secure screensaver_components").trim();
+                boolean ours = current.contains(PKG + "/");
+                // Recorded again whenever the TV's own is set: one picked in the TV's settings since the last record
+                // is the one to put back.
+                if (!ours || !c.prefs().getBoolean(K_SAVER_CHANGED, false)) {
                     // Lehko's own dream picked in the TV's settings isn't "the TV's own": that is Android's default.
-                    if (current.contains(PKG + "/")) current = "null";
+                    if (ours) current = "null";
                     String enabled = adb.shell("settings get secure screensaver_enabled").trim();
                     c.prefs().edit().putString(K_SAVER, SETTING.matcher(current).matches() ? current : "null")
                             .putString(K_SAVER_ENABLED, enabled.matches("-?\\d+") ? enabled : "null")

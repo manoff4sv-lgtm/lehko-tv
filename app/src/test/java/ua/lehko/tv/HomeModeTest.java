@@ -484,6 +484,17 @@ public class HomeModeTest {
         assertEquals("0", secure.getString("screensaver_enabled"));
     }
 
+    @Test public void screensaverPickedAgainAfterTheTvsSettings() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET);
+        String ambient = "com.google.android.apps.tv.dreamx/.service.Ambient";
+        tv("settings put secure screensaver_components " + ambient);
+        HomeMode.setScreensaver(e, HomeMode.SAVER_FIRE, QUIET); // the row said "The TV's own", so Fireplace again
+        HomeMode.setScreensaver(e, HomeMode.SAVER_SYSTEM, QUIET);
+        assertEquals("the later choice, not the first record", ambient,
+                state().getJSONObject("settings").getJSONObject("secure").getString("screensaver_components"));
+    }
+
     @Test public void lehkosOwnDreamIsNotTheTvsOwn() throws Exception {
         tv("settings put secure screensaver_components " + HomeMode.DREAM); // picked in the TV's settings
         Env e = new Env(keys);
