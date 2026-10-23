@@ -127,6 +127,8 @@ class TV:
                 return "Error: java.lang.IllegalArgumentException: Unknown package: %s\n" % p
             if self.flags.get("pm_disable_fails") and action != "enable":
                 return "Error: java.lang.SecurityException: Shell cannot change component state\n"
+            if self.flags.get("setup_enable_fails") and action == "enable" and p == SETUP:
+                return "Error: java.lang.SecurityException: Shell cannot change component state\n"
             on = action == "enable"
             self.pkgs[p] = on
             if not on:

@@ -210,6 +210,24 @@ public class HomeModeTest {
         assertTrue(s.getJSONObject("files").getString(HomeMode.STATE_FILE).contains("full=false"));
     }
 
+    @Test public void launcherBackOnStaysOnWhenTheSetupAppDoesNot() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.enable(e, true, QUIET);
+        tv("fake:flag setup_enable_fails 1");
+        assertEquals(e.text(R.string.result_still_off, SETUP), HomeMode.launcherOn(e, QUIET));
+        assertFalse(e.prefs.getBoolean(HomeMode.K_FULL, false));
+        assertEquals(new HashSet<>(Arrays.asList(SETUP)), HomeMode.disabled(e.prefs));
+        // The check after a reboot doesn't take the launcher for one a TV update turned back on.
+        e.notice = null;
+        HomeMode.verify(e);
+        assertTrue(enabled(state(), LAUNCHERX));
+        assertNull(e.notice);
+
+        tv("fake:flag setup_enable_fails 0");
+        HomeMode.disable(e, QUIET);
+        assertTrue("the leftover comes back with the rest", enabled(state(), SETUP));
+    }
+
     @Test public void wifiOwnerIsNeverTurnedOff() throws Exception {
         tv("fake:networks " + SETUP);
         Env e = new Env(keys);

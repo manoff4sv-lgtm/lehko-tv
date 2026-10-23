@@ -485,8 +485,10 @@ final class HomeMode {
             List<String> failed = enableRecorded(c, adb, p, launcher);
             // Back on, the launcher may claim the Home button again.
             adb.shell("cmd package set-home-activity --user 0 " + HOME);
-            // Still full while one stays off, so the row offers this again.
-            if (failed.isEmpty()) c.prefs().edit().putBoolean(K_FULL, false).commit();
+            // Out of full mode once the launcher itself is back: full mode's check after a reboot would turn it off
+            // again. Whatever stays off is still recorded, and "Bring back" turns it on. With the launcher still off,
+            // full mode stays, and so does the row that offers this again.
+            if (!failed.contains(home)) c.prefs().edit().putBoolean(K_FULL, false).commit();
             writeDeviceState(c, adb);
             return failed.isEmpty() ? c.text(R.string.result_launcher_on)
                     : c.text(R.string.result_still_off, String.join(", ", failed));
