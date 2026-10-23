@@ -2,6 +2,7 @@ package ua.lehko.tv;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -662,7 +663,10 @@ public final class SettingsActivity extends Activity {
                     || Settings.Secure.getInt(getContentResolver(), "screensaver_enabled", 1) == 0) {
                 return HomeMode.SAVER_SYSTEM;
             }
-            return now.startsWith(HomeMode.FIRE_DREAM) ? HomeMode.SAVER_FIRE : HomeMode.SAVER_CLOCK;
+            // The TV's settings write the long form (ua.lehko.tv/ua.lehko.tv.FireDream), Lehko the short one.
+            ComponentName dream = ComponentName.unflattenFromString(now.split(",")[0].trim());
+            return dream != null && FireDream.class.getName().equals(dream.getClassName())
+                    ? HomeMode.SAVER_FIRE : HomeMode.SAVER_CLOCK;
         } catch (RuntimeException e) {
             // Not readable on this TV: what Lehko set last.
             android.content.SharedPreferences p = Prefs.of(this);
