@@ -367,12 +367,9 @@ public final class SettingsActivity extends Activity {
                         });
                     }
                 })
+                // No "Allow debugging again" here: outside safe mode the Home screen list has it, and in safe mode it
+                // would say "Done" while the TV stays on the safe screen. "Bring it back" asks for the permission itself.
                 .setNegativeButton(android.R.string.cancel, null)
-                .setNeutralButton(R.string.allow_again, new DialogInterface.OnClickListener() {
-                    @Override public void onClick(DialogInterface d, int which) {
-                        allowAgain();
-                    }
-                })
                 .show();
     }
 
