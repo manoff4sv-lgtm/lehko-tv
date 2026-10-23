@@ -2,6 +2,7 @@ package ua.lehko.tv;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -229,9 +230,22 @@ final class Outages {
     private static boolean loading;
     private static long failedAt;
 
-    /** Main thread: when the last download failed (0: none yet). An old schedule says so only after a failure. */
-    static long lastFailure() {
-        return failedAt;
+    /** No successful download for this long (offline in an outage): the schedule may be out of date, the line says so. */
+    static final long OLD_MS = 2 * 3600_000L;
+
+    /**
+     * Main thread: should the cached schedule say since when it is? Only once updating has failed (or can't start):
+     * back home after a film it is hours old, but renewed a second later.
+     */
+    static boolean old(Context c, long now) {
+        ConnectivityManager cm = (ConnectivityManager) c.getSystemService(Context.CONNECTIVITY_SERVICE);
+        return old(now, fetchedAt(c), failedAt, cm == null || cm.getActiveNetwork() != null);
+    }
+
+    /** A fetch time ahead of the clock (it was put back since) can't be compared with a failure's: any failure counts. */
+    static boolean old(long now, long fetched, long failed, boolean online) {
+        return fetched > 0 && Net.stale(now, fetched, OLD_MS)
+                && (failed > fetched || (failed != 0 && fetched > now) || !online);
     }
 
     /** Main thread: downloads the schedule in the background when it is old, then runs {@code done} on the main thread. */

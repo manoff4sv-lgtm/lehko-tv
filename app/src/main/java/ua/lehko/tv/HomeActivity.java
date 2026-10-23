@@ -22,7 +22,6 @@ import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
-import android.text.format.DateUtils;
 import android.text.style.ForegroundColorSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -45,9 +44,6 @@ import java.util.Locale;
  * details on focus), favorite apps and a row of round shortcut buttons.
  */
 public final class HomeActivity extends Activity {
-    /** No successful refresh for this long (offline in an outage): the schedule may be out of date, the line says so. */
-    private static final long OUTAGE_OLD_MS = 2 * 3600_000L;
-
     private LinearLayout favoritesRow, quickRow, weatherHours, info;
     private View details, tomorrowBox, header, quickScroll;
     private ScrollRow favoritesScroll;
@@ -874,13 +870,6 @@ public final class HomeActivity extends Activity {
         return cm == null || cm.getActiveNetwork() != null;
     }
 
-    /** A past moment for "no update since": the time if it was today, else the date too. In the TV's 12/24-hour style. */
-    private String since(long t) {
-        if (DateUtils.isToday(t)) return DateFormat.getTimeFormat(this).format(t);
-        return DateUtils.formatDateTime(this, t,
-                DateUtils.FORMAT_SHOW_DATE | DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_ABBREV_MONTH);
-    }
-
     /** For a hint that follows other text after a comma or a dot. */
     private static String lowerFirst(String s) {
         return s.substring(0, 1).toLowerCase(Locale.getDefault()) + s.substring(1);
@@ -934,7 +923,7 @@ public final class HomeActivity extends Activity {
         String hint = null;
         // Like the outage line's: an old forecast only warns once updating it has failed (or can't start).
         if (Net.stale(now, Weather.cacheTime(this), Weather.OLD_MS) && (weatherFailedAt != 0 || !online())) {
-            hint = getString(R.string.weather_old, since(Weather.cacheTime(this)));
+            hint = getString(R.string.weather_old, OutageText.since(this, Weather.cacheTime(this)));
         } else if (d.precipStart > now) {
             // Only while it is still ahead: offline, the forecast stays up for hours.
             hint = getString(d.precipSnow ? R.string.weather_snow_at : R.string.weather_rain_at,
@@ -1075,11 +1064,7 @@ public final class HomeActivity extends Activity {
         // weekly check moved the group), so an old schedule doesn't stay up under the new group's name.
         Outages.Schedule schedule = Outages.cached(this);
         long now = System.currentTimeMillis();
-        long fetched = Outages.fetchedAt(this);
-        // Only once updating has failed (or can't start): back home after a film the schedule is hours old, but it is
-        // renewed a second later.
-        boolean old = schedule != null && fetched > 0 && now - fetched > OUTAGE_OLD_MS
-                && (Outages.lastFailure() > fetched || !online());
+        boolean old = schedule != null && Outages.old(this, now);
         Outages.Status st = Outages.status(schedule, now);
         // An old schedule says since when in place of the group (the line has room for one of them).
         String[] lines = OutageText.lines(this, schedule, st, old ? null : Outages.chosenGroup(this));
@@ -1099,7 +1084,7 @@ public final class HomeActivity extends Activity {
         CharSequence detail = lines[2];
         if (old) {
             // "Outage in 2 h · no update since 09:00", the warning in amber like the weather's.
-            String h = getString(R.string.weather_old, since(fetched));
+            String h = getString(R.string.weather_old, OutageText.since(this, Outages.fetchedAt(this)));
             if (lines[2] != null) h = lowerFirst(h);
             SpannableString t = new SpannableString(lines[2] == null ? h : lines[2] + " · " + h);
             t.setSpan(new ForegroundColorSpan(getColor(R.color.accent)), t.length() - h.length(), t.length(),

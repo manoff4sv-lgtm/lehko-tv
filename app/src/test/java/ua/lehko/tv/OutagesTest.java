@@ -278,6 +278,19 @@ public class OutagesTest {
         assertTrue(Outages.mirrorGroups("{}").isEmpty());
     }
 
+    /** "No update since" only for a schedule over 2 h old, and only once updating has failed or can't start. */
+    @Test public void oldScheduleSaysSoOnlyAfterAFailure() {
+        long now = kyiv(2026, 10, 22, 21, 0), h = 3600_000L, fetched = now - 3 * h;
+        assertFalse("young", Outages.old(now, now - h, now - 1, true));
+        assertFalse("no try failed since", Outages.old(now, fetched, fetched - h, true));
+        assertTrue(Outages.old(now, fetched, now - 1, true));
+        assertTrue("offline", Outages.old(now, fetched, 0, false));
+        assertFalse("never downloaded", Outages.old(now, 0, now - 1, false));
+        // Saved while the clock was ahead, then put right: any failure counts, as none can be compared with it.
+        assertTrue(Outages.old(now, now + h, now - 1, true));
+        assertFalse("no failure yet", Outages.old(now, now + h, 0, true));
+    }
+
     @Test public void cacheRoundTrip() throws Exception {
         Outages.Schedule s = Outages.parseYasno(YASNO, "2.1", "2026-10-22", "2026-10-23");
         JSONObject o = Outages.toJson(s);

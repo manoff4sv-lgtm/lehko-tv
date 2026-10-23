@@ -1,6 +1,8 @@
 package ua.lehko.tv;
 
 import android.content.Context;
+import android.text.format.DateFormat;
+import android.text.format.DateUtils;
 
 /** The one-line summary on the outage card: "Power is on · outage at 18:00 (in 1 h 20 min)". */
 final class OutageText {
@@ -138,6 +140,16 @@ final class OutageText {
         }
         if (b.length() > 0) b.append("; ");
         b.append(c.getString(label, ranges));
+    }
+
+    /**
+     * A past moment for "no update since" (the schedule's, and the weather's on the home screen): the time if it was
+     * today, else the date too. In the TV's 12/24-hour style.
+     */
+    static String since(Context c, long t) {
+        if (DateUtils.isToday(t)) return DateFormat.getTimeFormat(c).format(t);
+        return DateUtils.formatDateTime(c, t,
+                DateUtils.FORMAT_SHOW_DATE | DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_ABBREV_MONTH);
     }
 
     static String hhmm(int minutes) {
