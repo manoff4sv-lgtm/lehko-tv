@@ -17,7 +17,12 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
 
 ## Architecture (app/src/main/java/ua/lehko/tv)
 
-- `App` executors (IO x2, ADB single), REPO_URL, version. `Prefs` SharedPreferences helpers.
+- `App` executors (IO x2: package manager and pictures; NET single: every download; ADB single: every ADB session),
+  REPO_URL, version. `Prefs` SharedPreferences helpers. No activity declares locale, fontScale, density or
+  layoutDirection in configChanges: texts and sizes are set once, so those changes recreate the screens.
+- `Net`: HTTP GET, `Net.HttpError` (status code), `Net.stale(now, savedAt, maxAge)` (a time after now counts as stale:
+  the clock was ahead and was put right; cache ages and failure back-offs use it, so a corrected clock can't freeze
+  refreshes) and `Net.online(c)` (active network; unknown = yes).
 - `HomeActivity` (HOME intent), redesigned 2026-10-22 (Eugene picked a mix of mock-up directions A "quiet glass" and
   C "dial"; mocks were HTML in the session scratchpad): clock + date inside `DialView` (24-hour ring = today's
   schedule; plain ring without outages), a focusable `info` panel (power title/detail from `OutageText.headline`,
@@ -27,50 +32,125 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   shortcuts (HDMI inputs + Live TV via `Inputs`, All apps, TV settings, Memory, Lehko settings), one-time notice
   (goes by itself; a key press puts it away once it has been readable; memory result 6 s). Both rows are `ScrollRow`s
   running edge to edge: the fading edge length is only the scroll margin, no fade layer is drawn (on the TV the faded,
-  unclipped row ends looked "melted"). Round buttons are opaque. Ticker every minute; weather 30 min; outages 10 min.
+  unclipped row ends looked "melted"). Round buttons are opaque. Ticker every minute; weather 30 min; outages 10 min
+  through `Outages.refreshIfStale`; nothing is tried while `Net.online` is false, 5 min pause after a failure.
+  Notices: `Prefs.notice` anywhere; while resumed a prefs listener shows them at once (one that comes before the
+  first layout is fitted in a pre-draw listener). The notice takes the free room above the favorites and hides the
+  name line only when it doesn't fit, so the rows never move. Package events are debounced (1 s) and the favorites
+  row is rebuilt only when what it shows (component, leanback, label) or a favorite itself changed; TV input events
+  reload the buttons the same way. "No update since" hints (`weather_old` + `OutageText.since`) show only after a
+  failed refresh or with no network (forecast older than `Weather.OLD_MS` 3 h, schedule per `Outages.old` 2 h).
+  The fireplace idle timer is skipped when the TV's SCREEN_OFF_TIMEOUT is no longer than it. Back closes the details;
+  without CATEGORY_HOME in the intent (the "Try the Lehko home screen" preview from Settings) it finishes. Home
+  closes a favorite's menu. The menu's Move left/right counts places on the row as shown (`Apps.moveFavorite` steps
+  over saved favorites that aren't installed or are off). Safe mode screen: Try again, TV settings, Lehko settings;
+  it shows the `Adb.Failure` reason from `Watchdog.lastFailure` when the switch back failed.
 - `AllAppsActivity` GridView of tiles; long-press/Menu: open, add/remove favorite, info, uninstall. The grid runs
   edge to edge like the home rows; its root must not clip to its padding (that cut the first column's ring).
+  A picture load is skipped when the grid has since given its tile to another app; "in favorites" is spoken again
+  after the picture lands (show() resets the description).
 - `Apps` app list (LEANBACK_LAUNCHER first, then LAUNCHER), default favorites, banner/icon LruCache.
+- `Inputs`: physical inputs sorted HDMI first, then by the TV's own name (the system list comes in hash order); the
+  `IconButton` badge is the port number from the TV's own label, so a custom name doesn't change it. Live TV opens the
+  TV's own tuner (system app, a `/HW` id) over channel apps' tuner inputs.
+- `CleanupActivity` (Unneeded apps): never lists the recorded and the current home, setupwraith, Lehko, the current
+  keyboard, accessibility services, screensaver (also the TV's own while Lehko's is set), Live TV/HDMI players
+  (catch-all "open with" apps don't count), or `HomeMode.isProtected`. Its ADB calls pass a Progress, so the status
+  says when the TV asks "Allow USB debugging?"; errors are mapped like Settings' (never raw English exception text).
+  singleTop, so a double OK doesn't open two.
 - `Weather` Open-Meteo forecast + geocoding search; cached JSON so it shows offline (outages!). Default city
   Kyiv if TZ is Europe/Kiev.
 - `Outages` + `OutageText` + `OutageBar`: schedules in 48 half-hour slots, Kyiv wall clock (TZ id "Europe/Kiev",
-  NOT "Europe/Kyiv": old TV tzdata). See research below.
+  NOT "Europe/Kyiv": old TV tzdata). See research below. `Outages.refreshIfStale(c, done)` (main thread) is the one
+  way to download: a static loading flag and failure back-off shared by the home screen, `FireScene` (fireplace and
+  FireDream: home is paused under them), 10 min max age, 5 min after a failure; `done` re-reads `Outages.cached`,
+  which is null for another group's cache (the weekly address re-check may move the group). `Outages.old` (2 h, only
+  after a failed try or offline; a fetch time ahead of the clock counts as old) drives the "no update since" hint.
+  `Outages.status` computes `Status.emergency`/`noSchedules` for the current Kyiv day only (`Day.emergency`,
+  `Schedule.asOf`; there is no Schedule.emergency any more), `clearAhead` needs tomorrow published, `clearToday`
+  drives "no more outages today" while tomorrow isn't; a change to MAYBE reads "then a possible outage", never "back
+  on"; countdowns are real minutes across DST. An emergency day's bar is described as emergency, not "no outages".
+  The group list falls back to the DTEK mirror's `fact.data` keys for Kyiv when YASNO fails or is empty.
 - `Adb`: own ADB client to 127.0.0.1:5555 (RSA key in noBackupFilesDir; signing with BigInteger PKCS#1 v1.5 over
   SHA-1 DigestInfo prefix + token; adbd pubkey blob format). First use pops "Allow USB debugging?" on the TV.
-- `HomeMode`: enable(full?) / disable / verify / revertAfterCrash / setScreensaver / setAppEnabled / systemState.
-  Records original home, checks Wi-Fi network owners (disabling an owner deletes the Wi-Fi network: refuse),
+- `HomeMode`: entry points enable(full?) (also full mode later, from the lighter one) / disable ("Bring back") /
+  launcherOn (full back to the lighter mode: only the launcher targets come back on, Lehko stays home) / enableApps
+  (Lehko off: turns recorded apps back on) / allowAgain ("Allow debugging again": may prompt, then check()) / verify
+  (after boot or a Lehko update, never prompts) / revertAfterCrash / setScreensaver / setAppEnabled / systemState /
+  killAll. Each has a Context wrapper over the `HomeMode.Env` version (prefs, text, connect, notice, sdk,
+  debuggingOn) that HomeModeTest drives against `tools/fake_adbd.py --tv`. Records original home, checks Wi-Fi
+  network owners (disabling an owner deletes the Wi-Fi network: refuse),
   `cmd package set-home-activity --user 0 ua.lehko.tv/.HomeActivity`, full mode disables original launcher pkg
   (+ tvrecommendations on classic ATV, + `com.google.android.tungsten.setupwraith` when it has a HOME activity:
   its RecoveryActivity takes over otherwise). Writes /data/local/tmp/lehko_state for the PC revert scripts.
-- `Watchdog`: 3 crashes in 5 min while Lehko is home -> `ModeJob` REVERT. `BootReceiver` -> `ModeJob` VERIFY.
-- `ClockDream`: optional dim moving clock screensaver.
-- `Ambient`: the home background tint. 8x4 sample of the focused favorite's cached picture, alpha-weighted mean, HSV
-  value 0.22-0.30, saturation <= 0.6, x0.7 after sunset (`Weather.night`); cached per package. HomeActivity fades a
-  TL_BR window `GradientDrawable` (one drawable) with `ValueAnimator` + `ArgbEvaluator`, 450 ms. A global focus
-  listener also drives the focused app's name under the favorites row.
-- `Weather` also keeps the next hours (`forecast_hours=6`, `forecast_days=2` so evening hours aren't cut at midnight)
-  and sunrise/sunset as moments (`utc_offset_seconds`). Header: icon/temp/text on one row, 5 hour columns, sun line.
+  Every user-started connection goes through `connect(Env, Progress)` = adopt() + acceptOutsideRevert(); verify and
+  allowAgain reach the same pair through check(). adopt() reads the note once after a reinstall and takes on/full
+  only when the TV agrees (Lehko holds HOME, or in full mode the recorded launcher or setupwraith is still off).
+  Outside revert: Lehko's records say on, the note isn't `on=true` (scripts/revert removes it; a TV update leaves
+  it) and HOME isn't Lehko: forgetSwitch() drops only Lehko's records and touches nothing on the TV, so a revert from
+  a computer sticks. Screensaver: recorded again whenever the TV's current one isn't Lehko's; restored only while
+  Lehko's dream is still set (a later pick in the TV's settings stays), screensaver_enabled only while it is 1, and a
+  recorded saver package turned off on Unneeded apps is enabled first. keepDebuggingAllowed (API 30+,
+  adb_allowed_connection_time 0) runs in enable() and in check() after the outside-revert test, never before it; a
+  refused turn-on and "Bring back" put the old value back. The stock launcher's PSS is measured only when Lehko is
+  first turned on. verify(): PORT_CLOSED with debugging on means the TV needs `adb tcpip 5555` again after a restart
+  (verify_port_closed). A successful restore drops a stale `reverted_crash_failed` notice.
+- `SettingsActivity`: network work (city, regions, groups, addresses) on `App.NET`; switches on `App.ADB` through
+  run() (one at a time). A result that arrives while Settings is out of sight goes to `Prefs.notice` too (Lehko's
+  home shows it) when Lehko is on. Home row: off -> the turn-on dialog (focus starts on "Turn on", not the full-mode
+  box); on -> a list: "Also turn off the stock launcher" or "Turn the stock launcher back on", "Allow debugging
+  again", "Bring back the TV's home screen"; in the watchdog's safe mode straight to "Bring back" (its dialog also
+  offers "Allow debugging again"). "Turn apps back on" (asks first) shows only while Lehko is off and recorded apps
+  are still off. The fireplace row says when the TV's screensaver timer comes first. Errors: `Adb.Failure` reasons
+  and socket errors map to strings; other exceptions show only their class name inside a translated sentence.
+- `Watchdog`: 3 crashes in 5 min while Lehko is home -> safe mode, a revert right away and `ModeJob` REVERT after
+  60 s. Java crashes come from the uncaught-exception handler; on API 30+ `ApplicationExitInfo` adds
+  REASON_CRASH_NATIVE and REASON_ANR at foreground importance newer than the `crashes_since` pref (set on clear() and
+  on entering safe mode: Android's record outlives a fresh start). `lastFailure` keeps the last failed switch back's
+  `Adb.Failure` reason for the safe screen. `BootReceiver` (boot, Lehko update) -> `ModeJob` VERIFY.
+- `ClockDream`: optional dim moving clock screensaver. It downloads nothing: weather only when the cache is younger
+  than `Weather.OLD_MS`, hidden once it gets older; it fades in at its first spot.
+- `Ambient`: the home background tint. 8x4 sample of the focused tile's own picture (`Tile.picture()`, not the
+  picture cache, which may have been trimmed), alpha-weighted mean, HSV value 0.22-0.30, saturation <= 0.6, x0.7
+  after sunset (`Weather.night`); cached per package. HomeActivity fades a TL_BR window `GradientDrawable` (one
+  drawable) with `ValueAnimator` + `ArgbEvaluator`, 450 ms. A global focus listener also drives the focused app's name
+  under the favorites row.
+- `Weather` also keeps the next hours (`forecast_hours=7`: the current hour and six more, so five are still to come
+  for the whole cache life; `forecast_days=2` so evening hours aren't cut at midnight) and sunrise/sunset as moments
+  (`utc_offset_seconds`). Header: icon/temp/text on one row, 5 hour columns, sun line. The rain/snow hint is a moment
+  (`precipStart`), formatted in the TV's 12/24-hour style and dropped once passed. Always downloaded in Celsius;
+  shown as °F (with the unit) only when `Weather.fahrenheit(Locale, tz)` says so: the Android 14 "mu" regional
+  preference, else a US locale with an America/, US/ or Pacific/ time zone (en-US TVs in Kyiv keep Celsius). A
+  download for the previous city doesn't land in the new one's cache.
 - `Rates`: USD/EUR in hryvnias from Monobank (every 30 min, 1 h pause after HTTP 429) with NBU fallback. Own compact
   JSON cache; compact line ("$ 41,80 · € 48,62") always, full buy/sell while the details are open; hidden when off,
   empty or too old. `Net.HttpError` carries the status code. Crypto (Binance BTC/ETH) was built and then removed at
   Eugene's request (2026-10-22): don't bring it back.
 - `Memory`: free memory, own PSS; `clean()` = `HomeMode.killAll` (`am kill-all`, may show the debugging prompt) else
   `killBackgroundProcesses` per app; `maybeAutoClean()` on Home resume when memory is low (< 20% or < 500 MB, at most
-  every 3 min, never prompts). `HomeMode.enable` stores the stock launcher's PSS (`K_LAUNCHER_PSS`, from
-  `dumpsys meminfo`). `App.onTrimMemory`: UI_HIDDEN trims the picture cache to ~3 MB (the favorites' tiles hold those
-  bitmaps anyway), RUNNING_LOW and up empties it.
+  every 3 min, never prompts). On Android 14 without debugging `clean()` says why nothing was closed. The first
+  `HomeMode.enable` stores the stock launcher's PSS (`K_LAUNCHER_PSS`, from `dumpsys meminfo`). `App.onTrimMemory`:
+  from RUNNING_LOW up (UI_HIDDEN, BACKGROUND and COMPLETE too) `Apps.trimPictures` keeps only the favorites' pictures
+  and never empties the cache: the home tiles hold those bitmaps anyway, so evicting them freed nothing and the next
+  favorites rebuild showed names only. Android 14 sends only UI_HIDDEN and BACKGROUND.
 - Design/accessibility pass (2026-10-22, with the tvastar skill's platform-neutral rules): text colours and
-  `Ambient.MAX_LUMINANCE` keep all text >= 4.5:1 (AmbientTest checks it); focus = white 2dp outline everywhere
-  (tiles, `row_bg`, focusable `card_bg`); OutageBar shows state by shape too (on thin, off solid, maybe outlined) and
-  has a spoken description (`Outages.runs`, `OutageText.describe`); with a spoken-feedback service on, the header and
-  outage card are focusable; live regions on notices/status cards; Settings has section headers; FireView stands
-  still when animator duration scale is 0. Rates arrows and error text use `rate_up`/`rate_down`/`error_text`.
+  `Ambient.MAX_LUMINANCE` keep all text >= 4.5:1 (AmbientTest checks `text_secondary` #A7AFBA and `text_dim` #959DAA,
+  the dial's hour numbers, on the brightest tint any colour or a white banner gives); focus = white 2dp outline
+  everywhere (tiles, `row_bg`, focusable `card_bg`); the Lehko leaf turns dark on its focused (white) round button;
+  OutageBar shows state by shape too (on thin, off solid, maybe outlined) and has a spoken description
+  (`Outages.runs`, `OutageText.describe`); the info panel is always focusable (Up from favorites) and the power detail
+  carries today's ring in words; live regions on notices/status cards; Settings has section headers; FireView stands
+  still when animator duration scale is 0. Error text uses `error_text`.
 - Fireplace: `Fire` (pure Doom-fire automaton, 160x90, tested), `FireView` (a close-up: the arched opening fills the
   screen, bricks to the edges; surround, firebox walls, floor and hearth drawn once into a half-size RGB_565 bitmap,
   fire scaled into the firebox with a filtering paint, logs, flickering glow; ~30 fps via
-  `postOnAnimation` only while visible), `FireScene` (shared: drifting dim clock + outage line, slow pixel shift,
-  optional `Crackle` brown noise + pops on an AudioTrack), `FireplaceActivity` (HomeActivity's idle timer, reset in
-  `onUserInteraction`; any non-volume key goes back; no keep-screen-on), `FireDream`. Screensaver choice:
+  `postOnAnimation` only while visible; `Fire.warm()` starts from a steady fire's shape, which is also the still
+  picture with animations off), `FireScene` (shared: drifting dim clock + outage line with the "no update since"
+  hint, downloads the schedule itself through `Outages.refreshIfStale`; the 40 s drift moves in whole pixels on the
+  fire's own frames via `FireView.onFrame`, no ViewPropertyAnimator at 60 fps; slow pixel shift; optional `Crackle`
+  brown noise + pops on an AudioTrack, not started while music is active), `FireplaceActivity` (HomeActivity's idle
+  timer, reset in `onUserInteraction`; volume and media keys pass through to the playing app, Search opens the
+  assistant and ends it, any other key goes back; no keep-screen-on), `FireDream`. Screensaver choice:
   `HomeMode.setScreensaver(SAVER_SYSTEM | SAVER_CLOCK | SAVER_FIRE)`.
 - Approach inspired by github.com/simbasjungles/free-my-tv (MIT); no code copied. Credit it in README.
 
@@ -99,7 +179,9 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
 - Sandbox without Google Maven (cloud sessions): `tools/quick-build.sh` = aapt2 + javac + dx + apksigner.
   Setup once: `apt-get install -y android-sdk-build-tools android-sdk-platform-23` and
   `curl -L -o /opt/sdkjars/android-33.jar https://raw.githubusercontent.com/Sable/android-platforms/master/android-33/android.jar`,
-  then `ANDROID_JAR=/opt/sdkjars/android-33.jar tools/quick-build.sh`.
+  then `ANDROID_JAR=/opt/sdkjars/android-33.jar tools/quick-build.sh`. Tests: `tools/quick-test.sh`. HomeModeTest and
+  AdbProtocolTest start fake adbd servers on ports from `LEHKO_TEST_PORT` (default 25555): give checkouts that test
+  at the same time different ports.
 - Release signing: CI reads secrets LEHKO_KEYSTORE_BASE64, LEHKO_KEYSTORE_PASSWORD, LEHKO_KEY_ALIAS,
   LEHKO_KEY_PASSWORD; without them release is debug-signed. Keep the release key stable (updates need it).
 
@@ -109,22 +191,34 @@ v0.9 is feature-complete and reviewed: home screen, weather, outages, on-device 
 unneeded-apps screen, uk/en/ru, CI with signed builds (incl. HomeModeTest against `tools/fake_adbd.py --tv`, a
 simulated Google TV). v0.10 (2026-10-22) added the ambient background, hourly weather and sun times, the focused app
 name, the rates line, memory cleaning and measurement, the fireplace, a design/accessibility pass and the dial
-redesign of the home screen; 69 tests now. First run on Eugene's TV (2026-10-22) found three things, fixed: the memory
-notice didn't go away, the faded ends of the scrolling rows looked bad, the fireplace filled only part of the screen. UI strings live in `tools/strings/strings.py`
-(edit there, then `python3 tools/strings/strings.py app/src/main/res`).
+redesign of the home screen. First run on Eugene's TV (2026-10-22) found three things, fixed: the memory notice didn't
+go away, the faded ends of the scrolling rows looked bad, the fireplace filled only part of the screen.
+v0.10.0-beta.2 is published. A full audit (2026-10-23: home switching and the revert scripts, outage and weather
+data, the home screen, apps, Unneeded apps, build and CI) found ~70 defects; all are fixed, 99 tests now.
+Waiting for Eugene's answer: auto clean's threshold and the feature ideas.
+
+UI strings live in `tools/strings/strings.py` (edit there, then `python3 tools/strings/strings.py app/src/main/res`).
+It writes line breaks as `\n` and quotes texts with double spaces, which aapt2 would otherwise squeeze.
 
 **Do not** publish GitHub releases, change repository settings or rewrite git history without Eugene's OK. Pushing
 tags from cloud sessions is blocked by the git proxy; releases are made on GitHub's "Draft a new release" page
-(tag `v0.9.0-beta.1` style = pre-release) and CI then attaches the signed `Lehko.apk`.
+(tag `v0.10.0-beta.3` style) and CI then attaches the signed `Lehko.apk`. Do NOT tick "Set as a pre-release", not
+even for a beta: README, scripts/install.sh and scripts/install.bat download `/releases/latest/download/Lehko.apk`,
+and /releases/latest skips pre-releases (CI only warns; releases CI creates itself are normal ones). Tags need two
+or three numbers: v1.2.3, v1.2.3-beta.1, or v1.2 (= v1.2.0); versionCode = major*10000 + minor*100 + patch. Any
+other v* tag fails CI at configuration (app/build.gradle). If CI goes red on a tag made on the release page, delete
+that release and its tag and make a correct one: otherwise "latest" has no Lehko.apk and the README link returns 404.
 
 ## v0.10: look, memory, rates, fireplace (all done 2026-10-22; kept as the spec)
 
-Deviations from the plan below: no USDT/UAH (the line wouldn't fit beside the weather); `forecast_days=2`; on
-UI_HIDDEN the picture cache is trimmed rather than emptied (emptying would reload every banner on each return home).
+Deviations from the plan below: no USDT/UAH (the line wouldn't fit beside the weather); `forecast_days=2` (and
+`forecast_hours=7` since the 2026-10-23 audit); on UI_HIDDEN the picture cache is trimmed rather than emptied
+(emptying would reload every banner on each return home).
 The fireplace look was checked only in an AWT re-drawing of `FireView`, not on a device. Auto clean: Eugene raised the
 threshold to 500 MB (2026-10-22), so on a 1 GB TV it runs on nearly every return home (at most every 3 min).
-Review fixes: no clipPath per frame (arch mask in the grid), picture cache keeps favorites except at BACKGROUND+,
-favorites row rebuilt on resume only when the list changed, fire paused without window focus (Android 8-10 dreams).
+Review fixes: no clipPath per frame (arch mask in the grid), picture cache keeps favorites except at BACKGROUND+
+(since the 2026-10-23 audit at every level, see `Memory` above), favorites row rebuilt on resume only when the list
+changed, fire paused without window focus (Android 8-10 dreams).
 
 Eugene asked for these on 2026-10-22. Keep every hard constraint above (no libraries, no blur/shaders, tiny RAM).
 After each item: `tools/quick-build.sh` and `tools/quick-test.sh` green, small commit, push to main, CI green.
