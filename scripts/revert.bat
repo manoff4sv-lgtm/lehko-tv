@@ -70,7 +70,7 @@ if "!SAVERCHANGED!"=="true" (
 )
 rem Lehko's remote helper (an accessibility service): only its own entry goes, every other service stays on. With none
 rem left, the list goes and accessibility_enabled is put back as Lehko found it. A list of anything but plain component
-rem names is left alone.
+rem names (package.name/Class, as in the app and revert.sh) is left alone.
 set SERVICES=
 for /f "usebackq delims=" %%s in (`adb -s %TV% shell settings get secure enabled_accessibility_services`) do set SERVICES=%%s
 if "!SERVICES!"=="null" set SERVICES=
@@ -82,7 +82,8 @@ if defined SERVICES (
 )
 if defined SERVICES if defined LISTOK (
   for %%c in (!SERVICES::= !) do (
-    echo %%c| findstr /R /X "[A-Za-z0-9_.][A-Za-z0-9_.]*/[A-Za-z0-9_.$][A-Za-z0-9_.$]*" >nul || set LISTOK=
+    echo %%c| findstr /R /X "[A-Za-z0-9_][A-Za-z0-9_]*\.[A-Za-z0-9_.]*/[A-Za-z0-9_.$][A-Za-z0-9_.$]*" >nul || set LISTOK=
+    echo %%c| findstr /L /C:".." /C:"./" >nul && set LISTOK=
     set C=%%c
     if "!C:~0,12!"=="ua.lehko.tv/" (set OURS=1) else if defined REST (set REST=!REST!:%%c) else (set REST=%%c)
   )
