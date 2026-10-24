@@ -160,7 +160,7 @@
     <string name="memory_freed">Освобождено %d МБ</string>
     <string name="memory_nothing">В фоне не работало ничего лишнего.</string>
     <string name="memory_auto">Автоочистка памяти</string>
-    <string name="memory_auto_on">Когда памяти мало, закрывает фоновые приложения (нужна отладка по USB)</string>
+    <string name="memory_auto_on">Когда система говорит, что памяти мало, закрывает фоновые приложения, пока на главном экране ничего не нажимают (нужна отладка по USB)</string>
     <string name="section_show">На главном экране</string>
     <string name="section_rest">Заставка и камин</string>
     <string name="section_memory">Скорость и память</string>
@@ -224,4 +224,10 @@
     <string name="cleanup_system_warning">Это системное приложение телевизора. Выключение можно отменить здесь же, но некоторые функции телевизора могут не работать, пока не включите его обратно.</string>
     <string name="cleanup_turn_off">Выключить</string>
     <string name="cleanup_system">системное</string>
+    <string name="remote_star">Кнопка ☆ на пульте</string>
+    <string name="remote_star_tv">Как у телевизора</string>
+    <string name="remote_star_default">%s, пока стандартный лаунчер выключен</string>
+    <string name="remote_keys_too">Кнопки YouTube и «все приложения» тоже снова работают.</string>
+    <string name="helper_label">Lehko: кнопки пульта</string>
+    <string name="helper_description">Кнопки ☆, YouTube и «все приложения» на пульте работают, пока стандартный лаунчер выключен; ☆ может открывать приложение, выбранное в настройках Lehko. Остальные кнопки проходят сразу, и ничего с экрана не читается.</string>
 </resources>

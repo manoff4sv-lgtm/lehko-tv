@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.provider.Settings;
+import android.view.KeyCharacterMap;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -13,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -21,10 +23,12 @@ import java.util.regex.Pattern;
 /**
  * Original home screen ⇄ Lehko. Everything goes through the TV's own debugging port ({@link Adb}).
  * <ul>
- * <li>On: Lehko becomes the HOME app. In "full" mode the stock launcher is also turned off (pm disable-user: still
- * installed, back with one button), which frees the most memory on weak TVs. On Google TV the setup app's recovery
- * screen would take over without its launcher, so it goes off too.</li>
- * <li>Original: every app Lehko turned off comes back and the stock home screen is the default again.</li>
+ * <li>On: Lehko becomes the HOME app and, on Google TV or with a star button on the remote, its remote helper
+ * ({@link TvHelper}) an accessibility service. In "full" mode the stock launcher is also turned off (pm disable-user:
+ * still installed, back with one button), which frees the most memory on weak TVs. On Google TV the setup app's
+ * recovery screen would take over without its launcher, so it goes off too.</li>
+ * <li>Original: every app Lehko turned off comes back, the stock home screen is the default again and the helper
+ * goes.</li>
  * </ul>
  * Rules that keep a TV safe:
  * <ul>
@@ -41,6 +45,8 @@ final class HomeMode {
     static final String PKG = "ua.lehko.tv";
     static final String HOME = PKG + "/.HomeActivity";
     static final String DREAM = PKG + "/.ClockDream", FIRE_DREAM = PKG + "/.FireDream";
+    /** The remote's helper, an accessibility service (the TV's settings write it ua.lehko.tv/ua.lehko.tv.TvHelper). */
+    static final String HELPER = PKG + "/.TvHelper";
     static final int SAVER_SYSTEM = 0, SAVER_CLOCK = 1, SAVER_FIRE = 2;
     static final String GOOGLE_TV_HOME = "com.google.android.apps.tv.launcherx/.home.HomeActivity";
     static final String ATV_HOME_PKG = "com.google.android.tvlauncher";
@@ -52,6 +58,8 @@ final class HomeMode {
     private static final Pattern PACKAGE = Pattern.compile("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+");
     private static final Pattern COMPONENT = Pattern.compile("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+/[A-Za-z0-9_.$]+");
     private static final Pattern SETTING = Pattern.compile("[A-Za-z0-9_.$/,:]*");
+    /** enabled_accessibility_services: components joined by ':'. Anything else read there is never written back. */
+    private static final Pattern COMPONENTS = Pattern.compile(COMPONENT.pattern() + "(:" + COMPONENT.pattern() + ")*");
 
     /** Never turned off, whatever happens: system, store, input, remote, Live TV and picture/sound services. */
     static final Set<String> PROTECTED = new HashSet<>(Arrays.asList(
@@ -109,6 +117,9 @@ final class HomeMode {
 
         /** "USB debugging" is on in the TV's developer options. */
         boolean debuggingOn();
+
+        /** The remote has a star button (KEYCODE_MACRO_1, Android 14+), which the helper can give an app. */
+        boolean starKey();
     }
 
     static Env env(final Context c) {
@@ -137,6 +148,10 @@ final class HomeMode {
             @Override public boolean debuggingOn() {
                 return Settings.Global.getInt(app.getContentResolver(), Settings.Global.ADB_ENABLED, 0) == 1;
             }
+
+            @Override public boolean starKey() {
+                return Build.VERSION.SDK_INT >= 34 && KeyCharacterMap.deviceHasKey(Keys.STAR);
+            }
         };
     }
 
@@ -146,6 +161,7 @@ final class HomeMode {
             K_SAVER = "mode_original_saver", K_SAVER_ENABLED = "mode_original_saver_enabled",
             K_SAVER_CHANGED = "mode_saver_changed", K_DISABLED = "mode_disabled",
             K_ADB_TIME = "mode_original_adb_time", K_ADB_TIME_CHANGED = "mode_adb_time_changed",
+            K_A11Y_CHANGED = "mode_a11y_changed", K_A11Y_ENABLED = "mode_original_a11y_enabled",
             K_ADOPTED = "mode_adopted";
     /** How much memory (PSS, KB) the stock launcher used when Lehko was turned on: for the settings screen. */
     static final String K_LAUNCHER_PSS = "mode_launcher_pss_kb";
@@ -343,6 +359,8 @@ final class HomeMode {
                 case "screensaver_enabled": if (value.matches("-?\\d+|null")) e.putString(K_SAVER_ENABLED, value); break;
                 case "adb_time_changed": if ("true".equals(value)) e.putBoolean(K_ADB_TIME_CHANGED, true); break;
                 case "adb_time": if (value.matches("-?\\d+|null")) e.putString(K_ADB_TIME, value); break;
+                case "a11y_changed": if ("true".equals(value)) e.putBoolean(K_A11Y_CHANGED, true); break;
+                case "a11y_enabled": if (value.matches("-?\\d+|null")) e.putString(K_A11Y_ENABLED, value); break;
                 default: break;
             }
         }
@@ -364,8 +382,10 @@ final class HomeMode {
         }
         e.putStringSet(K_DISABLED, disabled).commit();
         if (on && !stillOn) {
-            // Not the home screen any more, and "Original" isn't offered: nothing needs the timeout kept off.
+            // Not the home screen any more, and "Original" isn't offered: nothing needs the timeout kept off, or the
+            // remote's helper.
             restoreDebuggingTimeout(c, adb);
+            helperOff(c, adb);
             writeDeviceState(c, adb);
         }
     }
@@ -411,6 +431,9 @@ final class HomeMode {
                     throw new Refused(out.trim());
                 }
             }
+            // In both modes: it answers the remote's buttons only while the stock launcher is off, or for a star
+            // button the user gave an app.
+            helperOn(c, adb, present);
 
             Set<String> ours = disabled(c);
             int i = 0, turnedOff = 0;
@@ -464,6 +487,7 @@ final class HomeMode {
         if (p != null) p.step(c.text(R.string.step_restoring_home));
         r.homeOk = restoreHome(adb, c.prefs().getString(K_HOME, ""));
         restoreScreensaver(c, adb);
+        helperOff(c, adb);
         restoreDebuggingTimeout(c, adb);
         if (r.homeOk) {
             // Only now is Lehko really off. Next time, the then-current launcher is recorded afresh.
@@ -639,19 +663,27 @@ final class HomeMode {
         return allowAgain(env(c), p);
     }
 
-    /** Lehko still home, the stock launcher still off (full mode)? Fixes what isn't and returns what it fixed. */
+    /**
+     * Lehko still home, the stock launcher still off (full mode), the remote's helper still on? Fixes what isn't and
+     * returns what it fixed, except the helper.
+     */
     private static List<String> check(Env c, Adb adb) throws IOException {
         List<String> fixed = new ArrayList<>();
         adopt(c, adb);
         if (acceptOutsideRevert(c, adb)) return fixed;
         keepDebuggingAllowed(c, adb);
+        Set<String> present = packages(adb, "");
+        // The remote's helper, taken out by a TV update, a force stop of Lehko or in the TV's settings: put back
+        // without a word, as part of Lehko being on (the first time after the update of Lehko that brought it, it is
+        // new rather than fixed anyway).
+        helperOn(c, adb, present);
         if (!homeHolder(adb).contains(PKG)) {
             adb.shell("cmd package set-home-activity --user 0 " + HOME);
             fixed.add(c.text(R.string.the_home_screen));
         }
         if (isFull(c)) {
-            Set<String> present = packages(adb, ""), off = packages(adb, "-d");
             if (present.isEmpty()) return fixed;
+            Set<String> off = packages(adb, "-d");
             List<String> todo = new ArrayList<>();
             for (String pkg : targets(adb, c.prefs().getString(K_HOME, ""), present)) {
                 if (!off.contains(pkg) && !isCore(pkg)) todo.add(pkg);
@@ -685,15 +717,21 @@ final class HomeMode {
         return false;
     }
 
-    /** The switch was undone from outside and everything is back already: only Lehko's own records go. */
+    /**
+     * The switch was undone from outside and everything is back already: Lehko's own records go, and so does its
+     * remote helper if a revert by hand (or with a script from before the helper) left it on. Nothing the revert put
+     * back is changed.
+     */
     private static void forgetSwitch(Env c, Adb adb) throws IOException {
         if (packages(adb, "").isEmpty()) throw new IOException("pm list packages answered nothing");
+        helperOff(c, adb);
         Set<String> stillOff = disabled(c);
         stillOff.retainAll(packages(adb, "-d"));
         c.prefs().edit().putBoolean(K_ON, false).putBoolean(K_FULL, false).remove(K_HOME)
                 .putBoolean(K_SAVER_CHANGED, false).remove(K_SAVER).remove(K_SAVER_ENABLED)
                 .putBoolean(Prefs.SCREENSAVER_LEHKO, false).putBoolean(Prefs.SCREENSAVER_FIRE, false)
                 .putBoolean(K_ADB_TIME_CHANGED, false).remove(K_ADB_TIME)
+                .putBoolean(K_A11Y_CHANGED, false).remove(K_A11Y_ENABLED)
                 .putStringSet(K_DISABLED, stillOff).commit();
         Watchdog.clear(c.prefs());
         dropCrashNotice(c);
@@ -842,6 +880,116 @@ final class HomeMode {
         if (original.matches("-?\\d+")) adb.shell("settings put global adb_allowed_connection_time " + original);
         else adb.shell("settings delete global adb_allowed_connection_time");
         c.prefs().edit().putBoolean(K_ADB_TIME_CHANGED, false).remove(K_ADB_TIME).commit();
+    }
+
+    // MARK: - The remote's helper (an accessibility service)
+
+    /**
+     * Turns on {@link TvHelper} next to the accessibility services already on (the TV's accessibility_enabled is
+     * recorded first, for "Original"), on TVs where it can do something: Google TV's launcher is installed (full mode
+     * turns it off, and the helper answers its buttons then; {@code present}: the installed packages), or the remote
+     * has a star button to give an app. Elsewhere it would only cost an always-running process and a detour for every
+     * key press. A list that isn't plain component names is left as it is, without the helper: only names checked here
+     * go back to the TV's shell.
+     */
+    private static void helperOn(Env c, Adb adb, Set<String> present) throws IOException {
+        if (!present.contains(Keys.LAUNCHERX) && !c.starKey()) return;
+        List<String> services = services(adb);
+        if (services == null) return;
+        if (!c.prefs().getBoolean(K_A11Y_CHANGED, false)) {
+            String enabled = adb.shell("settings get secure accessibility_enabled");
+            // No answer at all (see services()): nothing recorded, nothing changed.
+            if (enabled.isEmpty()) return;
+            enabled = enabled.trim();
+            c.prefs().edit().putString(K_A11Y_ENABLED, enabled.matches("-?\\d+") ? enabled : "null")
+                    .putBoolean(K_A11Y_CHANGED, true).commit();
+            writeDeviceState(c, adb);
+        }
+        boolean add = true;
+        for (String s : services) if (PKG.equals(packageOf(s))) add = false;
+        if (add) {
+            services.add(HELPER);
+            putServices(adb, services);
+        }
+        adb.shell("settings put secure accessibility_enabled 1");
+    }
+
+    /**
+     * Takes the helper out and leaves every other accessibility service as it is. When none is left, the list goes
+     * (Android's own "none") and accessibility_enabled is put back as Lehko found it. Lehko only ever added to the
+     * list, so what remains is the TV's own: a service turned off in the TV's settings meanwhile stays off.
+     */
+    private static void helperOff(Env c, Adb adb) throws IOException {
+        if (!c.prefs().getBoolean(K_A11Y_CHANGED, false)) return;
+        List<String> services = services(adb);
+        // Unreadable: nothing is written back, and the record stays for a later try.
+        if (services == null) return;
+        if (removeHelper(services)) {
+            if (services.isEmpty()) adb.shell("settings delete secure enabled_accessibility_services");
+            else putServices(adb, services);
+        }
+        if (services.isEmpty()) {
+            String original = c.prefs().getString(K_A11Y_ENABLED, "null");
+            if (original.matches("-?\\d+")) adb.shell("settings put secure accessibility_enabled " + original);
+            else adb.shell("settings delete secure accessibility_enabled");
+        }
+        c.prefs().edit().putBoolean(K_A11Y_CHANGED, false).remove(K_A11Y_ENABLED).commit();
+    }
+
+    /**
+     * The TV's accessibility services, or null when they can't be used: no answer at all, or not a plain list of
+     * component names. "settings get" always prints a line ("null" when there is none); a shell the TV failed to open
+     * prints nothing, and taking that for "none" would turn every other service off.
+     */
+    private static List<String> services(Adb adb) throws IOException {
+        String raw = adb.shell("settings get secure enabled_accessibility_services");
+        if (raw.isEmpty()) return null;
+        String value = raw.trim();
+        if (value.isEmpty() || "null".equals(value)) return new ArrayList<>();
+        if (!COMPONENTS.matcher(value).matches()) return null;
+        return new ArrayList<>(Arrays.asList(value.split(":")));
+    }
+
+    /** Removes the helper, in either form, from {@code services}; true if it was there. */
+    private static boolean removeHelper(List<String> services) {
+        boolean found = false;
+        for (Iterator<String> i = services.iterator(); i.hasNext(); ) {
+            if (PKG.equals(packageOf(i.next()))) {
+                i.remove();
+                found = true;
+            }
+        }
+        return found;
+    }
+
+    /**
+     * Whether the TV's accessibility list has Lehko's helper, read without the debugging connection. True when it
+     * can't be read: nothing to fix then.
+     */
+    static boolean helperListed(Context c) {
+        String list;
+        try {
+            list = Settings.Secure.getString(c.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        } catch (RuntimeException e) {
+            return true;
+        }
+        if (list != null) for (String s : list.split(":")) if (PKG.equals(packageOf(s))) return true;
+        return false;
+    }
+
+    /**
+     * Lehko turned its helper on, and it is gone from the TV's list: a force stop of Lehko (in the TV's app info, or
+     * a vendor cleaner) makes Android drop the app's accessibility services. verify() puts it back.
+     */
+    static boolean helperDropped(Context c) {
+        SharedPreferences p = Prefs.of(c);
+        return p.getBoolean(K_ON, false) && p.getBoolean(K_A11Y_CHANGED, false) && !Watchdog.safeMode(p)
+                && !helperListed(c);
+    }
+
+    /** Single-quoted: a class name may contain '$', which the shell would expand. The names checked hold no quote. */
+    private static void putServices(Adb adb, List<String> services) throws IOException {
+        adb.shell("settings put secure enabled_accessibility_services '" + String.join(":", services) + "'");
     }
 
     // MARK: - Turning single apps off and on (the "unneeded apps" screen)
@@ -1037,6 +1185,8 @@ final class HomeMode {
         line(cmd, "screensaver_enabled=" + p.getString(K_SAVER_ENABLED, ""), ">>");
         line(cmd, "adb_time_changed=" + p.getBoolean(K_ADB_TIME_CHANGED, false), ">>");
         line(cmd, "adb_time=" + p.getString(K_ADB_TIME, ""), ">>");
+        line(cmd, "a11y_changed=" + p.getBoolean(K_A11Y_CHANGED, false), ">>");
+        line(cmd, "a11y_enabled=" + p.getString(K_A11Y_ENABLED, ""), ">>");
         line(cmd, "disabled=" + String.join(",", sorted(disabled(c))), ">>");
         try {
             adb.shell(cmd.toString());

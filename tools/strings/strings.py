@@ -174,7 +174,7 @@ s("memory_cleaning", "Closing background apps…", "Закриваю фонов�
 s("memory_freed", "Freed %d MB", "Звільнено %d МБ", "Освобождено %d МБ")
 s("memory_nothing", "Nothing extra was running in the background.", "У фоні не працювало нічого зайвого.", "В фоне не работало ничего лишнего.")
 s("memory_auto", "Free memory automatically", "Автоочищення памʼяті", "Автоочистка памяти")
-s("memory_auto_on", "When memory runs low, closes background apps (needs USB debugging)", "Коли памʼяті мало, закриває фонові додатки (потрібне налагодження USB)", "Когда памяти мало, закрывает фоновые приложения (нужна отладка по USB)")
+s("memory_auto_on", "When Android says memory is low, closes background apps while nothing is pressed on the home screen (needs USB debugging)", "Коли система каже, що памʼяті мало, закриває фонові додатки, поки на головному екрані нічого не натискають (потрібне налагодження USB)", "Когда система говорит, что памяти мало, закрывает фоновые приложения, пока на главном экране ничего не нажимают (нужна отладка по USB)")
 s("section_show", "On the home screen", "На головному екрані", "На главном экране")
 s("section_rest", "Screensaver and fireplace", "Заставка і камін", "Заставка и камин")
 s("section_memory", "Speed and memory", "Швидкість і памʼять", "Скорость и память")
@@ -245,6 +245,13 @@ s("wifi_check_error", "Lehko couldn’t check which apps saved your Wi-Fi networ
 s("cleanup_system_warning", "This is a system app of your TV. Turning it off is safe to undo here, but some TV features may stop working until you turn it back on.", "Це системний додаток телевізора. Вимкнення можна скасувати тут же, але деякі функції телевізора можуть не працювати, доки не ввімкнете його назад.", "Это системное приложение телевизора. Выключение можно отменить здесь же, но некоторые функции телевизора могут не работать, пока не включите его обратно.")
 s("cleanup_turn_off", "Turn off", "Вимкнути", "Выключить")
 s("cleanup_system", "system", "системний", "системное")
+
+s("remote_star", "Star button on the remote", "Кнопка ☆ на пульті", "Кнопка ☆ на пульте")
+s("remote_star_tv", "As the TV does", "Як у телевізора", "Как у телевизора")
+s("remote_star_default", "%s while the stock launcher is off", "%s, поки стандартний лаунчер вимкнений", "%s, пока стандартный лаунчер выключен")
+s("remote_keys_too", "The YouTube and “all apps” buttons work again too.", "Кнопки YouTube і «усі додатки» теж знову працюють.", "Кнопки YouTube и «все приложения» тоже снова работают.")
+s("helper_label", "Lehko: remote buttons", "Lehko: кнопки пульта", "Lehko: кнопки пульта")
+s("helper_description", "Makes the remote’s star, YouTube and “all apps” buttons work while the stock launcher is off; the star can open the app chosen in Lehko settings. Every other button goes straight on, and nothing on the screen is read.", "Кнопки ☆, YouTube і «усі додатки» на пульті працюють, поки стандартний лаунчер вимкнений; ☆ може відкривати додаток, вибраний у налаштуваннях Lehko. Інші кнопки проходять одразу, і нічого з екрана не читається.", "Кнопки ☆, YouTube и «все приложения» на пульте работают, пока стандартный лаунчер выключен; ☆ может открывать приложение, выбранное в настройках Lehko. Остальные кнопки проходят сразу, и ничего с экрана не читается.")
 
 
 res = sys.argv[1]

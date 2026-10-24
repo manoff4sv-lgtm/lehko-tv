@@ -9,3 +9,4 @@ captures/
 *.jks
 !debug.keystore
 .DS_Store
+__pycache__/

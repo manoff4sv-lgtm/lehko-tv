@@ -81,6 +81,8 @@ public final class HomeActivity extends Activity {
     /** Safe mode (see Watchdog): this activity shows only a plain message and does nothing else. */
     private boolean safe;
     private TextView safeText;
+    /** The check that puts the remote's helper back was asked for: once per start of this process (see onResume). */
+    private static boolean helperAsked;
     /** After a failed download, wait a while before trying again (offline during an outage, for example). */
     private static final long RETRY_AFTER_FAILURE_MS = 5 * 60_000L;
     private long weatherFailedAt, ratesFailedAt;
@@ -117,7 +119,7 @@ public final class HomeActivity extends Activity {
         }
     };
 
-    /** After a few minutes without a key press: the fireplace. */
+    /** After a few minutes without a key press: closing cached apps if memory is low, then the fireplace. */
     private final Runnable idle = new Runnable() {
         @Override public void run() {
             if (!resumed || isFinishing() || isDestroyed()) return;
@@ -126,7 +128,11 @@ public final class HomeActivity extends Activity {
                 scheduleIdle();
                 return;
             }
-            Apps.start(HomeActivity.this, new Intent(HomeActivity.this, FireplaceActivity.class));
+            // Nobody is about to open an app now, so none of them has to start from scratch for it.
+            Memory.maybeAutoClean(HomeActivity.this);
+            if (fireplaceDelay(tvTimeout()) > 0) {
+                Apps.start(HomeActivity.this, new Intent(HomeActivity.this, FireplaceActivity.class));
+            }
         }
     };
 
@@ -335,8 +341,13 @@ public final class HomeActivity extends Activity {
         // Held weakly by the preferences: a field.
         Prefs.of(this).registerOnSharedPreferenceChangeListener(noticeWatch);
         updateMemoryTile();
-        Memory.maybeAutoClean(this);
         scheduleIdle();
+        // A force stop of Lehko takes the remote's helper out of the TV's list (and restarts this screen): the check
+        // that runs after a boot puts it back, without asking for anything. Once per process, in case it can't.
+        if (!helperAsked && HomeMode.helperDropped(this)) {
+            helperAsked = true;
+            ModeJob.schedule(this, ModeJob.VERIFY, 0);
+        }
     }
 
     @Override public void onUserInteraction() {
@@ -355,11 +366,23 @@ public final class HomeActivity extends Activity {
 
     private void scheduleIdle() {
         App.MAIN.removeCallbacks(idle);
+        if (!resumed) return;
+        int tv = tvTimeout();
+        long fire = fireplaceDelay(tv);
+        App.MAIN.postDelayed(idle, fire > 0 ? fire : Memory.autoIdleMs(tv));
+    }
+
+    /** The TV's screensaver (or sleep) timer in ms, counted from the same key press as ours; 0 or less: none. */
+    private int tvTimeout() {
+        return Settings.System.getInt(getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT, -1);
+    }
+
+    /** Idle time before the fireplace, or 0 when none comes; {@code tv}: {@link #tvTimeout()}. */
+    private long fireplaceDelay(int tv) {
         long delay = FireScene.idleMinutes(this) * 60_000L;
-        // The TV's screensaver (or sleep) timer counts from the same key press. When it is no longer than ours it wins:
-        // the fireplace would never show, or only flash before the screensaver covers it.
-        int tv = Settings.System.getInt(getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT, -1);
-        if (resumed && delay > 0 && (tv <= 0 || tv > delay)) App.MAIN.postDelayed(idle, delay);
+        // When the TV's timer is no longer than ours it wins: the fireplace would never show, or only flash before the
+        // screensaver covers it.
+        return delay > 0 && (tv <= 0 || tv > delay) ? delay : 0;
     }
 
     /** Results of background checks: up to 20 seconds, a key press puts it away after 4. */

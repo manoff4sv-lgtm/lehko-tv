@@ -8,6 +8,7 @@ import android.os.Debug;
 import android.os.Process;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Free memory and closing background apps. With the TV's debugging allowed this is "am kill-all" (only what Android
@@ -18,10 +19,12 @@ final class Memory {
 
     static final String P_AUTO = "memory_auto_clean", LAST_AUTO = "memory_last_auto";
     /** Automatic cleaning at most this often. */
-    static final long AUTO_EVERY_MS = 3 * 60_000L;
+    static final long AUTO_EVERY_MS = 30 * 60_000L;
+    /** With no fireplace to come, the automatic check runs after this long without a key press on the home screen. */
+    static final long AUTO_IDLE_MS = 5 * 60_000L;
+    /** ...and at least this long before the TV's own screensaver starts. */
+    static final long AUTO_BEFORE_SAVER_MS = 30_000L;
     static final long MB = 1024 * 1024;
-    /** "Low": under a fifth of all memory, or under 500 MB (Eugene's choice for 1 GB TVs: clean early). */
-    static final long LOW_MB = 500;
 
     static ActivityManager.MemoryInfo info(Context c) {
         ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
@@ -34,17 +37,22 @@ final class Memory {
         return info(c).availMem / MB;
     }
 
-    static boolean low(long availBytes, long totalBytes) {
-        return availBytes < totalBytes / 5 || availBytes < LOW_MB * MB;
-    }
-
-    /** Lehko's own memory (PSS) in KB, or 0. */
+    /** Lehko's own memory (PSS) in KB, or 0: the home screen's process and the remote's helper, when it runs. */
     static long ownPssKb(Context c) {
         ActivityManager am = (ActivityManager) c.getSystemService(Context.ACTIVITY_SERVICE);
         if (am == null) return 0;
         try {
-            Debug.MemoryInfo[] mi = am.getProcessMemoryInfo(new int[]{Process.myPid()});
-            return mi != null && mi.length > 0 ? mi[0].getTotalPss() : 0;
+            // An app sees only its own processes here.
+            List<ActivityManager.RunningAppProcessInfo> running = am.getRunningAppProcesses();
+            int[] pids = {Process.myPid()};
+            if (running != null && !running.isEmpty()) {
+                pids = new int[running.size()];
+                for (int i = 0; i < pids.length; i++) pids[i] = running.get(i).pid;
+            }
+            long kb = 0;
+            Debug.MemoryInfo[] mi = am.getProcessMemoryInfo(pids);
+            if (mi != null) for (Debug.MemoryInfo m : mi) kb += m.getTotalPss();
+            return kb;
         } catch (RuntimeException e) {
             return 0;
         }
@@ -96,18 +104,16 @@ final class Memory {
     }
 
     /**
-     * On the home screen: when memory is low and the last time was a while ago, closes cached apps through debugging
-     * in the background. Never asks for permission and stays silent when it can't.
+     * The home screen has been left alone for a while, so nobody is about to open an app: when Android says memory is
+     * low and the last time was a while ago, closes cached apps through debugging in the background. Never asks for
+     * permission and stays silent when it can't.
      */
     static void maybeAutoClean(Context c) {
         final Context app = c.getApplicationContext();
         if (!autoEnabled(app)) return;
         SharedPreferences p = Prefs.of(app);
         long now = System.currentTimeMillis();
-        long last = p.getLong(LAST_AUTO, 0);
-        if (now - last < AUTO_EVERY_MS && last <= now) return;
-        ActivityManager.MemoryInfo mi = info(app);
-        if (!low(mi.availMem, mi.totalMem)) return;
+        if (!autoDue(now, p.getLong(LAST_AUTO, 0), info(app).lowMemory)) return;
         p.edit().putLong(LAST_AUTO, now).apply();
         App.ADB.execute(new Runnable() {
             @Override public void run() {
@@ -118,6 +124,24 @@ final class Memory {
                 }
             }
         });
+    }
+
+    /**
+     * Only on Android's own "memory is low" (a fixed line of ours, 500 MB, cleaned on nearly every return home on a
+     * 1 GB TV), at most every half hour. A last time after now (the clock was put right) doesn't hold it off.
+     */
+    static boolean autoDue(long now, long last, boolean lowMemory) {
+        return lowMemory && Net.stale(now, last, AUTO_EVERY_MS);
+    }
+
+    /**
+     * When the automatic check runs with no fireplace to come: after AUTO_IDLE_MS without a key press, but before the
+     * TV's own screensaver ({@code tvMs}, SCREEN_OFF_TIMEOUT; 0 or less: none). Its start pauses the home screen, and
+     * with the TV's usual 5 minutes (the very case where it wins over the fireplace) the two would race.
+     */
+    static long autoIdleMs(int tvMs) {
+        if (tvMs <= 0) return AUTO_IDLE_MS;
+        return Math.min(AUTO_IDLE_MS, Math.max(tvMs - AUTO_BEFORE_SAVER_MS, tvMs / 2L));
     }
 
     /** Without debugging: Android's own way, for every app that isn't system plumbing (Android 13 and older). */

@@ -6,10 +6,13 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.text.InputType;
+import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -32,7 +35,7 @@ import java.util.Locale;
 /** Lehko's settings: the "Lehko" tile in the app list and the last tile on the home screen. */
 public final class SettingsActivity extends Activity {
     private static final int HOME = 1, PREVIEW = 2, CITY = 3, OUTAGES = 4, SAVER = 5, CLEANUP = 6, ABOUT = 7,
-            RATES = 8, MEMORY = 10, AUTO_CLEAN = 11, FIRE_IDLE = 12, FIRE_SOUND = 13, APPS_ON = 14;
+            RATES = 8, MEMORY = 10, AUTO_CLEAN = 11, FIRE_IDLE = 12, FIRE_SOUND = 13, APPS_ON = 14, STAR = 15;
     /** A section title in the list: {HEADER, string id}. Not focusable, the remote skips it. */
     private static final int HEADER = 100;
 
@@ -80,8 +83,13 @@ public final class SettingsActivity extends Activity {
 
     private void buildRows() {
         memorySummary = null;
+        starSummary = null;
         rows.clear();
         rows.add(new int[]{HOME});
+        // Only remotes with a star button need a choice, and only while the remote's helper is on.
+        if (HomeMode.isOn(this) && KeyCharacterMap.deviceHasKey(Keys.STAR) && HomeMode.helperListed(this)) {
+            rows.add(new int[]{STAR});
+        }
         // Apps turned off with Lehko while it isn't the home screen: "Original" isn't offered, this turns them on.
         if (!HomeMode.isOn(this) && !HomeMode.disabled(this).isEmpty()) rows.add(new int[]{APPS_ON});
         if (!HomeMode.isOn(this)) rows.add(new int[]{PREVIEW});
@@ -105,6 +113,7 @@ public final class SettingsActivity extends Activity {
     private String title(int row) {
         switch (row) {
             case HOME: return getString(R.string.home_screen);
+            case STAR: return getString(R.string.remote_star);
             case APPS_ON: return getString(R.string.apps_on);
             case PREVIEW: return getString(R.string.preview_home);
             case CITY: return getString(R.string.weather_city);
@@ -125,6 +134,7 @@ public final class SettingsActivity extends Activity {
             case HOME:
                 if (!HomeMode.isOn(this)) return getString(R.string.home_status_off);
                 return getString(HomeMode.isFull(this) ? R.string.home_status_on_full : R.string.home_status_on);
+            case STAR: return starSummary();
             case APPS_ON: return getString(R.string.apps_on_summary, HomeMode.disabled(this).size());
             case PREVIEW: return getString(R.string.preview_home_summary);
             case CITY: {
@@ -172,6 +182,9 @@ public final class SettingsActivity extends Activity {
                 // crashing as the only home screen.
                 else if (Watchdog.safeMode(this)) confirmDisable();
                 else homeChoice();
+                break;
+            case STAR:
+                starChoice();
                 break;
             case APPS_ON:
                 confirmAppsOn();
@@ -398,6 +411,102 @@ public final class SettingsActivity extends Activity {
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    // MARK: - The remote's star button (TvHelper reads the choice from helper.txt)
+
+    private String starSummary;
+    /** The app list for the choice is loading: a second OK meanwhile would open a second list. */
+    private boolean starLoading;
+
+    /**
+     * What the star opens, as the helper decides it, and, while Google TV's launcher is off, the other buttons it
+     * answers. Lehko's own "launcher off" isn't enough: the helper acts only for Google TV's launcher.
+     */
+    private String starSummary() {
+        if (starSummary != null) return starSummary;
+        ApplicationInfo launcher = Keys.launcher(getPackageManager());
+        String star = Keys.read(getFilesDir()).get(Keys.P_STAR), s;
+        if (Keys.STAR_TV.equals(star)) {
+            s = getString(R.string.remote_star_tv);
+        } else if (star != null && !star.isEmpty()) {
+            s = appName(star);
+        } else {
+            // Nothing chosen: the helper's default, which it opens only while Google TV's launcher is off.
+            String fallback = launcher != null ? defaultStar() : null;
+            s = fallback == null ? getString(R.string.remote_star_tv)
+                    : getString(R.string.remote_star_default, appName(fallback));
+        }
+        if (launcher != null && !launcher.enabled) s += "\n" + getString(R.string.remote_keys_too);
+        return starSummary = s;
+    }
+
+    /** What the star opens with nothing chosen while the stock launcher is off (as the helper picks it), or null. */
+    private String defaultStar() {
+        for (String p : Keys.DEFAULT_STAR) if (Apps.launchIntent(getPackageManager(), p) != null) return p;
+        return null;
+    }
+
+    private String appName(String pkg) {
+        PackageManager pm = getPackageManager();
+        try {
+            return pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();
+        } catch (PackageManager.NameNotFoundException e) {
+            return pkg;
+        }
+    }
+
+    /** "As the TV does", then every app that can be opened (listed off the UI thread). */
+    private void starChoice() {
+        if (starLoading) return;
+        starLoading = true;
+        showStatus(getString(R.string.loading), false);
+        final Context app = getApplicationContext();
+        App.IO.execute(new Runnable() {
+            @Override public void run() {
+                final List<Apps.Entry> apps = Apps.load(app);
+                App.MAIN.post(new Runnable() {
+                    @Override public void run() {
+                        starLoading = false;
+                        if (isDestroyed() || isFinishing()) return;
+                        status.setVisibility(View.GONE);
+                        pickStar(apps);
+                    }
+                });
+            }
+        });
+    }
+
+    private void pickStar(final List<Apps.Entry> apps) {
+        final String star = Keys.read(getFilesDir()).get(Keys.P_STAR);
+        final boolean chosen = star != null && !star.isEmpty();
+        // Nothing chosen: the row of what the star does now is marked (and focused), the default app only while the
+        // stock launcher is off. OK on it keeps "nothing chosen", so the default still follows the launcher.
+        String now = chosen ? star : Keys.launcherOff(getPackageManager()) ? defaultStar() : null;
+        if (now == null) now = Keys.STAR_TV;
+        CharSequence[] labels = new CharSequence[apps.size() + 1];
+        labels[0] = getString(R.string.remote_star_tv);
+        int marked = Keys.STAR_TV.equals(now) ? 0 : -1;
+        for (int i = 0; i < apps.size(); i++) {
+            labels[i + 1] = apps.get(i).label;
+            if (apps.get(i).pkg.equals(now)) marked = i + 1;
+        }
+        final int checked = marked;
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.remote_star)
+                .setSingleChoiceItems(labels, checked, new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        d.dismiss();
+                        if (!chosen && which == checked) return;
+                        try {
+                            Keys.put(getFilesDir(), Keys.P_STAR, which == 0 ? Keys.STAR_TV : apps.get(which - 1).pkg);
+                        } catch (IOException e) {
+                            showStatus(getString(R.string.error_generic, e.getClass().getSimpleName()), true);
+                        }
+                        buildRows();
+                    }
+                })
                 .show();
     }
 

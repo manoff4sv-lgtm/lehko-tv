@@ -129,6 +129,24 @@
             </intent-filter>
         </service>
 
+        <!-- The remote's star, YouTube and "all apps" buttons while the stock launcher is off (TvHelper). The one
+             exception to "one process": it runs all the time, behind every app, so it gets a small process of its own
+             (a few MB) instead of keeping the home screen's in memory, and it keeps working if the home screen
+             crashes (App skips the crash watchdog there). -->
+        <service
+            android:name=".TvHelper"
+            android:process=":helper"
+            android:exported="true"
+            android:label="@string/helper_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/tv_helper" />
+        </service>
+
         <!-- Background work that talks to the TV's own debugging port (switching, checks after boot). -->
         <service
             android:name=".ModeJob"

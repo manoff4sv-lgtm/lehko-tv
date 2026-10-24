@@ -85,9 +85,12 @@ final class Watchdog {
         int n = 0;
         try {
             ActivityManager am = c.getSystemService(ActivityManager.class);
-            for (ApplicationExitInfo x : am.getHistoricalProcessExitReasons(c.getPackageName(), 0, 10)) {
+            // All records (Android keeps a few per app): the helper's exits must not push the home screen's out.
+            for (ApplicationExitInfo x : am.getHistoricalProcessExitReasons(c.getPackageName(), 0, 0)) {
                 long t = x.getTimestamp();
                 if (t <= since || t > now || now - t >= WINDOW_MS) continue;
+                // Only the home screen's process: the remote's helper (":helper") is no home screen crash loop.
+                if (!c.getPackageName().equals(x.getProcessName())) continue;
                 // A hang counts only on screen: a slow receiver in the background of a busy 1 GB TV is no crash loop.
                 if (x.getReason() == ApplicationExitInfo.REASON_CRASH_NATIVE
                         || (x.getReason() == ApplicationExitInfo.REASON_ANR
