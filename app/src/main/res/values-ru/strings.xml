@@ -224,4 +224,6 @@
     <string name="cleanup_system_warning">Это системное приложение телевизора. Выключение можно отменить здесь же, но некоторые функции телевизора могут не работать, пока не включите его обратно.</string>
     <string name="cleanup_turn_off">Выключить</string>
     <string name="cleanup_system">системное</string>
+    <string name="helper_label">Lehko: кнопки пульта</string>
+    <string name="helper_description">Кнопки ☆, YouTube и «все приложения» на пульте работают, пока стандартный лаунчер выключен; ☆ может открывать приложение, выбранное в настройках Lehko. Остальные кнопки проходят сразу, и ничего с экрана не читается.</string>
 </resources>

@@ -153,12 +153,17 @@ final class Apps {
                 .setComponent(a.component)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
         if (!start(c, i)) {
-            Intent fallback = c.getPackageManager().getLeanbackLaunchIntentForPackage(a.pkg);
-            if (fallback == null) fallback = c.getPackageManager().getLaunchIntentForPackage(a.pkg);
+            Intent fallback = launchIntent(c.getPackageManager(), a.pkg);
             if (fallback == null || !start(c, fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))) {
                 Toast.makeText(c, R.string.cannot_open, Toast.LENGTH_SHORT).show();
             }
         }
+    }
+
+    /** How a launcher opens {@code pkg}: its TV activity, else its phone one. Null when it has neither, or is off. */
+    static Intent launchIntent(PackageManager pm, String pkg) {
+        Intent i = pm.getLeanbackLaunchIntentForPackage(pkg);
+        return i != null ? i : pm.getLaunchIntentForPackage(pkg);
     }
 
     static boolean start(Context c, Intent i) {

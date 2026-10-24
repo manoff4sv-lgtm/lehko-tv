@@ -1,16 +1,24 @@
 package ua.lehko.tv;
 
 import android.app.Application;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/** One process, two low-priority worker threads: the home screen must stay light on a 1 GB TV. */
+/**
+ * One process (plus the remote's small helper process, see TvHelper), a few low-priority worker threads: the home
+ * screen must stay light on a 1 GB TV.
+ */
 public final class App extends Application {
     /** Package-manager work and app pictures. The network goes on NET. */
     static final ExecutorService IO = Executors.newFixedThreadPool(2, new ThreadFactory() {
@@ -58,8 +66,15 @@ public final class App extends Application {
     /** versionName, read once at start (no generated BuildConfig needed). */
     static volatile String version = "?";
 
+    /** This is the remote's helper process (TvHelper), not the home screen's. */
+    private boolean helper;
+
     @Override public void onCreate() {
         super.onCreate();
+        // The helper needs nothing from here. Above all no crash watchdog: a crash there is no home screen crash loop,
+        // and its start must never begin a switch back.
+        helper = processName().endsWith(":helper");
+        if (helper) return;
         try {
             version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (Exception ignored) {}
@@ -73,6 +88,19 @@ public final class App extends Application {
      */
     @Override public void onTrimMemory(int level) {
         super.onTrimMemory(level);
-        if (level >= TRIM_MEMORY_RUNNING_LOW) Apps.trimPictures(this);
+        if (level >= TRIM_MEMORY_RUNNING_LOW && !helper) Apps.trimPictures(this);
+    }
+
+    private static String processName() {
+        if (Build.VERSION.SDK_INT >= 28) return Application.getProcessName();
+        // Android 8: the name is the start of the command line, up to the first zero byte.
+        try (InputStream in = new FileInputStream("/proc/self/cmdline")) {
+            byte[] b = new byte[256];
+            int n = Math.max(in.read(b), 0), end = 0;
+            while (end < n && b[end] != 0) end++;
+            return new String(b, 0, end, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            return "";
+        }
     }
 }
