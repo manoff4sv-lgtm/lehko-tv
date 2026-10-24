@@ -88,6 +88,8 @@ final class Watchdog {
             for (ApplicationExitInfo x : am.getHistoricalProcessExitReasons(c.getPackageName(), 0, 10)) {
                 long t = x.getTimestamp();
                 if (t <= since || t > now || now - t >= WINDOW_MS) continue;
+                // Only the home screen's process: the remote's helper (":helper") is no home screen crash loop.
+                if (!c.getPackageName().equals(x.getProcessName())) continue;
                 // A hang counts only on screen: a slow receiver in the background of a busy 1 GB TV is no crash loop.
                 if (x.getReason() == ApplicationExitInfo.REASON_CRASH_NATIVE
                         || (x.getReason() == ApplicationExitInfo.REASON_ANR
