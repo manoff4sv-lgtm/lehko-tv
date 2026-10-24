@@ -76,6 +76,7 @@ public class HomeModeTest {
         String notice;
         int port = PORT;
         boolean debugging = true;
+        boolean starKey;
 
         Env(File keyDir) {
             this.keyDir = keyDir;
@@ -103,6 +104,10 @@ public class HomeModeTest {
 
         @Override public boolean debuggingOn() {
             return debugging;
+        }
+
+        @Override public boolean starKey() {
+            return starKey;
         }
     }
 
@@ -345,13 +350,32 @@ public class HomeModeTest {
         Env e = new Env(keys);
         HomeMode.enable(e, true, QUIET);
         e.notice = null;
-        // A TV update (or the TV's accessibility settings) took it out.
+        // A TV update, a force stop of Lehko or the TV's accessibility settings took it out.
         tv("settings delete secure " + SERVICES);
         tv("settings put secure " + A11Y_ON + " 0");
         HomeMode.verify(e);
         assertEquals(HomeMode.HELPER, secure(SERVICES));
         assertEquals("1", secure(A11Y_ON));
-        assertEquals(e.text(R.string.verify_fixed, e.text(R.string.the_remote_buttons)), e.notice);
+        assertNull("part of Lehko being on: back without a word", e.notice);
+    }
+
+    @Test public void noHelperWhereItCantDoAnything() throws Exception {
+        // Not a Google TV (no launcherx) and no star button on the remote: the helper would only cost memory.
+        tv("pm uninstall " + LAUNCHERX);
+        Env e = new Env(keys);
+        HomeMode.enable(e, false, QUIET);
+        assertEquals("ua.lehko.tv", state().getString("holder"));
+        HomeMode.verify(e);
+        assertNull(secure(SERVICES));
+        assertEquals("0", secure(A11Y_ON));
+        assertFalse(e.prefs.getBoolean(HomeMode.K_A11Y_CHANGED, false));
+
+        e.starKey = true; // a remote with a star button: it can open an app
+        HomeMode.verify(e);
+        assertEquals(HomeMode.HELPER, secure(SERVICES));
+        HomeMode.disable(e, QUIET);
+        assertNull(secure(SERVICES));
+        assertEquals("0", secure(A11Y_ON));
     }
 
     @Test public void updatingLehkoAddsTheHelperQuietly() throws Exception {

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.provider.Settings;
+import android.view.KeyCharacterMap;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -22,7 +23,8 @@ import java.util.regex.Pattern;
 /**
  * Original home screen ⇄ Lehko. Everything goes through the TV's own debugging port ({@link Adb}).
  * <ul>
- * <li>On: Lehko becomes the HOME app, and its remote helper ({@link TvHelper}) an accessibility service. In "full" mode
+ * <li>On: Lehko becomes the HOME app and, on Google TV or with a star button on the remote, its remote helper
+ * ({@link TvHelper}) an accessibility service. In "full" mode
  * the stock launcher is also turned off (pm disable-user: still installed, back with one button), which frees the
  * most memory on weak TVs. On Google TV the setup app's recovery screen would take over without its launcher, so it
  * goes off too.</li>
@@ -116,6 +118,9 @@ final class HomeMode {
 
         /** "USB debugging" is on in the TV's developer options. */
         boolean debuggingOn();
+
+        /** The remote has a star button (KEYCODE_MACRO_1, Android 14+), which the helper can give an app. */
+        boolean starKey();
     }
 
     static Env env(final Context c) {
@@ -143,6 +148,10 @@ final class HomeMode {
 
             @Override public boolean debuggingOn() {
                 return Settings.Global.getInt(app.getContentResolver(), Settings.Global.ADB_ENABLED, 0) == 1;
+            }
+
+            @Override public boolean starKey() {
+                return Build.VERSION.SDK_INT >= 34 && KeyCharacterMap.deviceHasKey(Keys.STAR);
             }
         };
     }
@@ -425,7 +434,7 @@ final class HomeMode {
             }
             // In both modes: it answers the remote's buttons only while the stock launcher is off, or for a star
             // button the user gave an app.
-            helperOn(c, adb);
+            helperOn(c, adb, present);
 
             Set<String> ours = disabled(c);
             int i = 0, turnedOff = 0;
@@ -661,17 +670,18 @@ final class HomeMode {
         adopt(c, adb);
         if (acceptOutsideRevert(c, adb)) return fixed;
         keepDebuggingAllowed(c, adb);
-        // The remote's helper, taken out by a TV update or in the TV's settings. The first time after the update of
-        // Lehko that brought it, it is new rather than fixed: added without a word.
-        boolean had = c.prefs().getBoolean(K_A11Y_CHANGED, false);
-        if (helperOn(c, adb) && had) fixed.add(c.text(R.string.the_remote_buttons));
+        Set<String> present = packages(adb, "");
+        // The remote's helper, taken out by a TV update, a force stop of Lehko or in the TV's settings: put back
+        // without a word, as part of Lehko being on (and the first time after the update of Lehko that brought it, it
+        // is new rather than fixed).
+        helperOn(c, adb, present);
         if (!homeHolder(adb).contains(PKG)) {
             adb.shell("cmd package set-home-activity --user 0 " + HOME);
             fixed.add(c.text(R.string.the_home_screen));
         }
         if (isFull(c)) {
-            Set<String> present = packages(adb, ""), off = packages(adb, "-d");
             if (present.isEmpty()) return fixed;
+            Set<String> off = packages(adb, "-d");
             List<String> todo = new ArrayList<>();
             for (String pkg : targets(adb, c.prefs().getString(K_HOME, ""), present)) {
                 if (!off.contains(pkg) && !isCore(pkg)) todo.add(pkg);
@@ -869,16 +879,20 @@ final class HomeMode {
 
     /**
      * Turns on {@link TvHelper} next to the accessibility services already on (the TV's accessibility_enabled is
-     * recorded first, for "Original"). Returns true when it wasn't in the list. A list that isn't plain component names
-     * is left as it is, without the helper: only names checked here go back to the TV's shell.
+     * recorded first, for "Original"), on TVs where it can do something: Google TV's launcher is installed (full mode
+     * turns it off, and the helper answers its buttons then; {@code present}: the installed packages), or the remote
+     * has a star button to give an app. Elsewhere it would only cost an always-running process and a detour for every
+     * key press. A list that isn't plain component names is left as it is, without the helper: only names checked here
+     * go back to the TV's shell.
      */
-    private static boolean helperOn(Env c, Adb adb) throws IOException {
+    private static void helperOn(Env c, Adb adb, Set<String> present) throws IOException {
+        if (!present.contains(Keys.LAUNCHERX) && !c.starKey()) return;
         List<String> services = services(adb);
-        if (services == null) return false;
+        if (services == null) return;
         if (!c.prefs().getBoolean(K_A11Y_CHANGED, false)) {
             String enabled = adb.shell("settings get secure accessibility_enabled");
             // No answer at all (see services()): nothing recorded, nothing changed.
-            if (enabled.isEmpty()) return false;
+            if (enabled.isEmpty()) return;
             enabled = enabled.trim();
             c.prefs().edit().putString(K_A11Y_ENABLED, enabled.matches("-?\\d+") ? enabled : "null")
                     .putBoolean(K_A11Y_CHANGED, true).commit();
@@ -891,7 +905,6 @@ final class HomeMode {
             putServices(adb, services);
         }
         adb.shell("settings put secure accessibility_enabled 1");
-        return add;
     }
 
     /**
