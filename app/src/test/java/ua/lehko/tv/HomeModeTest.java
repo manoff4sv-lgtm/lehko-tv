@@ -297,6 +297,50 @@ public class HomeModeTest {
         assertEquals(odd, secure(SERVICES));
     }
 
+    @Test public void aSilentAnswerIsNoEmptyList() throws Exception {
+        String reader = "com.example.reader/.Reader";
+        tv("settings put secure " + SERVICES + " " + reader);
+        tv("settings put secure " + A11Y_ON + " 1");
+        tv("fake:flag settings_silent 1"); // the shell gave no answer at all
+        Env e = new Env(keys);
+        HomeMode.enable(e, false, QUIET);
+        assertEquals("ua.lehko.tv", state().getString("holder"));
+        assertEquals("the screen reader isn't replaced by the helper", reader, secure(SERVICES));
+        assertFalse("nothing recorded", e.prefs.getBoolean(HomeMode.K_A11Y_CHANGED, false));
+
+        tv("fake:flag settings_silent 0");
+        HomeMode.verify(e);
+        assertEquals(reader + ":" + HomeMode.HELPER, secure(SERVICES));
+        tv("fake:flag settings_silent 1");
+        HomeMode.disable(e, QUIET);
+        assertEquals("left for a later try", reader + ":" + HomeMode.HELPER, secure(SERVICES));
+        assertEquals("1", secure(A11Y_ON));
+        assertTrue(e.prefs.getBoolean(HomeMode.K_A11Y_CHANGED, false));
+    }
+
+    @Test public void aMissingAccessibilitySwitchIsPutBackMissing() throws Exception {
+        tv("settings delete secure " + A11Y_ON);
+        Env e = new Env(keys);
+        HomeMode.enable(e, false, QUIET);
+        assertEquals("1", secure(A11Y_ON));
+        assertTrue(note(), note().contains("a11y_enabled=null"));
+        HomeMode.disable(e, QUIET);
+        assertNull(secure(SERVICES));
+        assertNull(secure(A11Y_ON));
+    }
+
+    @Test public void aListThatTurnedOddMeanwhileIsLeftForLater() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.enable(e, false, QUIET);
+        String odd = HomeMode.HELPER + ";reboot";
+        tv("settings put secure " + SERVICES + " '" + odd + "'");
+        HomeMode.disable(e, QUIET);
+        assertEquals("never written back to the shell", odd, secure(SERVICES));
+        assertEquals("1", secure(A11Y_ON));
+        assertTrue("the record stays", e.prefs.getBoolean(HomeMode.K_A11Y_CHANGED, false));
+        assertTrue("for the computer scripts too", note().contains("a11y_changed=true"));
+    }
+
     @Test public void verifyPutsTheHelperBack() throws Exception {
         Env e = new Env(keys);
         HomeMode.enable(e, true, QUIET);

@@ -873,10 +873,13 @@ final class HomeMode {
      * is left as it is, without the helper: only names checked here go back to the TV's shell.
      */
     private static boolean helperOn(Env c, Adb adb) throws IOException {
-        List<String> services = services(adb.shell("settings get secure enabled_accessibility_services").trim());
+        List<String> services = services(adb);
         if (services == null) return false;
         if (!c.prefs().getBoolean(K_A11Y_CHANGED, false)) {
-            String enabled = adb.shell("settings get secure accessibility_enabled").trim();
+            String enabled = adb.shell("settings get secure accessibility_enabled");
+            // No answer at all (see services()): nothing recorded, nothing changed.
+            if (enabled.isEmpty()) return false;
+            enabled = enabled.trim();
             c.prefs().edit().putString(K_A11Y_ENABLED, enabled.matches("-?\\d+") ? enabled : "null")
                     .putBoolean(K_A11Y_CHANGED, true).commit();
             writeDeviceState(c, adb);
@@ -898,8 +901,8 @@ final class HomeMode {
      */
     private static void helperOff(Env c, Adb adb) throws IOException {
         if (!c.prefs().getBoolean(K_A11Y_CHANGED, false)) return;
-        List<String> services = services(adb.shell("settings get secure enabled_accessibility_services").trim());
-        // Not plain names: nothing is written back, and the record stays for a later try.
+        List<String> services = services(adb);
+        // Unreadable: nothing is written back, and the record stays for a later try.
         if (services == null) return;
         if (removeHelper(services)) {
             if (services.isEmpty()) adb.shell("settings delete secure enabled_accessibility_services");
@@ -913,8 +916,15 @@ final class HomeMode {
         c.prefs().edit().putBoolean(K_A11Y_CHANGED, false).remove(K_A11Y_ENABLED).commit();
     }
 
-    /** The accessibility services in {@code value}, or null when it isn't a plain list of component names. */
-    private static List<String> services(String value) {
+    /**
+     * The TV's accessibility services, or null when they can't be used: no answer at all, or not a plain list of
+     * component names. "settings get" always prints a line ("null" when there is none); a shell the TV failed to open
+     * prints nothing, and taking that for "none" would turn every other service off.
+     */
+    private static List<String> services(Adb adb) throws IOException {
+        String raw = adb.shell("settings get secure enabled_accessibility_services");
+        if (raw.isEmpty()) return null;
+        String value = raw.trim();
         if (value.isEmpty() || "null".equals(value)) return new ArrayList<>();
         if (!COMPONENTS.matcher(value).matches()) return null;
         return new ArrayList<>(Arrays.asList(value.split(":")));

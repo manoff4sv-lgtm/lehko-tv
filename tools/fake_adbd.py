@@ -183,6 +183,8 @@ class TV:
         if m:
             op, ns, key, value = m.groups()
             if op == "get":
+                if self.flags.get("settings_silent"):
+                    return ""  # the shell stream closed without a word, as adbd does when it can't open one
                 return self.settings[ns].get(key, "null") + "\n"
             if op == "put":
                 # As the TV's shell does: single quotes keep a value as it is, without them $NAME expands (to nothing).
