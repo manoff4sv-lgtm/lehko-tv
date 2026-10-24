@@ -49,7 +49,8 @@ public final class TvHelper extends AccessibilityService {
                         : Apps.launchIntent(pm, target);
                 if (i == null) continue;
                 // Allowed from the background: Android lets an accessibility service start activities.
-                final Intent start = i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+                final Intent start = i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                        | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
                         Apps.start(TvHelper.this, start);

@@ -92,7 +92,11 @@ public final class App extends Application {
     }
 
     private static String processName() {
-        if (Build.VERSION.SDK_INT >= 28) return Application.getProcessName();
+        if (Build.VERSION.SDK_INT >= 28) {
+            // Null only before Android has bound the app: never let that take the home screen down.
+            String name = Application.getProcessName();
+            return name != null ? name : "";
+        }
         // Android 8: the name is the start of the command line, up to the first zero byte.
         try (InputStream in = new FileInputStream("/proc/self/cmdline")) {
             byte[] b = new byte[256];
