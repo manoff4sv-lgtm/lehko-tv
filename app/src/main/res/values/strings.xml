@@ -204,6 +204,7 @@
     <string name="result_saver_fire">Screensaver: Lehko fireplace.</string>
     <string name="result_saver_off">Screensaver: the TV’s own.</string>
     <string name="the_home_screen">the home screen</string>
+    <string name="the_remote_buttons">the remote’s buttons</string>
     <string name="reverted_crash">Lehko’s home screen crashed several times, so the TV’s own home screen is back. Please report it on GitHub.</string>
     <string name="reverted_crash_failed">Lehko’s home screen crashed several times and couldn’t switch back by itself. Open Lehko settings and bring back the TV’s home screen.</string>
     <string name="verify_fixed">After a TV update Lehko fixed: %s</string>

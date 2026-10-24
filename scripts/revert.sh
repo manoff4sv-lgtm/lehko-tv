@@ -21,10 +21,14 @@ SAVER="$(get screensaver)"
 SAVER_ENABLED="$(get screensaver_enabled)"
 ADB_TIME_CHANGED="$(get adb_time_changed)"
 ADB_TIME="$(get adb_time)"
+A11Y_CHANGED="$(get a11y_changed)"
+A11Y_ENABLED="$(get a11y_enabled)"
 
 # Only plain package/component names and numbers ever go to the TV's shell.
 pkg_ok() { [[ "$1" =~ ^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+$ ]]; }
 component_ok() { [[ "$1" =~ ^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+/[A-Za-z0-9_.\$]+$ ]]; }
+C='[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+/[A-Za-z0-9_.$]+'
+components_ok() { [[ "$1" =~ ^$C(:$C)*$ ]]; }
 
 if [ -z "$STATE" ]; then
   echo "No Lehko notes on the TV; turning on the usual stock launcher apps."
@@ -52,6 +56,24 @@ if [ "$SAVER_CHANGED" = "true" ] && [[ "$(tv settings get secure screensaver_com
   if [ "$(tv settings get secure screensaver_enabled)" = "1" ]; then
     if [[ "$SAVER_ENABLED" =~ ^-?[0-9]+$ ]]; then tv settings put secure screensaver_enabled "$SAVER_ENABLED"
     else tv settings delete secure screensaver_enabled; fi
+  fi
+fi
+# Lehko's remote helper (an accessibility service): only its own entry goes, every other service stays on. With none
+# left, the list goes and accessibility_enabled is put back as Lehko found it. A list of anything but plain component
+# names is left alone.
+SERVICES="$(tv settings get secure enabled_accessibility_services)"
+[ "$SERVICES" = "null" ] && SERVICES=""
+if [ -z "$SERVICES" ] || components_ok "$SERVICES"; then
+  REST="" OURS=""
+  for s in ${SERVICES//:/ }; do
+    if [[ "$s" == ua.lehko.tv/* ]]; then OURS=1; else REST="${REST:+$REST:}$s"; fi
+  done
+  # Single quotes: a class name may hold a '$', which the TV's shell would expand.
+  if [ -n "$OURS" ] && [ -n "$REST" ]; then tv settings put secure enabled_accessibility_services "'$REST'"
+  elif [ -n "$OURS" ]; then tv settings delete secure enabled_accessibility_services; fi
+  if [ -z "$REST" ] && [ "$A11Y_CHANGED" = "true" ]; then
+    if [[ "$A11Y_ENABLED" =~ ^-?[0-9]+$ ]]; then tv settings put secure accessibility_enabled "$A11Y_ENABLED"
+    else tv settings delete secure accessibility_enabled; fi
   fi
 fi
 if [ "$ADB_TIME_CHANGED" = "true" ]; then

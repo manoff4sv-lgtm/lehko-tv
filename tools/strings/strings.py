@@ -221,6 +221,7 @@ s("result_saver_on", "Screensaver: Lehko clock.", "Заставка: годин�
 s("result_saver_fire", "Screensaver: Lehko fireplace.", "Заставка: камін Lehko.", "Заставка: камин Lehko.")
 s("result_saver_off", "Screensaver: the TV’s own.", "Заставка: стандартна.", "Заставка: стандартная.")
 s("the_home_screen", "the home screen", "головний екран", "главный экран")
+s("the_remote_buttons", "the remote’s buttons", "кнопки пульта", "кнопки пульта")
 s("reverted_crash", "Lehko’s home screen crashed several times, so the TV’s own home screen is back. Please report it on GitHub.", "Екран Lehko кілька разів аварійно закрився, тому повернуто стандартний екран. Будь ласка, напишіть про це на GitHub.", "Экран Lehko несколько раз аварийно закрылся, поэтому возвращён стандартный экран. Пожалуйста, напишите об этом на GitHub.")
 s("reverted_crash_failed", "Lehko’s home screen crashed several times and couldn’t switch back by itself. Open Lehko settings and bring back the TV’s home screen.", "Екран Lehko кілька разів аварійно закрився і не зміг сам повернути стандартний екран. Відкрийте налаштування Lehko і поверніть стандартний екран.", "Экран Lehko несколько раз аварийно закрылся и не смог сам вернуть стандартный экран. Откройте настройки Lehko и верните стандартный экран.")
 s("verify_fixed", "After a TV update Lehko fixed: %s", "Після оновлення телевізора Lehko виправив: %s", "После обновления телевизора Lehko исправил: %s")

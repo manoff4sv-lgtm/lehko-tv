@@ -130,6 +130,18 @@ public class HomeModeTest {
         return state.getJSONArray("networks").length();
     }
 
+    static final String SERVICES = "enabled_accessibility_services", A11Y_ON = "accessibility_enabled";
+
+    /** A secure setting on the fake TV, null when it isn't there. */
+    static String secure(String key) throws Exception {
+        JSONObject secure = state().getJSONObject("settings").getJSONObject("secure");
+        return secure.has(key) ? secure.getString(key) : null;
+    }
+
+    static String note() throws Exception {
+        return state().getJSONObject("files").getString(HomeMode.STATE_FILE);
+    }
+
     // MARK: - Tests
 
     @Test public void fullModeOnAndBackOff() throws Exception {
@@ -210,6 +222,7 @@ public class HomeModeTest {
         assertFalse(e.prefs.getBoolean(HomeMode.K_FULL, false));
         assertFalse("an unneeded app isn't the launcher", HomeMode.launcherOff(e.prefs));
         assertTrue(s.getJSONObject("files").getString(HomeMode.STATE_FILE).contains("full=false"));
+        assertEquals("the remote's helper stays (a star button may have an app)", HomeMode.HELPER, secure(SERVICES));
     }
 
     @Test public void launcherBackOnStaysOnWhenTheSetupAppDoesNot() throws Exception {
@@ -232,6 +245,85 @@ public class HomeModeTest {
         assertTrue(enabled(state(), SETUP));
         assertTrue(HomeMode.disabled(e.prefs).isEmpty());
         assertFalse(HomeMode.launcherOff(e.prefs));
+    }
+
+    @Test public void remoteHelperOnAndOff() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.enable(e, false, QUIET); // the lighter mode too: a star button may have an app
+        assertEquals(HomeMode.HELPER, secure(SERVICES));
+        assertEquals("1", secure(A11Y_ON));
+        assertTrue(note(), note().contains("a11y_changed=true") && note().contains("a11y_enabled=0"));
+        HomeMode.enable(e, true, QUIET); // full mode later: still there once
+        assertEquals(HomeMode.HELPER, secure(SERVICES));
+
+        HomeMode.disable(e, QUIET);
+        assertNull("as the TV had it: none", secure(SERVICES));
+        assertEquals("0", secure(A11Y_ON));
+        assertFalse(e.prefs.getBoolean(HomeMode.K_A11Y_CHANGED, false));
+        assertTrue(note().contains("a11y_changed=false"));
+    }
+
+    @Test public void otherAccessibilityServicesStay() throws Exception {
+        // A '$' in a class name has to reach the TV as it is: the shell would expand it without quotes.
+        String others = "com.example.reader/.Reader:com.example.keys/com.example.keys.Main$Service";
+        tv("settings put secure " + SERVICES + " '" + others + "'");
+        tv("settings put secure " + A11Y_ON + " 1");
+        Env e = new Env(keys);
+        HomeMode.enable(e, true, QUIET);
+        assertEquals(others + ":" + HomeMode.HELPER, secure(SERVICES));
+        HomeMode.disable(e, QUIET);
+        assertEquals(others, secure(SERVICES));
+        assertEquals("the others still need it", "1", secure(A11Y_ON));
+    }
+
+    @Test public void helperTurnedOnInTheTvsSettingsIsNotAddedTwice() throws Exception {
+        String longForm = "ua.lehko.tv/ua.lehko.tv.TvHelper";
+        tv("settings put secure " + SERVICES + " " + longForm);
+        Env e = new Env(keys);
+        HomeMode.enable(e, false, QUIET);
+        assertEquals(longForm, secure(SERVICES));
+        HomeMode.disable(e, QUIET);
+        assertNull(secure(SERVICES));
+    }
+
+    @Test public void anAccessibilityListThatIsntPlainNamesIsLeftAlone() throws Exception {
+        String odd = "com.example.reader/.Reader;reboot";
+        tv("settings put secure " + SERVICES + " " + odd);
+        Env e = new Env(keys);
+        HomeMode.enable(e, false, QUIET);
+        assertEquals("Lehko is on, without the helper", "ua.lehko.tv", state().getString("holder"));
+        assertEquals("never written back to the shell", odd, secure(SERVICES));
+        HomeMode.disable(e, QUIET);
+        assertEquals(odd, secure(SERVICES));
+    }
+
+    @Test public void verifyPutsTheHelperBack() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.enable(e, true, QUIET);
+        e.notice = null;
+        // A TV update (or the TV's accessibility settings) took it out.
+        tv("settings delete secure " + SERVICES);
+        tv("settings put secure " + A11Y_ON + " 0");
+        HomeMode.verify(e);
+        assertEquals(HomeMode.HELPER, secure(SERVICES));
+        assertEquals("1", secure(A11Y_ON));
+        assertEquals(e.text(R.string.verify_fixed, e.text(R.string.the_remote_buttons)), e.notice);
+    }
+
+    @Test public void updatingLehkoAddsTheHelperQuietly() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.enable(e, false, QUIET);
+        // As turned on by a Lehko that had no helper yet.
+        tv("settings delete secure " + SERVICES);
+        tv("settings put secure " + A11Y_ON + " 0");
+        e.prefs.edit().remove(HomeMode.K_A11Y_CHANGED).remove(HomeMode.K_A11Y_ENABLED).commit();
+        e.notice = null;
+        HomeMode.verify(e); // after the update
+        assertEquals(HomeMode.HELPER, secure(SERVICES));
+        assertNull("new, not fixed", e.notice);
+        HomeMode.disable(e, QUIET);
+        assertNull(secure(SERVICES));
+        assertEquals("0", secure(A11Y_ON));
     }
 
     @Test public void wifiOwnerIsNeverTurnedOff() throws Exception {
@@ -288,6 +380,8 @@ public class HomeModeTest {
         assertTrue(message, enabled(s, LAUNCHERX));
         assertTrue("setupwraith is not a HOME candidate while off, only the notes know it", enabled(s, SETUP));
         assertEquals(LAUNCHERX, s.getString("holder"));
+        assertNull("the notes know the helper too", secure(SERVICES));
+        assertEquals("0", secure(A11Y_ON));
     }
 
     @Test public void brokenPackageListDuringRestoreLosesNothing() throws Exception {
@@ -331,6 +425,7 @@ public class HomeModeTest {
         }
         assertFalse(state().getJSONObject("settings").getJSONObject("global").has("adb_allowed_connection_time"));
         assertFalse(e.prefs.getBoolean(HomeMode.K_ADB_TIME_CHANGED, false));
+        assertNull("no helper without Lehko", secure(SERVICES));
     }
 
     @Test public void turnOnCountsOnlyWhatItTurnedOff() throws Exception {
@@ -402,6 +497,8 @@ public class HomeModeTest {
         tv("pm enable " + SETUP);
         tv("cmd package set-home-activity --user 0 " + LAUNCHERX + "/.home.HomeActivity");
         tv("settings delete global adb_allowed_connection_time");
+        tv("settings delete secure " + SERVICES);
+        tv("settings put secure " + A11Y_ON + " 0");
         tv("rm -f " + HomeMode.STATE_FILE);
     }
 
@@ -411,7 +508,9 @@ public class HomeModeTest {
         assertTrue(enabled(s, LAUNCHERX));
         assertTrue(enabled(s, SETUP));
         assertFalse(s.getJSONObject("settings").getJSONObject("global").has("adb_allowed_connection_time"));
+        assertNull("the helper isn't put back", secure(SERVICES));
         assertFalse(e.prefs.getBoolean(HomeMode.K_ON, false));
+        assertFalse(e.prefs.getBoolean(HomeMode.K_A11Y_CHANGED, false));
     }
 
     @Test public void revertFromAComputerSticks() throws Exception {
@@ -455,6 +554,9 @@ public class HomeModeTest {
         assertFalse("Android's 7-day expiry is back", s.getJSONObject("settings").getJSONObject("global")
                 .has("adb_allowed_connection_time"));
         assertFalse(fresh.prefs.getBoolean(HomeMode.K_ADB_TIME_CHANGED, false));
+        assertNull("no helper without Lehko as home", secure(SERVICES));
+        assertEquals("0", secure(A11Y_ON));
+        assertFalse(fresh.prefs.getBoolean(HomeMode.K_A11Y_CHANGED, false));
     }
 
     @Test public void uninstalledInFullModeKeepsTheWayBack() throws Exception {
@@ -481,6 +583,8 @@ public class HomeModeTest {
         assertTrue(enabled(s, SETUP));
         assertFalse(Watchdog.safeMode(e.prefs));
         assertFalse(e.prefs.getBoolean(HomeMode.K_ON, false));
+        assertNull(secure(SERVICES));
+        assertEquals("0", secure(A11Y_ON));
     }
 
     @Test public void crashSafetyNetThatCantGetIn() throws Exception {

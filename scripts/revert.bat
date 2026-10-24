@@ -17,6 +17,8 @@ set SAVER=
 set SAVERENABLED=
 set ADBCHANGED=
 set ADBTIME=
+set A11YCHANGED=
+set A11YENABLED=
 set GOTSTATE=
 for /f "usebackq tokens=1,* delims==" %%a in (`adb -s %TV% shell cat /data/local/tmp/lehko_state 2^>nul`) do (
   set GOTSTATE=1
@@ -27,6 +29,8 @@ for /f "usebackq tokens=1,* delims==" %%a in (`adb -s %TV% shell cat /data/local
   if "%%a"=="screensaver_enabled" set SAVERENABLED=%%b
   if "%%a"=="adb_time_changed" set ADBCHANGED=%%b
   if "%%a"=="adb_time" set ADBTIME=%%b
+  if "%%a"=="a11y_changed" set A11YCHANGED=%%b
+  if "%%a"=="a11y_enabled" set A11YENABLED=%%b
 )
 rem The usual stock launcher apps only without notes, like revert.sh: an empty disabled= means Lehko turned nothing off.
 if not defined GOTSTATE (
@@ -62,6 +66,36 @@ if "!SAVERCHANGED!"=="true" (
     set SEOK=
     echo !SAVERENABLED!| findstr /R /X "[0-9-][0-9-]*" >nul && set SEOK=1
     if defined SEOK (adb -s %TV% shell settings put secure screensaver_enabled !SAVERENABLED!) else (adb -s %TV% shell settings delete secure screensaver_enabled)
+  )
+)
+rem Lehko's remote helper (an accessibility service): only its own entry goes, every other service stays on. With none
+rem left, the list goes and accessibility_enabled is put back as Lehko found it. A list of anything but plain component
+rem names is left alone.
+set SERVICES=
+for /f "usebackq delims=" %%s in (`adb -s %TV% shell settings get secure enabled_accessibility_services`) do set SERVICES=%%s
+if "!SERVICES!"=="null" set SERVICES=
+set LISTOK=1
+set OURS=
+set REST=
+if defined SERVICES (
+  echo !SERVICES!| findstr /R /X "[A-Za-z0-9_.:/$]*" >nul || set LISTOK=
+)
+if defined SERVICES if defined LISTOK (
+  for %%c in (!SERVICES::= !) do (
+    echo %%c| findstr /R /X "[A-Za-z0-9_.][A-Za-z0-9_.]*/[A-Za-z0-9_.$][A-Za-z0-9_.$]*" >nul || set LISTOK=
+    set C=%%c
+    if "!C:~0,12!"=="ua.lehko.tv/" (set OURS=1) else if defined REST (set REST=!REST!:%%c) else (set REST=%%c)
+  )
+)
+rem Single quotes: a class name may hold a $, which the TV's shell would expand.
+if defined LISTOK (
+  if defined OURS (
+    if defined REST (adb -s %TV% shell settings put secure enabled_accessibility_services '!REST!') else (adb -s %TV% shell settings delete secure enabled_accessibility_services)
+  )
+  if not defined REST if "!A11YCHANGED!"=="true" (
+    set A11YOK=
+    echo !A11YENABLED!| findstr /R /X "[0-9-][0-9-]*" >nul && set A11YOK=1
+    if defined A11YOK (adb -s %TV% shell settings put secure accessibility_enabled !A11YENABLED!) else (adb -s %TV% shell settings delete secure accessibility_enabled)
   )
 )
 if "!ADBCHANGED!"=="true" (

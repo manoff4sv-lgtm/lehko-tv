@@ -202,6 +202,7 @@
     <string name="result_saver_fire">Заставка: камін Lehko.</string>
     <string name="result_saver_off">Заставка: стандартна.</string>
     <string name="the_home_screen">головний екран</string>
+    <string name="the_remote_buttons">кнопки пульта</string>
     <string name="reverted_crash">Екран Lehko кілька разів аварійно закрився, тому повернуто стандартний екран. Будь ласка, напишіть про це на GitHub.</string>
     <string name="reverted_crash_failed">Екран Lehko кілька разів аварійно закрився і не зміг сам повернути стандартний екран. Відкрийте налаштування Lehko і поверніть стандартний екран.</string>
     <string name="verify_fixed">Після оновлення телевізора Lehko виправив: %s</string>
