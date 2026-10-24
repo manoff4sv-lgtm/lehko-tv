@@ -40,6 +40,8 @@
     <string name="apps_on_summary">Выключено через Lehko: %d. Включите их перед удалением Lehko.</string>
     <string name="result_apps_on">Готово! Всё, что выключал Lehko, снова включено.</string>
     <string name="adb_no_answer">Служба отладки телевизора не ответила. Попробуйте ещё раз через минуту.</string>
+    <string name="city_dnipro">Днепр</string>
+    <string name="city_odesa">Одесса</string>
     <string name="weather_pick_city">Выберите город в настройках Lehko</string>
     <string name="weather_loading">Загрузка погоды…</string>
     <string name="weather_old">Не обновлялось с %s</string>

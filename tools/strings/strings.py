@@ -51,6 +51,8 @@ s("result_apps_on", "Done! Every app Lehko turned off is on again.", "Готов
 s("adb_no_answer", "The TV’s debugging service didn’t answer. Try again in a minute.", "Служба налагодження телевізора не відповіла. Спробуйте ще раз за хвилину.", "Служба отладки телевизора не ответила. Попробуйте ещё раз через минуту.")
 
 # FIX-STRINGS-H (temporary anchor: new strings of bundle H go right below)
+s("city_dnipro", "Dnipro", "Дніпро", "Днепр")
+s("city_odesa", "Odesa", "Одеса", "Одесса")
 
 s("weather_pick_city", "Choose a city in Lehko settings", "Оберіть місто в налаштуваннях Lehko", "Выберите город в настройках Lehko")
 s("weather_loading", "Loading the weather…", "Завантаження погоди…", "Загрузка погоды…")

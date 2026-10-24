@@ -122,6 +122,30 @@ public class WeatherTest {
         assertTrue(Weather.parsePlaces("{\"generationtime_ms\":0.1}").isEmpty());
     }
 
+    /** With no city chosen, the outage region says where the TV is; without one, the time zone. */
+    @Test public void defaultCity() {
+        assertEquals(Weather.KYIV, Weather.defaultCity("kyiv", "UTC"));
+        assertEquals(Weather.KYIV, Weather.defaultCity("kyiv-region", "Europe/London"));
+        assertEquals(Weather.DNIPRO, Weather.defaultCity("dnipro-dnem", "Europe/Kiev"));
+        assertEquals(Weather.DNIPRO, Weather.defaultCity("dnipro-cek", "Europe/Kiev"));
+        assertEquals(Weather.ODESA, Weather.defaultCity("odesa", "Europe/Kyiv"));
+        assertEquals(Weather.KYIV, Weather.defaultCity(null, "Europe/Kiev"));
+        assertEquals(Weather.KYIV, Weather.defaultCity(null, "Europe/Kyiv"));
+        assertEquals(-1, Weather.defaultCity(null, "Europe/Berlin"));
+        for (Outages.Region r : Outages.REGIONS) assertTrue(r.id, Weather.defaultCity(r.id, "UTC") >= 0);
+    }
+
+    /** A new outage region moves the default city under a fresh forecast: the old city's isn't shown as the new one's. */
+    @Test public void cacheForAnotherPlace() {
+        double[] kyiv = {50.4501, 30.5234}, dnipro = {48.4647, 35.0462};
+        assertTrue(Weather.cacheFits(Weather.placeKey(kyiv), kyiv));
+        assertTrue(Weather.cacheFits(Weather.placeKey(kyiv), kyiv.clone()));
+        assertFalse(Weather.cacheFits(Weather.placeKey(kyiv), dnipro));
+        assertFalse(Weather.cacheFits(Weather.placeKey(kyiv), null));
+        // Kept before the place was: shown, offline it may be all there is.
+        assertTrue(Weather.cacheFits(null, dnipro));
+    }
+
     @Test public void snowCodes() {
         assertTrue(Weather.isSnow(71));
         assertTrue(Weather.isSnow(86));

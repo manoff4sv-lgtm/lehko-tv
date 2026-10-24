@@ -40,6 +40,8 @@
     <string name="apps_on_summary">Вимкнено через Lehko: %d. Увімкніть їх перед видаленням Lehko.</string>
     <string name="result_apps_on">Готово! Усе, що вимикав Lehko, знову ввімкнено.</string>
     <string name="adb_no_answer">Служба налагодження телевізора не відповіла. Спробуйте ще раз за хвилину.</string>
+    <string name="city_dnipro">Дніпро</string>
+    <string name="city_odesa">Одеса</string>
     <string name="weather_pick_city">Оберіть місто в налаштуваннях Lehko</string>
     <string name="weather_loading">Завантаження погоди…</string>
     <string name="weather_old">Не оновлювалося з %s</string>

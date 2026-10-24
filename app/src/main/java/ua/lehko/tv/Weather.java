@@ -19,6 +19,8 @@ final class Weather {
     private Weather() {}
 
     static final String CACHE = "weather_json", CACHE_TIME = "weather_time";
+    /** The place ("lat,lon") the cached forecast is for: with no city chosen, the place can change under it. */
+    static final String CACHE_PLACE = "weather_place";
     /** Refresh after this long. */
     static final long MAX_AGE_MS = 30 * 60_000L;
     /** Older than this, a forecast is marked old on the home screen and left out of the clock screensaver. */
@@ -95,16 +97,17 @@ final class Weather {
             String json = Net.get(url(p[0], p[1]));
             Data d = parse(json);
             if (!Arrays.equals(p, place(c))) continue;
-            Prefs.of(c).edit().putString(CACHE, json).putLong(CACHE_TIME, System.currentTimeMillis()).apply();
+            Prefs.of(c).edit().putString(CACHE, json).putLong(CACHE_TIME, System.currentTimeMillis())
+                    .putString(CACHE_PLACE, placeKey(p)).apply();
             return d;
         }
         return null;
     }
 
-    /** The cached data (any age), or null. */
+    /** The cached data (any age), or null; null too when it is for another place than the one shown now. */
     static Data cached(Context c) {
         String json = Prefs.of(c).getString(CACHE, null);
-        if (json == null) return null;
+        if (json == null || !cacheFits(c)) return null;
         try {
             return parse(json);
         } catch (JSONException e) {
@@ -116,11 +119,33 @@ final class Weather {
         return Prefs.of(c).getLong(CACHE_TIME, 0);
     }
 
+    /** Due for a download: old, or for another place than the one shown now. */
     static boolean stale(Context c) {
-        return Net.stale(System.currentTimeMillis(), cacheTime(c), MAX_AGE_MS);
+        return !cacheFits(c) || Net.stale(System.currentTimeMillis(), cacheTime(c), MAX_AGE_MS);
     }
 
-    /** The chosen city, or Kyiv on a TV set to the Kyiv time zone, or null (then the card asks to choose a city). */
+    private static boolean cacheFits(Context c) {
+        return cacheFits(Prefs.of(c).getString(CACHE_PLACE, null), place(c));
+    }
+
+    /**
+     * Whether a cache for {@code cachedFor} (see {@link #CACHE_PLACE}) can be shown for {@code place}. Choosing a city
+     * drops the cache, but with none chosen a new outage region moves the place under a fresh forecast. A cache from
+     * before the place was kept with it counts: offline, it may be all there is.
+     */
+    static boolean cacheFits(String cachedFor, double[] place) {
+        return cachedFor == null || cachedFor.equals(placeKey(place));
+    }
+
+    static String placeKey(double[] p) {
+        return p == null ? "" : p[0] + "," + p[1];
+    }
+
+    /** The cities {@link #defaultCity} picks from. */
+    static final int KYIV = 0, DNIPRO = 1, ODESA = 2;
+    private static final double[][] CITIES = {{50.4501, 30.5234}, {48.4647, 35.0462}, {46.4825, 30.7233}};
+
+    /** The chosen city, else {@link #defaultCity}'s, else null (then the card asks to choose a city). */
     static double[] place(Context c) {
         android.content.SharedPreferences p = Prefs.of(c);
         String lat = p.getString(Prefs.CITY_LAT, ""), lon = p.getString(Prefs.CITY_LON, "");
@@ -129,15 +154,32 @@ final class Weather {
                 return new double[]{Double.parseDouble(lat), Double.parseDouble(lon)};
             } catch (NumberFormatException ignored) {}
         }
-        String tz = TimeZone.getDefault().getID();
-        if ("Europe/Kiev".equals(tz) || "Europe/Kyiv".equals(tz)) return new double[]{50.4501, 30.5234};
-        return null;
+        int city = defaultCity(c);
+        return city < 0 ? null : CITIES[city].clone();
     }
 
     static String cityName(Context c) {
         String name = Prefs.of(c).getString(Prefs.CITY_NAME, "");
         if (!name.isEmpty()) return name;
-        return place(c) != null ? c.getString(R.string.city_kyiv) : "";
+        int city = defaultCity(c);
+        if (city < 0) return "";
+        return c.getString(city == DNIPRO ? R.string.city_dnipro : city == ODESA ? R.string.city_odesa : R.string.city_kyiv);
+    }
+
+    private static int defaultCity(Context c) {
+        Outages.Region r = Outages.chosenRegion(c);
+        return defaultCity(r == null ? null : r.id, TimeZone.getDefault().getID());
+    }
+
+    /**
+     * The city for a TV with none chosen: the outage region's (the schedule says where the TV is), else Kyiv on a TV
+     * set to the Kyiv time zone, else -1 (none). {@code region}: an {@link Outages.Region} id, or null.
+     */
+    static int defaultCity(String region, String tz) {
+        if ("kyiv".equals(region) || "kyiv-region".equals(region)) return KYIV;
+        if ("dnipro-dnem".equals(region) || "dnipro-cek".equals(region)) return DNIPRO;
+        if ("odesa".equals(region)) return ODESA;
+        return "Europe/Kiev".equals(tz) || "Europe/Kyiv".equals(tz) ? KYIV : -1;
     }
 
     static Data parse(String json) throws JSONException {

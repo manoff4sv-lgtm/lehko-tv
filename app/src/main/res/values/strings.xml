@@ -42,6 +42,8 @@
     <string name="apps_on_summary">Turned off with Lehko: %d. Turn them back on before uninstalling Lehko.</string>
     <string name="result_apps_on">Done! Every app Lehko turned off is on again.</string>
     <string name="adb_no_answer">The TV’s debugging service didn’t answer. Try again in a minute.</string>
+    <string name="city_dnipro">Dnipro</string>
+    <string name="city_odesa">Odesa</string>
     <string name="weather_pick_city">Choose a city in Lehko settings</string>
     <string name="weather_loading">Loading the weather…</string>
     <string name="weather_old">No update since %s</string>
