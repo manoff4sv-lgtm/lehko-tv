@@ -174,7 +174,7 @@ s("memory_cleaning", "Closing background apps…", "Закриваю фонов�
 s("memory_freed", "Freed %d MB", "Звільнено %d МБ", "Освобождено %d МБ")
 s("memory_nothing", "Nothing extra was running in the background.", "У фоні не працювало нічого зайвого.", "В фоне не работало ничего лишнего.")
 s("memory_auto", "Free memory automatically", "Автоочищення памʼяті", "Автоочистка памяти")
-s("memory_auto_on", "When memory runs low, closes background apps (needs USB debugging)", "Коли памʼяті мало, закриває фонові додатки (потрібне налагодження USB)", "Когда памяти мало, закрывает фоновые приложения (нужна отладка по USB)")
+s("memory_auto_on", "When Android says memory is low, closes background apps while nothing is pressed on the home screen (needs USB debugging)", "Коли система каже, що памʼяті мало, закриває фонові додатки, поки на головному екрані нічого не натискають (потрібне налагодження USB)", "Когда система говорит, что памяти мало, закрывает фоновые приложения, пока на главном экране ничего не нажимают (нужна отладка по USB)")
 s("section_show", "On the home screen", "На головному екрані", "На главном экране")
 s("section_rest", "Screensaver and fireplace", "Заставка і камін", "Заставка и камин")
 s("section_memory", "Speed and memory", "Швидкість і памʼять", "Скорость и память")

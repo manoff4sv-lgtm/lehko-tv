@@ -117,7 +117,7 @@ public final class HomeActivity extends Activity {
         }
     };
 
-    /** After a few minutes without a key press: the fireplace. */
+    /** After a few minutes without a key press: closing cached apps if memory is low, then the fireplace. */
     private final Runnable idle = new Runnable() {
         @Override public void run() {
             if (!resumed || isFinishing() || isDestroyed()) return;
@@ -126,7 +126,9 @@ public final class HomeActivity extends Activity {
                 scheduleIdle();
                 return;
             }
-            Apps.start(HomeActivity.this, new Intent(HomeActivity.this, FireplaceActivity.class));
+            // Nobody is about to open an app now, so none of them has to start from scratch for it.
+            Memory.maybeAutoClean(HomeActivity.this);
+            if (fireplaceDelay() > 0) Apps.start(HomeActivity.this, new Intent(HomeActivity.this, FireplaceActivity.class));
         }
     };
 
@@ -335,7 +337,6 @@ public final class HomeActivity extends Activity {
         // Held weakly by the preferences: a field.
         Prefs.of(this).registerOnSharedPreferenceChangeListener(noticeWatch);
         updateMemoryTile();
-        Memory.maybeAutoClean(this);
         scheduleIdle();
     }
 
@@ -355,11 +356,17 @@ public final class HomeActivity extends Activity {
 
     private void scheduleIdle() {
         App.MAIN.removeCallbacks(idle);
+        long fire = fireplaceDelay();
+        if (resumed) App.MAIN.postDelayed(idle, fire > 0 ? fire : Memory.AUTO_IDLE_MS);
+    }
+
+    /** Idle time before the fireplace, or 0 when none comes. */
+    private long fireplaceDelay() {
         long delay = FireScene.idleMinutes(this) * 60_000L;
         // The TV's screensaver (or sleep) timer counts from the same key press. When it is no longer than ours it wins:
         // the fireplace would never show, or only flash before the screensaver covers it.
         int tv = Settings.System.getInt(getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT, -1);
-        if (resumed && delay > 0 && (tv <= 0 || tv > delay)) App.MAIN.postDelayed(idle, delay);
+        return delay > 0 && (tv <= 0 || tv > delay) ? delay : 0;
     }
 
     /** Results of background checks: up to 20 seconds, a key press puts it away after 4. */

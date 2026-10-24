@@ -162,7 +162,7 @@
     <string name="memory_freed">Freed %d MB</string>
     <string name="memory_nothing">Nothing extra was running in the background.</string>
     <string name="memory_auto">Free memory automatically</string>
-    <string name="memory_auto_on">When memory runs low, closes background apps (needs USB debugging)</string>
+    <string name="memory_auto_on">When Android says memory is low, closes background apps while nothing is pressed on the home screen (needs USB debugging)</string>
     <string name="section_show">On the home screen</string>
     <string name="section_rest">Screensaver and fireplace</string>
     <string name="section_memory">Speed and memory</string>

@@ -38,11 +38,12 @@ public class MemoryTest {
         assertEquals(0, HomeMode.pssKb(""));
     }
 
-    @Test public void lowMemory() {
-        long mb = Memory.MB;
-        assertTrue(Memory.low(450 * mb, 1000 * mb)); // under 500 MB
-        assertFalse(Memory.low(520 * mb, 1000 * mb));
-        assertTrue(Memory.low(700 * mb, 4000 * mb)); // a fifth of 4 GB is 800 MB
-        assertFalse(Memory.low(900 * mb, 4000 * mb));
+    @Test public void autoCleanOnlyWhenAndroidSaysLowAndNotTooOften() {
+        long now = 1_800_000_000_000L, min = 60_000L;
+        assertTrue(Memory.autoDue(now, 0, true)); // never ran
+        assertFalse("memory isn't low", Memory.autoDue(now, 0, false));
+        assertFalse(Memory.autoDue(now, now - 29 * min, true)); // at most every half hour
+        assertTrue(Memory.autoDue(now, now - 31 * min, true));
+        assertTrue("the clock was ahead last time and has been put right", Memory.autoDue(now, now + 60 * min, true));
     }
 }
