@@ -1,5 +1,7 @@
 package ua.lehko.tv;
 
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 
@@ -19,8 +21,9 @@ import java.util.TreeMap;
 
 /**
  * The remote buttons Google TV hands to its own launcher (the star, YouTube and "all apps"), and what {@link TvHelper}
- * opens with them instead. Decisions only, so they can be tested; the helper's settings live in a small file
- * (helper.txt), because it runs in a process of its own and SharedPreferences aren't shared between processes.
+ * opens with them instead. The decisions are pure, so they can be tested; next to them the two facts they depend on,
+ * shared with Lehko's settings screen: the stock launcher's state, and the helper's settings in a small file
+ * (helper.txt), because the helper runs in a process of its own and SharedPreferences aren't shared between processes.
  */
 final class Keys {
     private Keys() {}
@@ -61,6 +64,24 @@ final class Keys {
         if (keyCode == KeyEvent.KEYCODE_BUTTON_3) return Collections.singletonList(YOUTUBE);
         if (keyCode == KeyEvent.KEYCODE_ALL_APPS) return Collections.singletonList(ALL_APPS);
         return Collections.emptyList();
+    }
+
+    /** Google TV's launcher, or null when it isn't installed; its {@code enabled} says whether it is on. */
+    static ApplicationInfo launcher(PackageManager pm) {
+        try {
+            return pm.getApplicationInfo(LAUNCHERX, PackageManager.MATCH_DISABLED_COMPONENTS);
+        } catch (PackageManager.NameNotFoundException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Google TV's launcher is installed and turned off (Lehko's full mode): nothing else answers these buttons. Not
+     * installed counts as on: other TVs answer them their own way. Asked at each press, as it can change any time.
+     */
+    static boolean launcherOff(PackageManager pm) {
+        ApplicationInfo launcher = launcher(pm);
+        return launcher != null && !launcher.enabled;
     }
 
     // MARK: - helper.txt: "key=value" lines

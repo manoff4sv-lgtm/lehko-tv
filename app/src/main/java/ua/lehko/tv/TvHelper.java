@@ -3,8 +3,11 @@ package ua.lehko.tv;
 import android.accessibilityservice.AccessibilityService;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
+
+import java.util.List;
 
 /**
  * The remote's star, YouTube and "all apps" buttons without the stock launcher. Google TV hands those buttons to its
@@ -29,32 +32,41 @@ public final class TvHelper extends AccessibilityService {
         return ours;
     }
 
-    /** Opens the first thing the button stands for that can be opened. Read at each press: it's a few bytes. */
+    /**
+     * Finds the first thing the button stands for that can be opened, and opens it once the key is answered: Android
+     * waits only half a second for that answer before handing the key on anyway. The settings are read at each press
+     * (a few bytes).
+     */
     private boolean open(int key) {
-        PackageManager pm = getPackageManager();
-        String star = key == Keys.STAR ? Keys.read(getFilesDir()).get(Keys.P_STAR) : null;
-        for (String target : Keys.opens(key, star, launcherOff(pm))) {
-            Intent i = Keys.ALL_APPS.equals(target) ? new Intent(this, AllAppsActivity.class)
-                    : Apps.launchIntent(pm, target);
-            // Allowed from the background: Android lets an accessibility service start activities.
-            if (i != null && Apps.start(this, i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                    | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED))) {
+        try {
+            PackageManager pm = getPackageManager();
+            String star = key == Keys.STAR ? Keys.read(getFilesDir()).get(Keys.P_STAR) : null;
+            List<String> targets = Keys.opens(key, star, Keys.launcherOff(pm));
+            // Left on after Lehko stopped being the home screen some other way (by hand, say): out of the way.
+            if (targets.isEmpty() || !lehkoHome(pm)) return false;
+            for (String target : targets) {
+                Intent i = Keys.ALL_APPS.equals(target) ? new Intent(this, AllAppsActivity.class)
+                        : Apps.launchIntent(pm, target);
+                if (i == null) continue;
+                // Allowed from the background: Android lets an accessibility service start activities.
+                final Intent start = i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+                App.MAIN.post(new Runnable() {
+                    @Override public void run() {
+                        Apps.start(TvHelper.this, start);
+                    }
+                });
                 return true;
             }
+        } catch (RuntimeException e) {
+            // The package manager failed (the system busy or restarting): the key goes on as before.
         }
         return false;
     }
 
-    /**
-     * Google TV's launcher is installed and turned off (Lehko's full mode). Asked at each press, as it can change any
-     * time. Not installed counts as on: other TVs answer these buttons their own way.
-     */
-    private static boolean launcherOff(PackageManager pm) {
-        try {
-            return !pm.getApplicationInfo(Keys.LAUNCHERX, PackageManager.MATCH_DISABLED_COMPONENTS).enabled;
-        } catch (PackageManager.NameNotFoundException | RuntimeException e) {
-            return false;
-        }
+    private boolean lehkoHome(PackageManager pm) {
+        ResolveInfo home = pm.resolveActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME),
+                PackageManager.MATCH_DEFAULT_ONLY);
+        return home != null && home.activityInfo != null && getPackageName().equals(home.activityInfo.packageName);
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {
