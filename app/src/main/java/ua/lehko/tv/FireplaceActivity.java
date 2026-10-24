@@ -15,7 +15,7 @@ public final class FireplaceActivity extends Activity {
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
-        scene = new FireScene(this);
+        scene = new FireScene(this, true);
         setContentView(scene.root);
         // The scene covers the whole window: no window background to paint under it every frame.
         getWindow().setBackgroundDrawable(null);

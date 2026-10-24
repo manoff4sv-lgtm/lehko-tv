@@ -145,7 +145,7 @@
     <string name="fireplace">Камин в простое</string>
     <string name="fireplace_after">Через %d мин на главном экране без нажатий</string>
     <string name="fireplace_sound">Треск камина</string>
-    <string name="fireplace_sound_on">Тихое потрескивание</string>
+    <string name="fireplace_sound_on">Тихое потрескивание, когда камин горит в простое (заставка без звука)</string>
     <string name="rates_fiat">Курс валют</string>
     <string name="rates_fiat_on">Доллар и евро к гривне · Монобанк, НБУ</string>
     <string name="cleanup">Лишние приложения</string>

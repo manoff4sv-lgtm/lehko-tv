@@ -147,7 +147,7 @@
     <string name="fireplace">Fireplace when idle</string>
     <string name="fireplace_after">After %d min on the home screen without pressing anything</string>
     <string name="fireplace_sound">Fireplace crackle</string>
-    <string name="fireplace_sound_on">A quiet crackling sound</string>
+    <string name="fireplace_sound_on">A quiet crackle by the idle fireplace (the screensaver stays silent)</string>
     <string name="rates_fiat">Exchange rates</string>
     <string name="rates_fiat_on">Dollar and euro to hryvnia · Monobank, NBU</string>
     <string name="cleanup">Unneeded apps</string>

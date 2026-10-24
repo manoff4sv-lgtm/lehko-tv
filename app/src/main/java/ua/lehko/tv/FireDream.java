@@ -10,7 +10,7 @@ public final class FireDream extends DreamService {
         super.onAttachedToWindow();
         setInteractive(false);
         setFullscreen(true);
-        scene = new FireScene(this);
+        scene = new FireScene(this, false);
         setContentView(scene.root);
         if (getWindow() != null) getWindow().setBackgroundDrawable(null);
     }

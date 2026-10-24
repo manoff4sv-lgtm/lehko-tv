@@ -18,7 +18,7 @@ import java.util.Random;
 
 /**
  * The fireplace screen, shared by {@link FireplaceActivity} and {@link FireDream}: the fire, a dim clock with the
- * outage status in the dark top of the firebox, and the optional crackle. The clock and the whole scene drift slowly, so nothing
+ * outage status in the dark top of the firebox, and the optional crackle (idle fireplace only). The clock and the whole scene drift slowly, so nothing
  * stays on the same pixels for long.
  */
 final class FireScene {
@@ -48,10 +48,16 @@ final class FireScene {
     private final float[] from = new float[4], to = new float[4];
     private long glideStart;
     private Crackle crackle;
+    private final boolean withSound;
     private boolean started, placed, gliding;
 
-    FireScene(Context c) {
+    /**
+     * {@code withSound}: the idle fireplace may crackle; the screensaver never does. It often starts over a paused
+     * video, and taking the audio focus from that player (then giving it back) is the last thing it needs.
+     */
+    FireScene(Context c, boolean withSound) {
         context = c;
+        this.withSound = withSound;
         float dp = c.getResources().getDisplayMetrics().density;
         shift = Math.round(10 * dp);
         // No background: the fire view covers everything (less to fill 30 times a second).
@@ -182,7 +188,7 @@ final class FireScene {
         App.MAIN.removeCallbacks(drift);
         App.MAIN.post(drift);
         fire.setPaused(false);
-        if (sound(context) && !musicPlaying()) {
+        if (withSound && sound(context) && !musicPlaying()) {
             crackle = new Crackle(context);
             crackle.start();
         }
