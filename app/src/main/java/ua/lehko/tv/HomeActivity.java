@@ -130,7 +130,7 @@ public final class HomeActivity extends Activity {
             }
             // Nobody is about to open an app now, so none of them has to start from scratch for it.
             Memory.maybeAutoClean(HomeActivity.this);
-            if (fireplaceDelay() > 0) {
+            if (fireplaceDelay(tvTimeout()) > 0) {
                 Apps.start(HomeActivity.this, new Intent(HomeActivity.this, FireplaceActivity.class));
             }
         }
@@ -367,16 +367,21 @@ public final class HomeActivity extends Activity {
     private void scheduleIdle() {
         App.MAIN.removeCallbacks(idle);
         if (!resumed) return;
-        long fire = fireplaceDelay();
-        App.MAIN.postDelayed(idle, fire > 0 ? fire : Memory.AUTO_IDLE_MS);
+        int tv = tvTimeout();
+        long fire = fireplaceDelay(tv);
+        App.MAIN.postDelayed(idle, fire > 0 ? fire : Memory.autoIdleMs(tv));
     }
 
-    /** Idle time before the fireplace, or 0 when none comes. */
-    private long fireplaceDelay() {
+    /** The TV's screensaver (or sleep) timer in ms, counted from the same key press as ours; 0 or less: none. */
+    private int tvTimeout() {
+        return Settings.System.getInt(getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT, -1);
+    }
+
+    /** Idle time before the fireplace, or 0 when none comes; {@code tv}: {@link #tvTimeout()}. */
+    private long fireplaceDelay(int tv) {
         long delay = FireScene.idleMinutes(this) * 60_000L;
-        // The TV's screensaver (or sleep) timer counts from the same key press. When it is no longer than ours it wins:
-        // the fireplace would never show, or only flash before the screensaver covers it.
-        int tv = Settings.System.getInt(getContentResolver(), Settings.System.SCREEN_OFF_TIMEOUT, -1);
+        // When the TV's timer is no longer than ours it wins: the fireplace would never show, or only flash before the
+        // screensaver covers it.
         return delay > 0 && (tv <= 0 || tv > delay) ? delay : 0;
     }
 

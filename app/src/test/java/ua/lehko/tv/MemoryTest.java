@@ -46,4 +46,13 @@ public class MemoryTest {
         assertTrue(Memory.autoDue(now, now - 31 * min, true));
         assertTrue("the clock was ahead last time and has been put right", Memory.autoDue(now, now + 60 * min, true));
     }
+
+    @Test public void autoCleanCheckComesBeforeTheTvsScreensaver() {
+        long min = 60_000L;
+        assertEquals("no screensaver timer", 5 * min, Memory.autoIdleMs(-1));
+        assertEquals("never", 5 * min, Memory.autoIdleMs(Integer.MAX_VALUE));
+        assertEquals(5 * min, Memory.autoIdleMs((int) (15 * min)));
+        assertEquals("the TV's 5 minutes, the fireplace's place", 4 * min + 30_000, Memory.autoIdleMs((int) (5 * min)));
+        assertEquals("a 1-minute screensaver", 30_000, Memory.autoIdleMs((int) min));
+    }
 }

@@ -21,6 +21,8 @@ final class Memory {
     static final long AUTO_EVERY_MS = 30 * 60_000L;
     /** With no fireplace to come, the automatic check runs after this long without a key press on the home screen. */
     static final long AUTO_IDLE_MS = 5 * 60_000L;
+    /** ...and at least this long before the TV's own screensaver starts. */
+    static final long AUTO_BEFORE_SAVER_MS = 30_000L;
     static final long MB = 1024 * 1024;
 
     static ActivityManager.MemoryInfo info(Context c) {
@@ -120,6 +122,16 @@ final class Memory {
      */
     static boolean autoDue(long now, long last, boolean lowMemory) {
         return lowMemory && Net.stale(now, last, AUTO_EVERY_MS);
+    }
+
+    /**
+     * When the automatic check runs with no fireplace to come: after AUTO_IDLE_MS without a key press, but before the
+     * TV's own screensaver ({@code tvMs}, SCREEN_OFF_TIMEOUT; 0 or less: none). Its start pauses the home screen, and
+     * with the TV's usual 5 minutes (the very case where it wins over the fireplace) the two would race.
+     */
+    static long autoIdleMs(int tvMs) {
+        if (tvMs <= 0) return AUTO_IDLE_MS;
+        return Math.min(AUTO_IDLE_MS, Math.max(tvMs - AUTO_BEFORE_SAVER_MS, tvMs / 2L));
     }
 
     /** Without debugging: Android's own way, for every app that isn't system plumbing (Android 13 and older). */
