@@ -561,12 +561,19 @@ public class HomeModeTest {
 
     /** scripts/revert.sh without --uninstall: everything back and the note removed; Lehko's own records stay. */
     static void revertFromAComputer() throws IOException {
+        revertFromAComputer(true);
+    }
+
+    /** {@code helperToo} false: a revert by hand, or with a script from before the helper, which leaves it on. */
+    static void revertFromAComputer(boolean helperToo) throws IOException {
         tv("pm enable " + LAUNCHERX);
         tv("pm enable " + SETUP);
         tv("cmd package set-home-activity --user 0 " + LAUNCHERX + "/.home.HomeActivity");
         tv("settings delete global adb_allowed_connection_time");
-        tv("settings delete secure " + SERVICES);
-        tv("settings put secure " + A11Y_ON + " 0");
+        if (helperToo) {
+            tv("settings delete secure " + SERVICES);
+            tv("settings put secure " + A11Y_ON + " 0");
+        }
         tv("rm -f " + HomeMode.STATE_FILE);
     }
 
@@ -589,6 +596,20 @@ public class HomeModeTest {
         HomeMode.verify(e); // the next reboot
         assertRevertedFromAComputer(e);
         assertNull(e.notice);
+    }
+
+    @Test public void aRevertThatLeftTheHelperOnTakesItOut() throws Exception {
+        String reader = "com.example.reader/.Reader";
+        tv("settings put secure " + SERVICES + " " + reader);
+        tv("settings put secure " + A11Y_ON + " 1");
+        Env e = new Env(keys);
+        HomeMode.enable(e, true, QUIET);
+        revertFromAComputer(false);
+        HomeMode.verify(e);
+        assertFalse(e.prefs.getBoolean(HomeMode.K_ON, false));
+        assertEquals("only Lehko's own entry goes", reader, secure(SERVICES));
+        assertEquals("1", secure(A11Y_ON));
+        assertFalse(e.prefs.getBoolean(HomeMode.K_A11Y_CHANGED, false));
     }
 
     @Test public void revertFromAComputerSticksThroughLehkosNextChange() throws Exception {

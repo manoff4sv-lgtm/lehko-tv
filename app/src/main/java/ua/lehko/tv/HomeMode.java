@@ -715,9 +715,14 @@ final class HomeMode {
         return false;
     }
 
-    /** The switch was undone from outside and everything is back already: only Lehko's own records go. */
+    /**
+     * The switch was undone from outside and everything is back already: Lehko's own records go, and so does its
+     * remote helper if a revert by hand (or with a script from before the helper) left it on. Nothing the revert put
+     * back is changed.
+     */
     private static void forgetSwitch(Env c, Adb adb) throws IOException {
         if (packages(adb, "").isEmpty()) throw new IOException("pm list packages answered nothing");
+        helperOff(c, adb);
         Set<String> stillOff = disabled(c);
         stillOff.retainAll(packages(adb, "-d"));
         c.prefs().edit().putBoolean(K_ON, false).putBoolean(K_FULL, false).remove(K_HOME)
