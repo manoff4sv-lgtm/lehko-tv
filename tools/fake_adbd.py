@@ -33,8 +33,8 @@ if os.environ.get("FAKE_ADBD_ANSWERS"):
 # ---------------------------------------------------------------------------------------------------------------
 # A simulated Google TV for HomeMode tests (python3 fake_adbd.py PORT --tv). It keeps state across connections and
 # behaves like Android where it matters: turning off an app deletes the Wi-Fi networks it saved, a disabled home
-# app stops being a HOME candidate, the HOME role falls back to another candidate, uninstalling an app drops its
-# accessibility services, settings and files persist, a settings value goes through the shell's quoting.
+# app stops being a HOME candidate, the HOME role falls back to another candidate, settings and files persist, a
+# settings value goes through the shell's quoting.
 # Test-only commands: "fake:reset", "fake:flag NAME 1|0", "fake:networks owner1,owner2", "fake:state" (JSON).
 # ---------------------------------------------------------------------------------------------------------------
 import json
@@ -149,11 +149,6 @@ class TV:
                 del self.pkgs[p]
                 if self.holder == p:
                     self.holder = self.fallback_holder(exclude=p)
-                # Android forgets an uninstalled app's accessibility services.
-                services = self.settings["secure"].get("enabled_accessibility_services")
-                if services:
-                    self.settings["secure"]["enabled_accessibility_services"] = ":".join(
-                        s for s in services.split(":") if s.split("/")[0] != p)
                 return "Success\n"
             return "Failure [DELETE_FAILED_INTERNAL_ERROR]\n"
         if cmd == "cmd role get-role-holders --user 0 android.app.role.HOME":
