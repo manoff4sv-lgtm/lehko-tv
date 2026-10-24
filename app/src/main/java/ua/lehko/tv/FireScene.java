@@ -18,8 +18,8 @@ import java.util.Random;
 
 /**
  * The fireplace screen, shared by {@link FireplaceActivity} and {@link FireDream}: the fire, a dim clock with the
- * outage status in the dark top of the firebox, and the optional crackle (idle fireplace only). The clock and the whole scene drift slowly, so nothing
- * stays on the same pixels for long.
+ * outage status in the dark top of the firebox, and the optional crackle (idle fireplace only). The clock and the
+ * whole scene drift slowly, so nothing stays on the same pixels for long.
  */
 final class FireScene {
     static final String P_IDLE = "fire_idle_min", P_SOUND = "fire_sound";
