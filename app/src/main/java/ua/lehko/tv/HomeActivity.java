@@ -557,18 +557,20 @@ public final class HomeActivity extends Activity {
             addWithGap(favoritesRow, t);
             if (a.pkg.equals(focusedKey)) toFocus = t;
         }
-        // Always a way to add more.
-        Tile add = new Tile(this, tileW, tileH);
-        add.key = "add";
-        add.show(getDrawable(R.drawable.ic_apps), false, getString(favs.isEmpty() ? R.string.add_apps : R.string.all_apps));
-        add.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                openAllApps();
-            }
-        });
-        addWithGap(favoritesRow, add);
-        // Back from All apps through this tile: focus stays on it, with a newly added app right beside it.
-        if (add.key.equals(focusedKey)) toFocus = add;
+        // Only an empty row gets a tile into All apps: with favorites, the round "All apps" button below is the way
+        // there (a second one only took a place in the row). Back from All apps with apps added, focus keeps the
+        // tile's place: the first of them.
+        if (favs.isEmpty()) {
+            Tile add = new Tile(this, tileW, tileH);
+            add.key = "add";
+            add.show(getDrawable(R.drawable.ic_apps), false, getString(R.string.add_apps));
+            add.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    openAllApps();
+                }
+            });
+            addWithGap(favoritesRow, add);
+        }
         if (toFocus != null) {
             toFocus.requestFocus();
         } else if (focusedIndex >= 0) {
@@ -636,7 +638,7 @@ public final class HomeActivity extends Activity {
         focusName.animate().alpha(1f).setDuration(160).setInterpolator(ENTER).start();
     }
 
-    /** The package of a favorite's tile, or null for anything else (shortcuts, "All apps"). */
+    /** The package of a favorite's tile, or null for anything else (shortcuts, "Add apps"). */
     private String favoritePkg(View v) {
         if (!(v instanceof Tile) || v.getParent() != favoritesRow) return null;
         Object key = ((Tile) v).key;
