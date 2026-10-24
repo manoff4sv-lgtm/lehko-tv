@@ -128,7 +128,9 @@ public final class HomeActivity extends Activity {
             }
             // Nobody is about to open an app now, so none of them has to start from scratch for it.
             Memory.maybeAutoClean(HomeActivity.this);
-            if (fireplaceDelay() > 0) Apps.start(HomeActivity.this, new Intent(HomeActivity.this, FireplaceActivity.class));
+            if (fireplaceDelay() > 0) {
+                Apps.start(HomeActivity.this, new Intent(HomeActivity.this, FireplaceActivity.class));
+            }
         }
     };
 
@@ -356,8 +358,9 @@ public final class HomeActivity extends Activity {
 
     private void scheduleIdle() {
         App.MAIN.removeCallbacks(idle);
+        if (!resumed) return;
         long fire = fireplaceDelay();
-        if (resumed) App.MAIN.postDelayed(idle, fire > 0 ? fire : Memory.AUTO_IDLE_MS);
+        App.MAIN.postDelayed(idle, fire > 0 ? fire : Memory.AUTO_IDLE_MS);
     }
 
     /** Idle time before the fireplace, or 0 when none comes. */

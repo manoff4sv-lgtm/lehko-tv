@@ -41,8 +41,8 @@ final class Keys {
 
     /** One of the buttons the helper looks at. Gamepads have a BUTTON_3 too: theirs, like every other key, go on. */
     static boolean handled(int keyCode, int source) {
-        if (keyCode != STAR && keyCode != KeyEvent.KEYCODE_BUTTON_3 && keyCode != KeyEvent.KEYCODE_ALL_APPS) return false;
-        return (source & InputDevice.SOURCE_GAMEPAD) != InputDevice.SOURCE_GAMEPAD
+        boolean ours = keyCode == STAR || keyCode == KeyEvent.KEYCODE_BUTTON_3 || keyCode == KeyEvent.KEYCODE_ALL_APPS;
+        return ours && (source & InputDevice.SOURCE_GAMEPAD) != InputDevice.SOURCE_GAMEPAD
                 && (source & InputDevice.SOURCE_JOYSTICK) != InputDevice.SOURCE_JOYSTICK;
     }
 
@@ -76,7 +76,9 @@ final class Keys {
 
     static String format(Map<String, String> settings) {
         StringBuilder b = new StringBuilder();
-        for (Map.Entry<String, String> e : settings.entrySet()) b.append(e.getKey()).append('=').append(e.getValue()).append('\n');
+        for (Map.Entry<String, String> e : settings.entrySet()) {
+            b.append(e.getKey()).append('=').append(e.getValue()).append('\n');
+        }
         return b.toString();
     }
 

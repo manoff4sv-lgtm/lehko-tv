@@ -44,7 +44,7 @@ final class HomeMode {
     static final String PKG = "ua.lehko.tv";
     static final String HOME = PKG + "/.HomeActivity";
     static final String DREAM = PKG + "/.ClockDream", FIRE_DREAM = PKG + "/.FireDream";
-    /** The remote's helper, an accessibility service (the TV's own settings write it as ua.lehko.tv/ua.lehko.tv.TvHelper). */
+    /** The remote's helper, an accessibility service (the TV's settings write it ua.lehko.tv/ua.lehko.tv.TvHelper). */
     static final String HELPER = PKG + "/.TvHelper";
     static final int SAVER_SYSTEM = 0, SAVER_CLOCK = 1, SAVER_FIRE = 2;
     static final String GOOGLE_TV_HOME = "com.google.android.apps.tv.launcherx/.home.HomeActivity";

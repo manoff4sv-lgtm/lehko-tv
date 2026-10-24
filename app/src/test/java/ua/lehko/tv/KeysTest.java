@@ -29,7 +29,7 @@ public class KeysTest {
         assertTrue(Keys.handled(ALL_APPS_KEY, REMOTE));
         assertFalse(Keys.handled(KeyEvent.KEYCODE_DPAD_CENTER, REMOTE));
         assertFalse("Netflix works without the launcher", Keys.handled(KeyEvent.KEYCODE_BUTTON_6, REMOTE));
-        assertFalse("a gamepad's button 3 is a game's", Keys.handled(KeyEvent.KEYCODE_BUTTON_3, InputDevice.SOURCE_GAMEPAD));
+        assertFalse("a gamepad's is a game's", Keys.handled(KeyEvent.KEYCODE_BUTTON_3, InputDevice.SOURCE_GAMEPAD));
         assertFalse(Keys.handled(KeyEvent.KEYCODE_BUTTON_3, InputDevice.SOURCE_JOYSTICK | InputDevice.SOURCE_GAMEPAD));
     }
 

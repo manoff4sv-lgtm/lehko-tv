@@ -34,7 +34,8 @@ public final class TvHelper extends AccessibilityService {
         PackageManager pm = getPackageManager();
         String star = key == Keys.STAR ? Keys.read(getFilesDir()).get(Keys.P_STAR) : null;
         for (String target : Keys.opens(key, star, launcherOff(pm))) {
-            Intent i = Keys.ALL_APPS.equals(target) ? new Intent(this, AllAppsActivity.class) : Apps.launchIntent(pm, target);
+            Intent i = Keys.ALL_APPS.equals(target) ? new Intent(this, AllAppsActivity.class)
+                    : Apps.launchIntent(pm, target);
             // Allowed from the background: Android lets an accessibility service start activities.
             if (i != null && Apps.start(this, i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                     | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED))) {
@@ -48,7 +49,7 @@ public final class TvHelper extends AccessibilityService {
      * Google TV's launcher is installed and turned off (Lehko's full mode). Asked at each press, as it can change any
      * time. Not installed counts as on: other TVs answer these buttons their own way.
      */
-    static boolean launcherOff(PackageManager pm) {
+    private static boolean launcherOff(PackageManager pm) {
         try {
             return !pm.getApplicationInfo(Keys.LAUNCHERX, PackageManager.MATCH_DISABLED_COMPONENTS).enabled;
         } catch (PackageManager.NameNotFoundException | RuntimeException e) {
