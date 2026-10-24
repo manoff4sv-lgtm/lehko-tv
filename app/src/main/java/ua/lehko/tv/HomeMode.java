@@ -24,10 +24,9 @@ import java.util.regex.Pattern;
  * Original home screen ⇄ Lehko. Everything goes through the TV's own debugging port ({@link Adb}).
  * <ul>
  * <li>On: Lehko becomes the HOME app and, on Google TV or with a star button on the remote, its remote helper
- * ({@link TvHelper}) an accessibility service. In "full" mode
- * the stock launcher is also turned off (pm disable-user: still installed, back with one button), which frees the
- * most memory on weak TVs. On Google TV the setup app's recovery screen would take over without its launcher, so it
- * goes off too.</li>
+ * ({@link TvHelper}) an accessibility service. In "full" mode the stock launcher is also turned off (pm disable-user:
+ * still installed, back with one button), which frees the most memory on weak TVs. On Google TV the setup app's
+ * recovery screen would take over without its launcher, so it goes off too.</li>
  * <li>Original: every app Lehko turned off comes back, the stock home screen is the default again and the helper
  * goes.</li>
  * </ul>
