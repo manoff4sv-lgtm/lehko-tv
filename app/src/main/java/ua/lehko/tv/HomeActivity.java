@@ -81,6 +81,8 @@ public final class HomeActivity extends Activity {
     /** Safe mode (see Watchdog): this activity shows only a plain message and does nothing else. */
     private boolean safe;
     private TextView safeText;
+    /** The check that puts the remote's helper back was asked for: once per start of this process (see onResume). */
+    private static boolean helperAsked;
     /** After a failed download, wait a while before trying again (offline during an outage, for example). */
     private static final long RETRY_AFTER_FAILURE_MS = 5 * 60_000L;
     private long weatherFailedAt, ratesFailedAt;
@@ -340,6 +342,12 @@ public final class HomeActivity extends Activity {
         Prefs.of(this).registerOnSharedPreferenceChangeListener(noticeWatch);
         updateMemoryTile();
         scheduleIdle();
+        // A force stop of Lehko takes the remote's helper out of the TV's list (and restarts this screen): the check
+        // that runs after a boot puts it back, without asking for anything. Once per process, in case it can't.
+        if (!helperAsked && HomeMode.helperDropped(this)) {
+            helperAsked = true;
+            ModeJob.schedule(this, ModeJob.VERIFY, 0);
+        }
     }
 
     @Override public void onUserInteraction() {

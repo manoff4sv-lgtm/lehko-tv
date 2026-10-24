@@ -960,6 +960,31 @@ final class HomeMode {
         return found;
     }
 
+    /**
+     * Whether the TV's accessibility list has Lehko's helper, read without the debugging connection. True when it
+     * can't be read: nothing to fix then.
+     */
+    static boolean helperListed(Context c) {
+        String list;
+        try {
+            list = Settings.Secure.getString(c.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        } catch (RuntimeException e) {
+            return true;
+        }
+        if (list != null) for (String s : list.split(":")) if (PKG.equals(packageOf(s))) return true;
+        return false;
+    }
+
+    /**
+     * Lehko turned its helper on, and it is gone from the TV's list: a force stop of Lehko (in the TV's app info, or
+     * a vendor cleaner) makes Android drop the app's accessibility services. verify() puts it back.
+     */
+    static boolean helperDropped(Context c) {
+        SharedPreferences p = Prefs.of(c);
+        return p.getBoolean(K_ON, false) && p.getBoolean(K_A11Y_CHANGED, false) && !Watchdog.safeMode(p)
+                && !helperListed(c);
+    }
+
     /** Single-quoted: a class name may contain '$', which the shell would expand. The names checked hold no quote. */
     private static void putServices(Adb adb, List<String> services) throws IOException {
         adb.shell("settings put secure enabled_accessibility_services '" + String.join(":", services) + "'");
