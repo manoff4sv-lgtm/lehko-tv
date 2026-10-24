@@ -225,6 +225,10 @@
     <string name="cleanup_system_warning">Це системний додаток телевізора. Вимкнення можна скасувати тут же, але деякі функції телевізора можуть не працювати, доки не ввімкнете його назад.</string>
     <string name="cleanup_turn_off">Вимкнути</string>
     <string name="cleanup_system">системний</string>
+    <string name="remote_star">Кнопка ☆ на пульті</string>
+    <string name="remote_star_tv">Як у телевізора</string>
+    <string name="remote_star_default">%s, поки стандартний лаунчер вимкнений</string>
+    <string name="remote_keys_too">Кнопки YouTube і «усі додатки» теж знову працюють.</string>
     <string name="helper_label">Lehko: кнопки пульта</string>
     <string name="helper_description">Кнопки ☆, YouTube і «усі додатки» на пульті працюють, поки стандартний лаунчер вимкнений; ☆ може відкривати додаток, вибраний у налаштуваннях Lehko. Інші кнопки проходять одразу, і нічого з екрана не читається.</string>
 </resources>

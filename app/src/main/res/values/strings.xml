@@ -227,6 +227,10 @@
     <string name="cleanup_system_warning">This is a system app of your TV. Turning it off is safe to undo here, but some TV features may stop working until you turn it back on.</string>
     <string name="cleanup_turn_off">Turn off</string>
     <string name="cleanup_system">system</string>
+    <string name="remote_star">Star button on the remote</string>
+    <string name="remote_star_tv">As the TV does</string>
+    <string name="remote_star_default">%s while the stock launcher is off</string>
+    <string name="remote_keys_too">The YouTube and “all apps” buttons work again too.</string>
     <string name="helper_label">Lehko: remote buttons</string>
     <string name="helper_description">Makes the remote’s star, YouTube and “all apps” buttons work while the stock launcher is off; the star can open the app chosen in Lehko settings. Every other button goes straight on, and nothing on the screen is read.</string>
 </resources>

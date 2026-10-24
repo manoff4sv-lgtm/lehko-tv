@@ -247,6 +247,10 @@ s("cleanup_system_warning", "This is a system app of your TV. Turning it off is 
 s("cleanup_turn_off", "Turn off", "Вимкнути", "Выключить")
 s("cleanup_system", "system", "системний", "системное")
 
+s("remote_star", "Star button on the remote", "Кнопка ☆ на пульті", "Кнопка ☆ на пульте")
+s("remote_star_tv", "As the TV does", "Як у телевізора", "Как у телевизора")
+s("remote_star_default", "%s while the stock launcher is off", "%s, поки стандартний лаунчер вимкнений", "%s, пока стандартный лаунчер выключен")
+s("remote_keys_too", "The YouTube and “all apps” buttons work again too.", "Кнопки YouTube і «усі додатки» теж знову працюють.", "Кнопки YouTube и «все приложения» тоже снова работают.")
 s("helper_label", "Lehko: remote buttons", "Lehko: кнопки пульта", "Lehko: кнопки пульта")
 s("helper_description", "Makes the remote’s star, YouTube and “all apps” buttons work while the stock launcher is off; the star can open the app chosen in Lehko settings. Every other button goes straight on, and nothing on the screen is read.", "Кнопки ☆, YouTube і «усі додатки» на пульті працюють, поки стандартний лаунчер вимкнений; ☆ може відкривати додаток, вибраний у налаштуваннях Lehko. Інші кнопки проходять одразу, і нічого з екрана не читається.", "Кнопки ☆, YouTube и «все приложения» на пульте работают, пока стандартный лаунчер выключен; ☆ может открывать приложение, выбранное в настройках Lehko. Остальные кнопки проходят сразу, и ничего с экрана не читается.")
 
