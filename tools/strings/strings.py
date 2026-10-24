@@ -50,6 +50,8 @@ s("apps_on_summary", "Turned off with Lehko: %d. Turn them back on before uninst
 s("result_apps_on", "Done! Every app Lehko turned off is on again.", "Готово! Усе, що вимикав Lehko, знову ввімкнено.", "Готово! Всё, что выключал Lehko, снова включено.")
 s("adb_no_answer", "The TV’s debugging service didn’t answer. Try again in a minute.", "Служба налагодження телевізора не відповіла. Спробуйте ще раз за хвилину.", "Служба отладки телевизора не ответила. Попробуйте ещё раз через минуту.")
 
+# FIX-STRINGS-H (temporary anchor: new strings of bundle H go right below)
+
 s("weather_pick_city", "Choose a city in Lehko settings", "Оберіть місто в налаштуваннях Lehko", "Выберите город в настройках Lehko")
 s("weather_loading", "Loading the weather…", "Завантаження погоди…", "Загрузка погоды…")
 s("weather_old", "No update since %s", "Не оновлювалося з %s", "Не обновлялось с %s")
@@ -137,6 +139,8 @@ s("region_odesa", "Odesa region", "Одеська область", "Одесск
 s("dur_min", "%d min", "%d хв", "%d мин")
 s("dur_h", "%d h", "%d год", "%d ч")
 s("dur_h_min", "%1$d h %2$d min", "%1$d год %2$d хв", "%1$d ч %2$d мин")
+
+# FIX-STRINGS-N (temporary anchor: new strings of bundle N go right below)
 
 s("outage_then_maybe", "then a possible outage", "далі можливе відключення", "дальше возможное отключение")
 s("outage_then_maybe_tomorrow", "until %s tomorrow, then a possible outage", "до %s завтра, далі можливе відключення", "до %s завтра, дальше возможное отключение")
@@ -233,6 +237,8 @@ s("cleanup_hint_assistant", "the remote’s mic button stops working", "кноп
 s("cleanup_hint_ambient", "Google’s screensaver", "заставка Google", "заставка Google")
 s("state_on", "On", "Увімкнено", "Включено")
 s("state_off", "Off", "Вимкнено", "Выключено")
+
+# FIX-STRINGS-U (temporary anchor: new strings of bundle U go right below)
 
 
 s("safe_mode_text", "Lehko’s home screen stopped working, so the TV’s own home screen is coming back…\n\nIf the TV asks “Allow USB debugging?”, press OK.", "Екран Lehko перестав працювати, тому повертаю стандартний екран телевізора…\n\nЯкщо телевізор спитає «Дозволити налагодження USB?», натисніть OK.", "Экран Lehko перестал работать, поэтому возвращаю стандартный экран телевизора…\n\nЕсли телевизор спросит «Разрешить отладку по USB?», нажмите OK.")
