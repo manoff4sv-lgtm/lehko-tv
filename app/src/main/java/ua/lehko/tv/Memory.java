@@ -8,6 +8,7 @@ import android.os.Debug;
 import android.os.Process;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Free memory and closing background apps. With the TV's debugging allowed this is "am kill-all" (only what Android
@@ -36,13 +37,22 @@ final class Memory {
         return info(c).availMem / MB;
     }
 
-    /** Lehko's own memory (PSS) in KB, or 0. */
+    /** Lehko's own memory (PSS) in KB, or 0: the home screen's process and the remote's helper, when it runs. */
     static long ownPssKb(Context c) {
         ActivityManager am = (ActivityManager) c.getSystemService(Context.ACTIVITY_SERVICE);
         if (am == null) return 0;
         try {
-            Debug.MemoryInfo[] mi = am.getProcessMemoryInfo(new int[]{Process.myPid()});
-            return mi != null && mi.length > 0 ? mi[0].getTotalPss() : 0;
+            // An app sees only its own processes here.
+            List<ActivityManager.RunningAppProcessInfo> running = am.getRunningAppProcesses();
+            int[] pids = {Process.myPid()};
+            if (running != null && !running.isEmpty()) {
+                pids = new int[running.size()];
+                for (int i = 0; i < pids.length; i++) pids[i] = running.get(i).pid;
+            }
+            long kb = 0;
+            Debug.MemoryInfo[] mi = am.getProcessMemoryInfo(pids);
+            if (mi != null) for (Debug.MemoryInfo m : mi) kb += m.getTotalPss();
+            return kb;
         } catch (RuntimeException e) {
             return 0;
         }
