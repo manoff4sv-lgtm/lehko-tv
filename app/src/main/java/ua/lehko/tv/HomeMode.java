@@ -664,7 +664,10 @@ final class HomeMode {
         return allowAgain(env(c), p);
     }
 
-    /** Lehko still home, the stock launcher still off (full mode)? Fixes what isn't and returns what it fixed. */
+    /**
+     * Lehko still home, the stock launcher still off (full mode), the remote's helper still on? Fixes what isn't and
+     * returns what it fixed, except the helper.
+     */
     private static List<String> check(Env c, Adb adb) throws IOException {
         List<String> fixed = new ArrayList<>();
         adopt(c, adb);
@@ -672,8 +675,8 @@ final class HomeMode {
         keepDebuggingAllowed(c, adb);
         Set<String> present = packages(adb, "");
         // The remote's helper, taken out by a TV update, a force stop of Lehko or in the TV's settings: put back
-        // without a word, as part of Lehko being on (and the first time after the update of Lehko that brought it, it
-        // is new rather than fixed).
+        // without a word, as part of Lehko being on (the first time after the update of Lehko that brought it, it is
+        // new rather than fixed anyway).
         helperOn(c, adb, present);
         if (!homeHolder(adb).contains(PKG)) {
             adb.shell("cmd package set-home-activity --user 0 " + HOME);

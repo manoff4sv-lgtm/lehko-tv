@@ -14,7 +14,8 @@ import java.util.List;
  * launcher, so with the launcher turned off the system took the presses and nothing happened. An accessibility
  * service's key filter sees a key before the system hands it out, so this one opens what {@link Keys} says and keeps
  * the press; every other key, and any press it can't open anything for, goes on untouched. It reads no screen
- * content. HomeMode turns it on with Lehko (over the debugging connection) and off with "Bring back".
+ * content. HomeMode turns it on with Lehko where it can act (Google TV's launcher installed, or a star button on the
+ * remote), over the debugging connection, and off with "Bring back".
  */
 public final class TvHelper extends AccessibilityService {
     /** The button whose press opened something: its repeats and its release are kept too, never half a press. */
