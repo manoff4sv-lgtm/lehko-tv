@@ -214,6 +214,11 @@
     <string name="cleanup_hint_ambient">заставка Google</string>
     <string name="state_on">Увімкнено</string>
     <string name="state_off">Вимкнено</string>
+    <string name="update">Оновлення</string>
+    <string name="update_available">Версія %1$s · доступна %2$s</string>
+    <string name="update_latest">Версія %s, найновіша</string>
+    <string name="update_check_now">Версія %s · перевірити зараз</string>
+    <string name="update_notice">Є нова версія Lehko %s · Налаштування Lehko → Оновлення</string>
     <string name="safe_mode_text">Екран Lehko перестав працювати, тому повертаю стандартний екран телевізора…\n\nЯкщо телевізор спитає «Дозволити налагодження USB?», натисніть OK.</string>
     <string name="safe_mode_retry">Спробувати ще раз</string>
     <string name="result_home_failed">Не вдалося повернути стандартний екран. Спробуйте ще раз або запустіть scripts/revert з компʼютера.</string>

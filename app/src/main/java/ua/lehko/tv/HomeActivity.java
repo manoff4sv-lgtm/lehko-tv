@@ -889,6 +889,8 @@ public final class HomeActivity extends Activity {
         long now = System.currentTimeMillis();
         if (Weather.stale(this) && Net.stale(now, weatherFailedAt, RETRY_AFTER_FAILURE_MS)) refreshWeather();
         if (Rates.due(this) && Net.stale(now, ratesFailedAt, RETRY_AFTER_FAILURE_MS)) refreshRates();
+        // Once a day; a new version comes up as a notice (Prefs.notice).
+        Update.maybeCheck(this);
         // Shared with the fireplace: one download at a time, one pause after a failure.
         Outages.refreshIfStale(this, outageFetched);
     }

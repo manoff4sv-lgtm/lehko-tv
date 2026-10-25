@@ -239,6 +239,11 @@ s("state_on", "On", "Увімкнено", "Включено")
 s("state_off", "Off", "Вимкнено", "Выключено")
 
 # FIX-STRINGS-U (temporary anchor: new strings of bundle U go right below)
+s("update", "Update", "Оновлення", "Обновление")
+s("update_available", "Version %1$s · %2$s is out", "Версія %1$s · доступна %2$s", "Версия %1$s · доступна %2$s")
+s("update_latest", "Version %s, the latest", "Версія %s, найновіша", "Версия %s, самая новая")
+s("update_check_now", "Version %s · check now", "Версія %s · перевірити зараз", "Версия %s · проверить сейчас")
+s("update_notice", "Lehko %s is out · Lehko settings → Update", "Є нова версія Lehko %s · Налаштування Lehko → Оновлення", "Есть новая версия Lehko %s · Настройки Lehko → Обновление")
 
 
 s("safe_mode_text", "Lehko’s home screen stopped working, so the TV’s own home screen is coming back…\n\nIf the TV asks “Allow USB debugging?”, press OK.", "Екран Lehko перестав працювати, тому повертаю стандартний екран телевізора…\n\nЯкщо телевізор спитає «Дозволити налагодження USB?», натисніть OK.", "Экран Lehko перестал работать, поэтому возвращаю стандартный экран телевизора…\n\nЕсли телевизор спросит «Разрешить отладку по USB?», нажмите OK.")

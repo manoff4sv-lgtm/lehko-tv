@@ -106,6 +106,7 @@ public final class SettingsActivity extends Activity {
         rows.add(new int[]{MEMORY});
         rows.add(new int[]{AUTO_CLEAN});
         rows.add(new int[]{HEADER, 0});
+        if (Update.enabled()) rows.add(new int[]{UPDATE});
         rows.add(new int[]{ABOUT});
         adapter.notifyDataSetChanged();
     }
@@ -125,6 +126,7 @@ public final class SettingsActivity extends Activity {
             case CLEANUP: return getString(R.string.cleanup);
             case MEMORY: return getString(R.string.memory);
             case AUTO_CLEAN: return getString(R.string.memory_auto);
+            case UPDATE: return getString(R.string.update);
             default: return getString(R.string.about);
         }
     }
@@ -170,6 +172,7 @@ public final class SettingsActivity extends Activity {
             case CLEANUP: return getString(R.string.cleanup_summary);
             case MEMORY: return memorySummary();
             case AUTO_CLEAN: return getString(Memory.autoEnabled(this) ? R.string.memory_auto_on : R.string.state_off);
+            case UPDATE: return updateSummary();
             default: return getString(R.string.about_summary, App.version, App.REPO_URL.replace("https://", ""));
         }
     }
@@ -225,6 +228,9 @@ public final class SettingsActivity extends Activity {
             case AUTO_CLEAN:
                 Prefs.of(this).edit().putBoolean(Memory.P_AUTO, !Memory.autoEnabled(this)).apply();
                 buildRows();
+                break;
+            case UPDATE:
+                checkUpdate();
                 break;
             default:
                 about();
@@ -829,6 +835,31 @@ public final class SettingsActivity extends Activity {
                 .setMessage(getString(R.string.about_text, App.REPO_URL))
                 .setPositiveButton(android.R.string.ok, null)
                 .show();
+    }
+
+    // MARK: - Lehko's own update (see Update)
+
+    private static final int UPDATE = 40;
+
+    /** "Version 0.10.0 · 0.11.0 is out", "Version 0.10.0, the latest", or before the first check "check now". */
+    private String updateSummary() {
+        String newer = Update.available(this);
+        if (newer != null) return getString(R.string.update_available, App.version, newer);
+        return getString(Update.checked(this) ? R.string.update_latest : R.string.update_check_now, App.version);
+    }
+
+    private void checkUpdate() {
+        background(new Work<String>() {
+            @Override public String run() throws Exception {
+                return Update.check(getApplicationContext(), false);
+            }
+
+            @Override public void done(String newer) {
+                buildRows();
+                showStatus(newer != null ? getString(R.string.update_available, App.version, newer)
+                        : getString(R.string.update_latest, App.version), false);
+            }
+        });
     }
 
     // MARK: - Running things in the background
