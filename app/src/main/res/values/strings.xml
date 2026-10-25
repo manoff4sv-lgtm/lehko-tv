@@ -138,8 +138,8 @@
     <string name="outage_none_left">no more outages</string>
     <string name="sleep_timer">Sleep timer</string>
     <string name="sleep_timer_at">Sleep timer · off at %s</string>
-    <string name="wake">When the TV turns on</string>
     <string name="sleep_card">The TV turns off in a minute · press any button to keep it on</string>
+    <string name="wake">When the TV turns on</string>
     <string name="outage_then_maybe">then a possible outage</string>
     <string name="outage_then_maybe_tomorrow">until %s tomorrow, then a possible outage</string>
     <string name="outage_off_until_maybe">No power until %s · then a possible outage</string>

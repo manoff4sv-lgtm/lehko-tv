@@ -130,9 +130,10 @@
         </service>
 
         <!-- Lehko's helper (TvHelper): the remote's star, YouTube and "all apps" buttons while the stock launcher is
-             off, and the outage warning over other apps. The one exception to "one process": it runs all the time,
-             behind every app, so it gets a small process of its own (a few MB) instead of keeping the home screen's in
-             memory, and it keeps working if the home screen crashes (App skips the crash watchdog there). -->
+             off, the outage warning and the sleep timer over other apps, and the input to open when the TV is turned
+             on. The one exception to "one process": it runs all the time, behind every app, so it gets a small process
+             of its own (a few MB) instead of keeping the home screen's in memory, and it keeps working if the home
+             screen crashes (App skips the crash watchdog there). -->
         <service
             android:name=".TvHelper"
             android:process=":helper"

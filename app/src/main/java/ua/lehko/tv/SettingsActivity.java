@@ -592,7 +592,7 @@ public final class SettingsActivity extends Activity {
         });
     }
 
-    /** The home screen (nothing opens), then Live TV and the HDMI inputs as on the home screen's buttons. */
+    /** The home screen (nothing opens), then the inputs as on the home screen's buttons: HDMI, then Live TV. */
     private void pickWake() {
         Inputs.Input now = Keys.wakeInput(Keys.read(getFilesDir()).get(Keys.P_WAKE), inputs);
         CharSequence[] labels = new CharSequence[inputs.size() + 1];

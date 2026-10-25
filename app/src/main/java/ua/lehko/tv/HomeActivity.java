@@ -937,7 +937,7 @@ public final class HomeActivity extends Activity {
 
     /** Downloads what is stale, but not again within a few minutes of a failure. */
     private void maybeRefresh() {
-        updateSleepButton(); // not a download: it only rides along, every minute and on each return
+        updateSleepButton(); // not a download, it comes along: every minute and on each return home
         // No network yet (just booted or woken, the router still starting): a try would fail at once and hold the
         // next one off for minutes. The minute ticker tries again.
         if (!Net.online(this)) return;
