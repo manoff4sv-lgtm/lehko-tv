@@ -50,6 +50,8 @@ public final class HomeActivity extends Activity {
     private TextView weatherTemp, weatherText, weatherSun, powerTitle, powerDetail, notice, focusName, ratesLine;
     /** The rates line's two versions: short, and full while the details are open. */
     private CharSequence ratesShort, ratesLong;
+    /** The power lines invite to set the schedule up (see showOutage). */
+    private boolean inviting;
     /** The last OK on the info panel: on a slow TV a quick second one still lands here and would open Settings again. */
     private long infoClickedAt;
     /** The key of the favorite that had focus last, so Down from the details goes back to it (even after a rebuild). */
@@ -266,6 +268,7 @@ public final class HomeActivity extends Activity {
             @Override public void onFocusChange(View v, boolean hasFocus) {
                 details.setVisibility(hasFocus ? View.VISIBLE : View.INVISIBLE);
                 if (ratesLong != null) ratesLine.setText(hasFocus ? ratesLong : ratesShort);
+                if (inviting) powerDetail.setText(inviteDetail(hasFocus));
             }
         });
         // OK on it: the outage schedule in Lehko settings (its setup, while the power lines invite to it).
@@ -1087,18 +1090,24 @@ public final class HomeActivity extends Activity {
         }
     };
 
+    /** The invitation's second line: "Up, then OK", or only "OK" once the panel has focus. */
+    private int inviteDetail(boolean focused) {
+        return focused ? R.string.outage_invite_ok : R.string.outage_invite_detail;
+    }
+
     /**
      * The ring, the two power lines and tomorrow's bar (details). Without outages: a plain 24-hour ring, and until the
      * schedule is set up or turned off in Lehko settings, an invitation to set it up in the power lines' place.
      */
     private void showOutage() {
+        inviting = SettingsActivity.outageInvite(this);
         if (!Outages.enabled(this)) {
             Calendar now = Calendar.getInstance();
             dial.set(null, now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE));
-            int invite = SettingsActivity.outageInvite(this) ? View.VISIBLE : View.GONE;
+            int invite = inviting ? View.VISIBLE : View.GONE;
             powerTitle.setText(R.string.outage_invite_title);
             powerTitle.setVisibility(invite);
-            powerDetail.setText(R.string.outage_invite_detail);
+            powerDetail.setText(inviteDetail(info.hasFocus()));
             powerDetail.setContentDescription(null);
             powerDetail.setVisibility(invite);
             tomorrowBox.setVisibility(View.GONE);

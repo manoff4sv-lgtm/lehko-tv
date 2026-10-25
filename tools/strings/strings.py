@@ -54,7 +54,8 @@ s("adb_no_answer", "The TV’s debugging service didn’t answer. Try again in a
 s("city_dnipro", "Dnipro", "Дніпро", "Днепр")
 s("city_odesa", "Odesa", "Одеса", "Одесса")
 s("outage_invite_title", "Power schedule", "Графік світла", "График света")
-s("outage_invite_detail", "Up, then OK: enter your address", "Вгору, потім OK: вкажіть адресу", "Вверх, затем OK: укажите адрес")
+s("outage_invite_detail", "Up, then OK: enter your address or group", "Вгору, потім OK: вкажіть адресу або групу", "Вверх, затем OK: укажите адрес или группу")
+s("outage_invite_ok", "OK: enter your address or group", "OK: вкажіть адресу або групу", "OK: укажите адрес или группу")
 
 s("weather_pick_city", "Choose a city in Lehko settings", "Оберіть місто в налаштуваннях Lehko", "Выберите город в настройках Lehko")
 s("weather_loading", "Loading the weather…", "Завантаження погоди…", "Загрузка погоды…")

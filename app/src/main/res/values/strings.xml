@@ -45,7 +45,8 @@
     <string name="city_dnipro">Dnipro</string>
     <string name="city_odesa">Odesa</string>
     <string name="outage_invite_title">Power schedule</string>
-    <string name="outage_invite_detail">Up, then OK: enter your address</string>
+    <string name="outage_invite_detail">Up, then OK: enter your address or group</string>
+    <string name="outage_invite_ok">OK: enter your address or group</string>
     <string name="weather_pick_city">Choose a city in Lehko settings</string>
     <string name="weather_loading">Loading the weather…</string>
     <string name="weather_old">No update since %s</string>

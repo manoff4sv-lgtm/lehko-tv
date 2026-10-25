@@ -43,7 +43,8 @@
     <string name="city_dnipro">Днепр</string>
     <string name="city_odesa">Одесса</string>
     <string name="outage_invite_title">График света</string>
-    <string name="outage_invite_detail">Вверх, затем OK: укажите адрес</string>
+    <string name="outage_invite_detail">Вверх, затем OK: укажите адрес или группу</string>
+    <string name="outage_invite_ok">OK: укажите адрес или группу</string>
     <string name="weather_pick_city">Выберите город в настройках Lehko</string>
     <string name="weather_loading">Загрузка погоды…</string>
     <string name="weather_old">Не обновлялось с %s</string>
