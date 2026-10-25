@@ -21,9 +21,10 @@ import java.util.TreeMap;
 
 /**
  * The remote buttons Google TV hands to its own launcher (the star, YouTube and "all apps"), and what {@link TvHelper}
- * opens with them instead. The decisions are pure, so they can be tested; next to them the two facts they depend on,
- * shared with Lehko's settings screen: the stock launcher's state, and the helper's settings in a small file
- * (helper.txt), because the helper runs in a process of its own and SharedPreferences aren't shared between processes.
+ * opens with them instead (and when the TV is turned on). The decisions are pure, so they can be tested; next to them
+ * the two facts they depend on, shared with Lehko's settings screen: the stock launcher's state, and the helper's
+ * settings in a small file (helper.txt), because the helper runs in a process of its own and SharedPreferences aren't
+ * shared between processes.
  */
 final class Keys {
     private Keys() {}
@@ -40,6 +41,8 @@ final class Keys {
 
     /** helper.txt: what the star opens, a package or {@link #STAR_TV}. */
     static final String P_STAR = "star", STAR_TV = "tv";
+    /** helper.txt: what opens when the TV is turned on, {@link #WAKE_HOME} (nothing: the default) or "input:<id>". */
+    static final String P_WAKE = "wake", WAKE_HOME = "home", WAKE_INPUT = "input:";
     /** Written by the home screen's process only, read by the helper. */
     static final String FILE = "helper.txt";
     /**
@@ -70,6 +73,14 @@ final class Keys {
         if (keyCode == KeyEvent.KEYCODE_BUTTON_3) return Collections.singletonList(YOUTUBE);
         if (keyCode == KeyEvent.KEYCODE_ALL_APPS) return Collections.singletonList(ALL_APPS);
         return Collections.emptyList();
+    }
+
+    /** The input the "TV turned on" choice names, if the TV still has it; null for the home screen. */
+    static Inputs.Input wakeInput(String wake, List<Inputs.Input> inputs) {
+        if (wake == null || !wake.startsWith(WAKE_INPUT)) return null;
+        String id = wake.substring(WAKE_INPUT.length());
+        for (Inputs.Input in : inputs) if (in.id.equals(id)) return in;
+        return null;
     }
 
     /** Google TV's launcher, or null when it isn't installed; its {@code enabled} says whether it is on. */

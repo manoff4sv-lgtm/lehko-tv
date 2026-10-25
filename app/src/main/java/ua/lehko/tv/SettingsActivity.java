@@ -101,10 +101,11 @@ public final class SettingsActivity extends Activity {
         rows.add(new int[]{SAVER});
         rows.add(new int[]{FIRE_IDLE});
         rows.add(new int[]{FIRE_SOUND});
-        // What the remote's helper does over other apps: only while it runs.
-        if (TvHelper.running(this) && Outages.enabled(this)) {
+        // What the remote's helper does beyond the home screen: only while it runs.
+        if (TvHelper.running(this)) {
             rows.add(new int[]{HEADER, R.string.section_beyond});
-            rows.add(new int[]{WARN});
+            if (Outages.enabled(this)) rows.add(new int[]{WARN});
+            rows.add(new int[]{WAKE});
         }
         rows.add(new int[]{HEADER, R.string.section_memory});
         rows.add(new int[]{CLEANUP});
@@ -128,6 +129,7 @@ public final class SettingsActivity extends Activity {
             case FIRE_IDLE: return getString(R.string.fireplace);
             case FIRE_SOUND: return getString(R.string.fireplace_sound);
             case WARN: return getString(R.string.outage_warning);
+            case WAKE: return getString(R.string.wake);
             case CLEANUP: return getString(R.string.cleanup);
             case MEMORY: return getString(R.string.memory);
             case AUTO_CLEAN: return getString(R.string.memory_auto);
@@ -174,6 +176,7 @@ public final class SettingsActivity extends Activity {
             }
             case FIRE_SOUND: return getString(FireScene.sound(this) ? R.string.fireplace_sound_on : R.string.state_off);
             case WARN: return getString(OutageWarning.on(this) ? R.string.outage_warning_on : R.string.state_off);
+            case WAKE: return wakeSummary();
             case CLEANUP: return getString(R.string.cleanup_summary);
             case MEMORY: return memorySummary();
             case AUTO_CLEAN: return getString(Memory.autoEnabled(this) ? R.string.memory_auto_on : R.string.state_off);
@@ -221,6 +224,9 @@ public final class SettingsActivity extends Activity {
                 break;
             case WARN:
                 toggleWarning();
+                break;
+            case WAKE:
+                wakeChoice();
                 break;
             case CLEANUP:
                 Apps.start(this, new Intent(this, CleanupActivity.class));
@@ -522,7 +528,7 @@ public final class SettingsActivity extends Activity {
 
     // MARK: - Beyond the home screen (TvHelper reads these from helper.txt)
 
-    private static final int WARN = 30;
+    private static final int WARN = 30, WAKE = 31;
 
     private void toggleWarning() {
         try {
@@ -534,6 +540,83 @@ public final class SettingsActivity extends Activity {
         // The downloads while an app is in front: only for the warning.
         OutageJob.sync(this);
         buildRows();
+    }
+
+    /** The TV's inputs for "When the TV turns on", listed off the UI thread once; null until then. */
+    private List<Inputs.Input> inputs;
+    private boolean inputsLoading, pickWhenLoaded;
+
+    /** The home screen, or the input by the TV's own label. */
+    private String wakeSummary() {
+        String choice = Keys.read(getFilesDir()).get(Keys.P_WAKE);
+        if (choice == null || !choice.startsWith(Keys.WAKE_INPUT)) return getString(R.string.home_screen);
+        if (inputs == null) {
+            loadInputs();
+            return getString(R.string.loading);
+        }
+        Inputs.Input in = Keys.wakeInput(choice, inputs);
+        // No longer there (after a TV update, say): the helper leaves the home screen as it is.
+        return in != null ? in.label : getString(R.string.home_screen);
+    }
+
+    private void wakeChoice() {
+        if (inputs != null) {
+            pickWake();
+            return;
+        }
+        pickWhenLoaded = true;
+        showStatus(getString(R.string.loading), false);
+        loadInputs();
+    }
+
+    private void loadInputs() {
+        if (inputsLoading) return;
+        inputsLoading = true;
+        final Context app = getApplicationContext();
+        App.IO.execute(new Runnable() {
+            @Override public void run() {
+                final List<Inputs.Input> list = Inputs.load(app);
+                App.MAIN.post(new Runnable() {
+                    @Override public void run() {
+                        inputsLoading = false;
+                        if (isDestroyed() || isFinishing()) return;
+                        inputs = list;
+                        adapter.notifyDataSetChanged();
+                        if (!pickWhenLoaded) return;
+                        pickWhenLoaded = false;
+                        status.setVisibility(View.GONE);
+                        pickWake();
+                    }
+                });
+            }
+        });
+    }
+
+    /** The home screen (nothing opens), then Live TV and the HDMI inputs as on the home screen's buttons. */
+    private void pickWake() {
+        Inputs.Input now = Keys.wakeInput(Keys.read(getFilesDir()).get(Keys.P_WAKE), inputs);
+        CharSequence[] labels = new CharSequence[inputs.size() + 1];
+        labels[0] = getString(R.string.home_screen);
+        int checked = 0;
+        for (int i = 0; i < inputs.size(); i++) {
+            labels[i + 1] = inputs.get(i).label;
+            if (inputs.get(i) == now) checked = i + 1;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.wake)
+                .setSingleChoiceItems(labels, checked, new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        d.dismiss();
+                        try {
+                            Keys.put(getFilesDir(), Keys.P_WAKE,
+                                    which == 0 ? Keys.WAKE_HOME : Keys.WAKE_INPUT + inputs.get(which - 1).id);
+                        } catch (IOException e) {
+                            showStatus(getString(R.string.error_generic, e.getClass().getSimpleName()), true);
+                        }
+                        buildRows();
+                    }
+                })
+                .show();
     }
 
     // MARK: - Weather city

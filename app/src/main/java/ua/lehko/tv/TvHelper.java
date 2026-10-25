@@ -10,6 +10,7 @@ import android.content.pm.ResolveInfo;
 import android.graphics.PixelFormat;
 import android.os.Build;
 import android.os.PowerManager;
+import android.os.SystemClock;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -31,8 +32,9 @@ import java.util.Map;
  * nothing happened. An accessibility service's key filter sees a key before the system hands it out, so this one opens
  * what {@link Keys} says and keeps the press; every other key, and any press it can't open anything for, goes on
  * untouched. Over whatever is on screen it shows the outage warning and a changed schedule ({@link OutageWarning}),
- * and it ends the sleep timer ({@link SleepTimer}). It reads no screen content. HomeMode turns it on with Lehko where it can act (Google TV's launcher installed, or a
- * star button on the remote), over the debugging connection, and off with "Bring back".
+ * and it ends the sleep timer ({@link SleepTimer}); when the TV is turned on it can open an input. It reads no screen
+ * content. HomeMode turns it on with Lehko where it can act (Google TV's launcher installed, or a star button on the
+ * remote), over the debugging connection, and off with "Bring back".
  */
 public final class TvHelper extends AccessibilityService {
     /** The button whose press opened something: its repeats and its release are kept too, never half a press. */
@@ -133,10 +135,12 @@ public final class TvHelper extends AccessibilityService {
         @Override public void onReceive(Context c, Intent i) {
             screenOn = Intent.ACTION_SCREEN_ON.equals(i.getAction());
             if (screenOn) {
+                wakeLater(1);
                 arm();
                 return;
             }
             App.MAIN.removeCallbacks(tick);
+            App.MAIN.removeCallbacks(wake);
             removeCard();
             // Turned off before the sleep timer's end (with the remote, or by the TV's own timer): that ends it.
             long at = Keys.number(settings(), SleepTimer.P_AT);
@@ -160,6 +164,8 @@ public final class TvHelper extends AccessibilityService {
         f.addAction(Intent.ACTION_SCREEN_OFF);
         registerReceiver(screen, f);
         listening = true;
+        // Started with the system: the TV was just turned on from cold, which brings no "screen on".
+        if (screenOn && SystemClock.elapsedRealtime() < COLD_START_MS) wakeLater(COLD_TRIES);
         arm();
     }
 
@@ -167,6 +173,7 @@ public final class TvHelper extends AccessibilityService {
         if (listening) unregisterReceiver(screen);
         listening = false;
         App.MAIN.removeCallbacks(tick);
+        App.MAIN.removeCallbacks(wake);
         removeCard();
         super.onDestroy();
     }
@@ -256,6 +263,43 @@ public final class TvHelper extends AccessibilityService {
             }
         });
     }
+
+    // MARK: - When the TV is turned on
+
+    /** After the screen comes on: the TV's own start (Lehko's home screen) comes first. */
+    private static final long WAKE_DELAY_MS = 1_500, WAKE_RETRY_MS = 3_000;
+    /** Booted this recently when the helper starts: a cold start. Its inputs may still be coming up, so it tries on. */
+    private static final long COLD_START_MS = 3 * 60_000L;
+    private static final int COLD_TRIES = 10;
+    private int wakeTries;
+
+    private void wakeLater(int tries) {
+        App.MAIN.removeCallbacks(wake);
+        wakeTries = tries;
+        App.MAIN.postDelayed(wake, WAKE_DELAY_MS);
+    }
+
+    /** Opens the input chosen in Lehko settings, as the home screen's buttons do, if the TV still has it. */
+    private final Runnable wake = new Runnable() {
+        @Override public void run() {
+            final String choice = settings().get(Keys.P_WAKE);
+            if (choice == null || !choice.startsWith(Keys.WAKE_INPUT) || !screenOn || !mayAct()) return;
+            final Context app = TvHelper.this;
+            // The TV's input list takes a few calls to the system: not on the thread that answers the keys.
+            App.IO.execute(new Runnable() {
+                @Override public void run() {
+                    final Inputs.Input in = Keys.wakeInput(choice, Inputs.load(app));
+                    App.MAIN.post(new Runnable() {
+                        @Override public void run() {
+                            if (!screenOn) return;
+                            if (in != null) Inputs.open(app, in);
+                            else if (--wakeTries > 0) App.MAIN.postDelayed(wake, WAKE_RETRY_MS);
+                        }
+                    });
+                }
+            });
+        }
+    };
 
     /** Writes one of the helper's own notes. */
     private void note(String key, String value) {
