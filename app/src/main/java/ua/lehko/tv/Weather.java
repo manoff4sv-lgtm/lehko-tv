@@ -163,7 +163,8 @@ final class Weather {
         if (!name.isEmpty()) return name;
         int city = defaultCity(c);
         if (city < 0) return "";
-        return c.getString(city == DNIPRO ? R.string.city_dnipro : city == ODESA ? R.string.city_odesa : R.string.city_kyiv);
+        return c.getString(city == DNIPRO ? R.string.city_dnipro : city == ODESA ? R.string.city_odesa
+                : R.string.city_kyiv);
     }
 
     private static int defaultCity(Context c) {

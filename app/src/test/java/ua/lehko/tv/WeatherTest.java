@@ -135,7 +135,7 @@ public class WeatherTest {
         for (Outages.Region r : Outages.REGIONS) assertTrue(r.id, Weather.defaultCity(r.id, "UTC") >= 0);
     }
 
-    /** A new outage region moves the default city under a fresh forecast: the old city's isn't shown as the new one's. */
+    /** A new outage region moves the default city under a fresh forecast: the old city's isn't shown. */
     @Test public void cacheForAnotherPlace() {
         double[] kyiv = {50.4501, 30.5234}, dnipro = {48.4647, 35.0462};
         assertTrue(Weather.cacheFits(Weather.placeKey(kyiv), kyiv));
