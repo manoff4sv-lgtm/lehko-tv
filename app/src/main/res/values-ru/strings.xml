@@ -136,7 +136,7 @@
     <string name="outage_none_left">больше без отключений</string>
     <string name="sleep_timer">Таймер сна</string>
     <string name="sleep_timer_at">Таймер сна · выключится в %s</string>
-    <string name="sleep_card">Телевизор выключится через минуту · нажмите любую кнопку, чтобы оставить</string>
+    <string name="sleep_card">Телевизор выключится через минуту · нажмите любую кнопку, чтобы не выключать</string>
     <string name="wake">После включения телевизора</string>
     <string name="wake_instead">%s вместо главного экрана</string>
     <string name="outage_then_maybe">дальше возможное отключение</string>

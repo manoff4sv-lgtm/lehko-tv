@@ -152,7 +152,7 @@ s("outage_today_lc", "today", "сьогодні", "сегодня")
 s("outage_none_left", "no more outages", "більше без відключень", "больше без отключений")
 s("sleep_timer", "Sleep timer", "Таймер сну", "Таймер сна")
 s("sleep_timer_at", "Sleep timer · off at %s", "Таймер сну · вимкнеться о %s", "Таймер сна · выключится в %s")
-s("sleep_card", "The TV turns off in a minute · press any button to keep it on", "Телевізор вимкнеться за хвилину · натисніть будь-яку кнопку, щоб залишити", "Телевизор выключится через минуту · нажмите любую кнопку, чтобы оставить")
+s("sleep_card", "The TV turns off in a minute · press any button to keep it on", "Телевізор вимкнеться за хвилину · натисніть будь-яку кнопку, щоб залишити", "Телевизор выключится через минуту · нажмите любую кнопку, чтобы не выключать")
 s("wake", "When the TV turns on", "Після увімкнення телевізора", "После включения телевизора")
 s("wake_instead", "%s instead of the home screen", "%s замість головного екрана", "%s вместо главного экрана")
 
