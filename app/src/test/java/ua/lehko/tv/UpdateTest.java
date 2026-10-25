@@ -25,14 +25,21 @@ public class UpdateTest {
         assertEquals("https://api.github.com/repos/manoff4sv-lgtm/lehko-tv/releases/latest", Update.LATEST);
     }
 
+    @Test public void notReadyYet() throws Exception {
+        // The release is made on GitHub's page; CI attaches Lehko.apk minutes later.
+        Update.Release r = Update.parse("{\"tag_name\":\"v0.11.0\",\"assets\":[]}");
+        assertEquals("0.11.0", r.version);
+        assertNull(r.url);
+        assertNull(Update.parse("{\"tag_name\":\"v0.11.0\"}").url);
+        assertNull(Update.parse(LATEST.replace("\"Lehko.apk\"", "\"Lehko-test.apk\"")).url);
+    }
+
     @Test public void nothingToInstall() throws Exception {
-        // CI is still building the APK.
-        assertNull(Update.parse("{\"tag_name\":\"v0.11.0\",\"assets\":[]}"));
-        assertNull(Update.parse("{\"tag_name\":\"v0.11.0\"}"));
-        // Not a version tag, a plain-http address, an empty or oversized file.
+        // Not a version tag; a Lehko.apk somewhere other than GitHub, over plain http, empty or oversized.
+        String url = "\"https://github.com/manoff4sv-lgtm/lehko-tv/releases/download/v0.10.0-beta.2/Lehko.apk\"";
         assertNull(Update.parse(LATEST.replace("v0.10.0-beta.2\",\"name", "nightly\",\"name")));
-        assertNull(Update.parse(LATEST.replace("\"https://github.com/manoff4sv-lgtm/lehko-tv/releases/download/v0.10.0-beta.2/Lehko.apk\"",
-                "\"http://example.com/Lehko.apk\"")));
+        assertNull(Update.parse(LATEST.replace(url, "\"https://example.com/Lehko.apk\"")));
+        assertNull(Update.parse(LATEST.replace(url, "\"http://github.com/manoff4sv-lgtm/lehko-tv/Lehko.apk\"")));
         assertNull(Update.parse(LATEST.replace("168242", "0")));
         assertNull(Update.parse(LATEST.replace("168242", String.valueOf(31L * 1024 * 1024))));
     }
@@ -64,6 +71,9 @@ public class UpdateTest {
         assertFalse(Update.enabled(Update.DEV));
         assertFalse(Update.enabled("quick"));
         assertFalse(Update.enabled("?"));
+        // Whatever app/build.gradle takes as a tag.
+        assertTrue(Update.enabled("1.0.0-beta."));
+        assertTrue(Update.newer("1.0.0-beta.1", "1.0.0-beta."));
     }
 
     @Test public void theDownloadedFile() {

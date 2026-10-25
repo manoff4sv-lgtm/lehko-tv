@@ -882,13 +882,19 @@ public final class SettingsActivity extends Activity {
     private void checkUpdate() {
         background(new Work<String>() {
             @Override public String run() throws Exception {
-                return Update.check(getApplicationContext(), false);
+                try {
+                    String newer = Update.check(getApplicationContext(), false);
+                    return newer != null ? getString(R.string.update_found, newer)
+                            : getString(R.string.update_latest, App.version);
+                } catch (Update.Failure e) {
+                    // A new release whose file isn't there yet.
+                    return getString(e.text);
+                }
             }
 
-            @Override public void done(String newer) {
+            @Override public void done(String text) {
                 buildRows();
-                showStatus(newer != null ? getString(R.string.update_found, newer)
-                        : getString(R.string.update_latest, App.version), false);
+                showStatus(text, false);
             }
         });
     }
@@ -929,7 +935,10 @@ public final class SettingsActivity extends Activity {
         if (!Apps.start(this, i)) openSettings(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
     }
 
-    /** Download (the percentage in the status card), check and hand over; the installer's screen comes next. */
+    /**
+     * Ask GitHub again, download (the percentage in the status card), check the file and hand it over; the
+     * installer's screen comes next.
+     */
     private void downloadUpdate() {
         setBusy(true);
         Update.installing = true;
@@ -939,8 +948,9 @@ public final class SettingsActivity extends Activity {
         App.NET.execute(new Runnable() {
             @Override public void run() {
                 String error = null;
+                boolean handed = false;
                 try {
-                    Update.install(app, progress);
+                    handed = Update.install(app, progress);
                 } catch (Update.Failure e) {
                     error = app.getString(e.text);
                 } catch (IOException e) {
@@ -951,12 +961,18 @@ public final class SettingsActivity extends Activity {
                     Update.installing = false;
                 }
                 final String err = error;
+                final boolean latest = error == null && !handed;
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
                         if (isDestroyed() || isFinishing()) return;
                         setBusy(false);
                         // Handed over: "Installing…" stays until the installer's screen or answer.
                         if (err != null) showStatus(err, true);
+                        // The release was taken down since the last check.
+                        if (latest) {
+                            buildRows();
+                            showStatus(getString(R.string.update_latest, App.version), false);
+                        }
                     }
                 });
             }

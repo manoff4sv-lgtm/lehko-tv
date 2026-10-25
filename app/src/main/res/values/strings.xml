@@ -230,6 +230,7 @@
     <string name="update_storage">Not enough free space on the TV for the update.</string>
     <string name="update_signature">The TV refused the update: this Lehko is signed differently (a test or self-made build). To move to the released one, bring back the TV’s home screen, uninstall Lehko and install it again from %s.</string>
     <string name="update_failed">The TV couldn’t install the update. Try again later.</string>
+    <string name="update_not_ready">A new Lehko is out, but its file isn’t ready yet. Try again in a few minutes.</string>
     <string name="safe_mode_text">Lehko’s home screen stopped working, so the TV’s own home screen is coming back…\n\nIf the TV asks “Allow USB debugging?”, press OK.</string>
     <string name="safe_mode_retry">Try again</string>
     <string name="result_home_failed">Couldn’t give the home screen back to the TV. Try again, or run scripts/revert from a computer.</string>

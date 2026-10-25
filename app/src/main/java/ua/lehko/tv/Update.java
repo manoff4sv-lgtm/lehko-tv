@@ -113,9 +113,11 @@ final class Update {
             if (e.code != 404) throw e;
             r = null;
         }
+        String newer = r != null && newer(r.version, App.version) ? r.version : null;
+        // Its Lehko.apk isn't there yet: not a check, so the daily one tries again in an hour.
+        if (newer != null && r.url == null) throw new Failure(R.string.update_not_ready, null);
         SharedPreferences p = Prefs.of(c);
         SharedPreferences.Editor edit = p.edit().putLong(CHECKED, System.currentTimeMillis());
-        String newer = r != null && newer(r.version, App.version) ? r.version : null;
         if (newer == null) {
             edit.remove(VERSION).remove(APK_URL).remove(SIZE);
         } else {
@@ -129,7 +131,7 @@ final class Update {
         return newer;
     }
 
-    /** A release: its version (the tag without the "v") and where its Lehko.apk is. */
+    /** A release: its version (the tag without the "v") and where its Lehko.apk is (null: not attached yet). */
     static final class Release {
         final String version, url;
         final long size;
@@ -143,29 +145,33 @@ final class Update {
 
     /**
      * GitHub's answer for the latest release: {"tag_name":"v0.10.0-beta.3", "assets":[{"name":"Lehko.apk",
-     * "browser_download_url":"https://...", "size":168242}, ...]}. Null without a version tag or a Lehko.apk (CI may
-     * still be building it).
+     * "browser_download_url":"https://github.com/...", "size":168242}, ...]}. Null without a version tag, or with a
+     * Lehko.apk that isn't on GitHub or is empty or too big. Without a Lehko.apk, a Release with no url: CI attaches
+     * it minutes after a release is made on GitHub's page.
      */
     static Release parse(String json) throws JSONException {
         JSONObject o = new JSONObject(json);
         String tag = o.optString("tag_name", "");
         String v = tag.startsWith("v") ? tag.substring(1) : tag;
+        if (version(v) == null) return null;
         JSONArray assets = o.optJSONArray("assets");
-        if (version(v) == null || assets == null) return null;
-        for (int i = 0; i < assets.length(); i++) {
+        for (int i = 0; assets != null && i < assets.length(); i++) {
             JSONObject a = assets.optJSONObject(i);
             if (a == null || !ASSET.equals(a.optString("name"))) continue;
             String url = a.optString("browser_download_url", "");
             long size = a.optLong("size", 0);
-            if (url.startsWith("https://") && size > 0 && size <= MAX_BYTES) return new Release(v, url, size);
+            // GitHub's own address (any repository name: a renamed one is sent on); it redirects to its file host.
+            boolean usable = url.startsWith("https://github.com/") && size > 0 && size <= MAX_BYTES;
+            return usable ? new Release(v, url, size) : null;
         }
-        return null;
+        return new Release(v, null, 0);
     }
 
     // MARK: - Versions
 
+    /** What app/build.gradle accepts as a release tag, so every release build can check. */
     private static final Pattern VERSION_FORMAT =
-            Pattern.compile("(\\d{1,9})\\.(\\d{1,9})(?:\\.(\\d{1,9}))?(?:-([0-9A-Za-z]+(?:\\.[0-9A-Za-z]+)*))?");
+            Pattern.compile("(\\d{1,9})\\.(\\d{1,9})(?:\\.(\\d{1,9}))?(?:-([0-9A-Za-z.]+))?");
 
     /** A release tag's version without its "v": 1.2.3, 1.2 (= 1.2.0), or a pre-release such as 1.2.3-beta.4. */
     static final class Version {
@@ -214,7 +220,7 @@ final class Update {
 
     // MARK: - Installing
 
-    /** Why the update didn't reach the installer, in words for Settings. */
+    /** Why the update didn't reach the installer, or can't yet, in words for Settings. */
     static final class Failure extends IOException {
         final int text;
 
@@ -225,15 +231,21 @@ final class Update {
     }
 
     /**
-     * Downloads the release the last check found into the cache, makes sure it is Lehko of this version or a later
-     * one and hands it to the TV's installer, which then asks for a confirmation. The file goes once the installer
-     * has its own copy, or on failure. A Failure says why in words; any other IOException is the network. Slow: on
-     * App.NET.
+     * Asks GitHub for the latest release again (since the last check it may have been made again, its file replaced
+     * or taken down), downloads it into the cache, makes sure it is Lehko of this version or a later one and hands it
+     * to the TV's installer, which then asks for a confirmation. False when nothing newer is out any more. The file
+     * goes once the installer has its own copy, or on failure. A Failure says why in words; any other IOException is
+     * the network. Slow: on App.NET.
      */
-    static void install(Context c, HomeMode.Progress p) throws IOException {
+    static boolean install(Context c, HomeMode.Progress p) throws IOException {
         SharedPreferences prefs = Prefs.of(c);
         prefs.edit().remove(RESULT).apply();
         dropSessions(c);
+        try {
+            if (check(c, false) == null) return false;
+        } catch (JSONException e) {
+            throw new IOException(e);
+        }
         File apk = new File(c.getCacheDir(), ASSET);
         try {
             download(prefs.getString(APK_URL, ""), prefs.getLong(SIZE, 0), apk, c, p);
@@ -247,6 +259,7 @@ final class Update {
             } catch (IOException | RuntimeException e) {
                 throw new Failure(R.string.update_failed, e);
             }
+            return true;
         } finally {
             apk.delete();
         }
