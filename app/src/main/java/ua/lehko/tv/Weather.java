@@ -125,16 +125,19 @@ final class Weather {
     }
 
     private static boolean cacheFits(Context c) {
-        return cacheFits(Prefs.of(c).getString(CACHE_PLACE, null), place(c));
+        return cacheFits(Prefs.of(c).getString(CACHE_PLACE, null), Prefs.hasCity(c), place(c));
     }
 
     /**
      * Whether a cache for {@code cachedFor} (see {@link #CACHE_PLACE}) can be shown for {@code place}. Choosing a city
      * drops the cache, but with none chosen a new outage region moves the place under a fresh forecast. A cache from
-     * before the place was kept with it counts: offline, it may be all there is.
+     * before the place was kept with it is the chosen city's (choosing one drops the cache), else Kyiv's, the only
+     * default then: it still shows where it fits, offline it may be all there is.
      */
-    static boolean cacheFits(String cachedFor, double[] place) {
-        return cachedFor == null || cachedFor.equals(placeKey(place));
+    static boolean cacheFits(String cachedFor, boolean cityChosen, double[] place) {
+        String key = placeKey(place);
+        if (cachedFor == null) cachedFor = cityChosen ? key : placeKey(CITIES[KYIV]);
+        return cachedFor.equals(key);
     }
 
     static String placeKey(double[] p) {
@@ -180,7 +183,12 @@ final class Weather {
         if ("kyiv".equals(region) || "kyiv-region".equals(region)) return KYIV;
         if ("dnipro-dnem".equals(region) || "dnipro-cek".equals(region)) return DNIPRO;
         if ("odesa".equals(region)) return ODESA;
-        return "Europe/Kiev".equals(tz) || "Europe/Kyiv".equals(tz) ? KYIV : -1;
+        return kyivZone(tz) ? KYIV : -1;
+    }
+
+    /** A TV set to the Kyiv time zone, by either name (old TVs know only Europe/Kiev). */
+    static boolean kyivZone(String tz) {
+        return "Europe/Kiev".equals(tz) || "Europe/Kyiv".equals(tz);
     }
 
     static Data parse(String json) throws JSONException {

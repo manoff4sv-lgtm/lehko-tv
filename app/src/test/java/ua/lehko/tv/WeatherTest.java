@@ -137,13 +137,17 @@ public class WeatherTest {
 
     /** A new outage region moves the default city under a fresh forecast: the old city's isn't shown. */
     @Test public void cacheForAnotherPlace() {
-        double[] kyiv = {50.4501, 30.5234}, dnipro = {48.4647, 35.0462};
-        assertTrue(Weather.cacheFits(Weather.placeKey(kyiv), kyiv));
-        assertTrue(Weather.cacheFits(Weather.placeKey(kyiv), kyiv.clone()));
-        assertFalse(Weather.cacheFits(Weather.placeKey(kyiv), dnipro));
-        assertFalse(Weather.cacheFits(Weather.placeKey(kyiv), null));
-        // Kept before the place was: shown, offline it may be all there is.
-        assertTrue(Weather.cacheFits(null, dnipro));
+        double[] kyiv = {50.4501, 30.5234}, dnipro = {48.4647, 35.0462}, lviv = {49.8397, 24.0297};
+        assertTrue(Weather.cacheFits(Weather.placeKey(kyiv), false, kyiv));
+        assertTrue(Weather.cacheFits(Weather.placeKey(kyiv), false, kyiv.clone()));
+        assertFalse(Weather.cacheFits(Weather.placeKey(kyiv), false, dnipro));
+        assertFalse(Weather.cacheFits(Weather.placeKey(kyiv), false, null));
+        assertFalse(Weather.cacheFits(Weather.placeKey(kyiv), true, lviv));
+        // Kept before the place was: the chosen city's, else Kyiv's (then the only default), so Dnipro gets a new one.
+        assertTrue(Weather.cacheFits(null, true, lviv));
+        assertTrue(Weather.cacheFits(null, false, kyiv));
+        assertFalse(Weather.cacheFits(null, false, dnipro));
+        assertFalse(Weather.cacheFits(null, false, null));
     }
 
     @Test public void snowCodes() {
