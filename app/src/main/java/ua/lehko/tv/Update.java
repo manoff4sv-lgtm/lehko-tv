@@ -412,8 +412,8 @@ final class Update {
         if (status == PackageInstaller.STATUS_FAILURE_ABORTED) return R.string.update_cancelled;
         if (status == PackageInstaller.STATUS_FAILURE_STORAGE) return R.string.update_storage;
         // "INSTALL_FAILED_UPDATE_INCOMPATIBLE: ... signatures do not match", which most versions report as a conflict.
-        if (status == PackageInstaller.STATUS_FAILURE_CONFLICT
-                || (message != null && (message.contains("signatures") || message.contains("CERTIFICATES")))) {
+        // Not "...NO_CERTIFICATES" or "...INCONSISTENT_CERTIFICATES": a broken file, which a new try may fix.
+        if (status == PackageInstaller.STATUS_FAILURE_CONFLICT || (message != null && message.contains("signatures"))) {
             return R.string.update_signature;
         }
         return R.string.update_failed;

@@ -93,5 +93,8 @@ public class UpdateTest {
                 "INSTALL_FAILED_UPDATE_INCOMPATIBLE: Package ua.lehko.tv signatures do not match previously installed version; ignoring!"));
         assertEquals(R.string.update_failed, Update.resultText(PackageInstaller.STATUS_FAILURE_INCOMPATIBLE, null));
         assertEquals(R.string.update_failed, Update.resultText(PackageInstaller.STATUS_FAILURE, "INSTALL_FAILED_INTERNAL_ERROR"));
+        // A damaged download, not another signing key.
+        assertEquals(R.string.update_failed, Update.resultText(PackageInstaller.STATUS_FAILURE_INVALID,
+                "INSTALL_PARSE_FAILED_NO_CERTIFICATES: Failed to collect certificates from /data/app/vmdl1.tmp/Lehko.apk"));
     }
 }
