@@ -663,9 +663,9 @@ final class Outages {
         at.set(Calendar.MINUTE, (k % 2) * 30);
         at.set(Calendar.SECOND, 0);
         at.set(Calendar.MILLISECOND, 0);
-        long from = now.getTimeInMillis() / 60_000 * 60_000, t = at.getTimeInMillis();
+        long from = now.getTimeInMillis() / 60_000 * 60_000, t = moment(at, (k % SLOTS) * 30);
         // When the clocks go back, 03:00-03:59 comes twice and Calendar takes the second time. The slot starts at the
-        // first, unless that has passed. (A time the clocks skip in spring comes out right: it is the hour after.)
+        // first, unless that has passed.
         long back = KYIV.getOffset(t - 3600_000L) - KYIV.getOffset(t);
         if (back > 0 && t - back >= from) t -= back;
         return (int) ((t - from) / 60_000);
@@ -691,7 +691,7 @@ final class Outages {
     /**
      * The moment Kyiv's wall clock shows {@code minutes} after the midnight that starts {@code date} (1440 and more: the
      * next day), the first time when the clocks go back and it comes twice; a time the clocks skip in spring is the
-     * hour after, as in {@link #minutesUntil}.
+     * moment they jump, as in {@link #minutesUntil}.
      */
     static long at(String date, int minutes) {
         Calendar at = Calendar.getInstance(KYIV);
@@ -701,9 +701,21 @@ final class Outages {
         at.set(Calendar.MINUTE, minutes % 60);
         at.set(Calendar.SECOND, 0);
         at.set(Calendar.MILLISECOND, 0);
-        long t = at.getTimeInMillis();
+        long t = moment(at, minutes % 1440);
         long back = KYIV.getOffset(t - 3600_000L) - KYIV.getOffset(t);
         return back > 0 ? t - back : t;
+    }
+
+    /**
+     * The moment of {@code at}, a Kyiv calendar set to {@code minute} past midnight. A time the clocks skip in spring
+     * (03:00 to 03:59) is the moment they jump: Calendar puts it an hour on, so 03:30 would come after 04:00 and an
+     * outage from 03:30 would start half an hour late.
+     */
+    private static long moment(Calendar at, int minute) {
+        long t = at.getTimeInMillis();
+        int skipped = (at.get(Calendar.HOUR_OF_DAY) * 60 + at.get(Calendar.MINUTE) - minute + 1440) % 1440;
+        for (int i = 0; i < skipped && KYIV.getOffset(t - 60_000) == KYIV.getOffset(t); i++) t -= 60_000;
+        return t;
     }
 
     /** Unix seconds of Kyiv midnight on "yyyy-MM-dd". */

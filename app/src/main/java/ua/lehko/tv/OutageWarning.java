@@ -78,9 +78,11 @@ final class OutageWarning {
             long start = Outages.at(today, i * minutes);
             // An emergency day or one not published yet: when it ends isn't known.
             boolean ends = j + 1 < slots.length && slots[j + 1] != Outages.UNKNOWN;
+            long end = ends ? Outages.at(today, (j + 1) * minutes) : 0;
             boolean afterOff = i > 0 && slots[i - 1] == Outages.OFF;
-            if (start > now && !(kind == Outages.MAYBE && afterOff)) {
-                out.add(new Run(start, ends ? Outages.at(today, (j + 1) * minutes) : 0, kind));
+            // One only in the hour the clocks skip in spring never comes.
+            if (start > now && (end == 0 || end > start) && !(kind == Outages.MAYBE && afterOff)) {
+                out.add(new Run(start, end, kind));
             }
             i = j;
         }

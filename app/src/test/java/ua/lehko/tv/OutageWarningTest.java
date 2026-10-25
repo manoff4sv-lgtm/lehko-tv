@@ -196,9 +196,29 @@ public class OutageWarningTest {
         assertEquals(OutagesTest.utc(2025, 10, 26, 0, 0), Outages.at("2025-10-26", 180));
         assertEquals(OutagesTest.utc(2025, 10, 26, 0, 30), Outages.at("2025-10-26", 210));
         assertEquals("04:00 is winter time", OutagesTest.utc(2025, 10, 26, 2, 0), Outages.at("2025-10-26", 240));
-        // In spring 03:00 doesn't come: the hour after.
+        // In spring 03:00 to 03:59 doesn't come: such a time is the moment the clocks jump to 04:00.
         assertEquals(OutagesTest.utc(2025, 3, 30, 1, 0), Outages.at("2025-03-30", 180));
+        assertEquals("not after 04:00", OutagesTest.utc(2025, 3, 30, 1, 0), Outages.at("2025-03-30", 210));
+        assertEquals(OutagesTest.utc(2025, 3, 30, 1, 0), Outages.at("2025-03-30", 240));
+        assertEquals(OutagesTest.utc(2025, 3, 30, 1, 30), Outages.at("2025-03-30", 270));
         assertEquals("the next day", kyiv(2025, 3, 31, 1, 30), Outages.at("2025-03-30", 1440 + 90));
+    }
+
+    /** The night the clocks jump from 03:00 to 04:00: an outage from 03:30 is on at 04:00, not half an hour later. */
+    @Test public void anOutageFromATimeTheClocksSkip() {
+        Outages.Day spring = new Outages.Day("2025-03-30", Outages.ON);
+        fill(spring, 7, 10, Outages.OFF); // 03:30 to 05:00
+        long night = kyiv(2025, 3, 30, 2, 0);
+        List<OutageWarning.Run> runs = OutageWarning.upcoming(schedule(spring), night);
+        assertEquals(1, runs.size());
+        assertEquals(OutagesTest.utc(2025, 3, 30, 1, 0), runs.get(0).start);
+        assertEquals(OutagesTest.utc(2025, 3, 30, 2, 0), runs.get(0).end);
+        assertEquals("the home screen's countdown too", 60, Outages.status(schedule(spring), night).minutesToChange);
+
+        spring.slots[6] = Outages.MAYBE; // 03:00 to 03:30 only: it never comes
+        runs = OutageWarning.upcoming(schedule(spring), night);
+        assertEquals(1, runs.size());
+        assertEquals(Outages.OFF, runs.get(0).kind);
     }
 
     @Test public void helperFiles() throws Exception {
