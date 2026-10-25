@@ -52,7 +52,7 @@ public final class HomeActivity extends Activity {
     private CharSequence ratesShort, ratesLong;
     /** The key of the favorite that had focus last, so Down from the details goes back to it (even after a rebuild). */
     private Object lastFavorite;
-    /** A favorite's menu (or the sleep timer's choice) while it is open (Home closes it). */
+    /** A favorite's menu while it is open (Home closes it). */
     private AlertDialog menu;
     private DialView dial;
     /** The next hours under the current weather. */
@@ -814,6 +814,8 @@ public final class HomeActivity extends Activity {
             });
             nameSleepButton();
         }
+        // The same rule for the outage downloads while an app is in front: they start once Lehko and its helper are on.
+        OutageJob.sync(this);
         IconButton lehko = new IconButton(this, "lehko", getDrawable(R.drawable.ic_lehko_button), getString(R.string.settings_title), false);
         addWithGap(quickRow, lehko);
         lehko.setOnClickListener(new View.OnClickListener() {
@@ -909,6 +911,7 @@ public final class HomeActivity extends Activity {
         if (sleepButton.isFocused()) focusName.setText(sleepButton.getContentDescription());
     }
 
+    /** Off, or 15 to 90 minutes. Kept in {@link #menu}, so Home closes it like a favorite's menu. */
     private void sleepChoice() {
         if (isFinishing() || isDestroyed()) return;
         final int[] choices = SleepTimer.CHOICES;

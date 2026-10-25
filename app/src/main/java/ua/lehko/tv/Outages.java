@@ -117,6 +117,8 @@ final class Outages {
         Prefs.of(c).edit().remove(P_REGION).remove(P_GROUP).remove(P_ADDRESS).remove(P_STREET).remove(P_HOUSE)
                 .remove(P_RESOLVED).remove(P_CACHE).remove(P_FETCHED).remove(P_ETAG).apply();
         OutageWarning.forget(c);
+        // No schedule, no downloads while an app is in front.
+        OutageJob.sync(c);
     }
 
     // MARK: - The schedule
