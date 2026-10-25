@@ -143,6 +143,20 @@ public class OutageWarningTest {
         assertEquals(1, OutageWarning.changedDays(schedule(today), schedule(today2, tomorrow2), now).size());
     }
 
+    @Test public void anotherSourceIsNoChange() {
+        Outages.Day today = new Outages.Day("2026-10-22", Outages.ON), today2 = new Outages.Day("2026-10-22", Outages.ON);
+        fill(today2, 36, 42, Outages.OFF);
+        Outages.Schedule yasno = schedule(today), mirror = schedule(today2);
+        yasno.source = "yasno";
+        mirror.source = "dtek";
+        long now = kyiv(2026, 10, 22, 13, 0);
+        // YASNO failed and the mirror, minutes behind, answered: no card, nor when YASNO is back.
+        assertTrue(OutageWarning.changedDays(yasno, mirror, now).isEmpty());
+        assertTrue(OutageWarning.changedDays(mirror, yasno, now).isEmpty());
+        mirror.source = "yasno";
+        assertEquals(1, OutageWarning.changedDays(yasno, mirror, now).size());
+    }
+
     @Test public void theOutageGoingOnStaysWhole() {
         Outages.Day d = new Outages.Day("2026-10-22", Outages.ON);
         fill(d, 16, 24, Outages.OFF); // 08:00 to 12:00
@@ -155,11 +169,12 @@ public class OutageWarningTest {
 
     @Test public void aChangeIsShownOnceTheSameHour() {
         long found = kyiv(2026, 10, 22, 17, 30);
-        String entry = found + " The schedule changed: today no power 18:00 to 22:00";
+        String text = "The schedule changed: today no power 18:00 to 22:00", entry = found + " " + text;
         assertEquals(found, OutageWarning.changedId(entry));
-        assertEquals("The schedule changed: today no power 18:00 to 22:00",
-                OutageWarning.changed(entry, found + 60_000, 0));
+        assertEquals(text, OutageWarning.changed(entry, found + 60_000, 0));
         assertNull("shown", OutageWarning.changed(entry, found + 60_000, found));
+        assertEquals("the one seen came from a clock that was ahead", text,
+                OutageWarning.changed(entry, found + 60_000, found + 3600_000L));
         assertNull("an hour later it's old", OutageWarning.changed(entry, found + 61 * 60_000L, 0));
         long late = kyiv(2026, 10, 22, 23, 40);
         assertNull("its \"today\" is over", OutageWarning.changed(late + " x", kyiv(2026, 10, 23, 0, 10), 0));

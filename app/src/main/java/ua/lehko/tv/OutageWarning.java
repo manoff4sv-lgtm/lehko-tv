@@ -14,7 +14,7 @@ import java.util.Map;
  * The heads-up over any app, 15 minutes before an outage: the home screen's process writes the outages ahead into
  * helper.txt after each download, and {@link TvHelper} shows a card when one comes close. Moments are absolute (epoch
  * ms), so the helper needs no schedule, time zone or clock change logic of its own. A download that changes what lies
- * ahead leaves a ready text for one more card, and a notice on the home screen.
+ * ahead leaves a ready text for one more card.
  */
 final class OutageWarning {
     private OutageWarning() {}
@@ -151,11 +151,13 @@ final class OutageWarning {
     /**
      * The days (today, then tomorrow) whose outages from now on differ between two downloads, as the new one has them
      * with the outages already over left out; empty when nothing ahead changed. A day only one of them has (tomorrow
-     * just published, yesterday gone) is no change, nor is an emergency day (it has no schedule).
+     * just published, yesterday gone) is no change, nor is an emergency day (it has no schedule). Nor is anything
+     * between two sources: Kyiv's DTEK mirror steps in whenever YASNO fails and may lag it by minutes, so YASNO, then
+     * the mirror, then YASNO again would tell of two changes that never were.
      */
     static List<Outages.Day> changedDays(Outages.Schedule before, Outages.Schedule after, long now) {
         List<Outages.Day> out = new ArrayList<>();
-        if (before == null || after == null) return out;
+        if (before == null || after == null || !before.source.equals(after.source)) return out;
         Calendar c = Calendar.getInstance(Outages.KYIV);
         c.setTimeInMillis(now);
         int slot = (c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE)) / (1440 / Outages.SLOTS);
@@ -205,11 +207,12 @@ final class OutageWarning {
 
     /**
      * The helper: the change to show at {@code now}, or null. Shown once ({@code seen}: the last one shown), within an
-     * hour of the download and on the same Kyiv day.
+     * hour of the download and on the same Kyiv day. Once means not that one again, not "nothing older": a seen id
+     * from a clock that was ahead would hide every change until the real time caught up.
      */
     static String changed(String entry, long now, long seen) {
         long id = changedId(entry);
-        if (id <= seen || now < id || now - id > CHANGED_FOR_MS) return null;
+        if (id == seen || now < id || now - id > CHANGED_FOR_MS) return null;
         return Outages.dateOf(id / 1000).equals(Outages.dateOf(now / 1000)) ? entry.substring(entry.indexOf(' ') + 1)
                 : null;
     }
@@ -229,20 +232,21 @@ final class OutageWarning {
 
     /**
      * After a download (on App.NET): the outages ahead for the helper and, when what lies ahead changed since the same
-     * group's last download ({@code before}; null: the first one), the change for a card and a home screen notice.
-     * The downloads while other apps are in front start here too ({@link OutageJob}).
+     * group's last download ({@code before}; null: the first one), the change for a card. The downloads while other
+     * apps are in front start here too ({@link OutageJob}).
      */
     static void update(Context c, Outages.Schedule before, Outages.Schedule after) {
         long now = System.currentTimeMillis();
         Map<String, String> put = new HashMap<>();
         put.put(P_RUNS, format(upcoming(after, now)));
         List<Outages.Day> changed = changedDays(before, after, now);
-        // Told only where the helper can show it, and with the warning on: it is part of the warning.
+        // Told only where the helper can show it, and with the warning on: it is part of the warning. Only as the
+        // helper's card, which shows over Lehko's home screen too: a home notice would say it twice there, and it would
+        // wait for the next return home with no end, its "today" wrong by the next day.
         String text = !changed.isEmpty() && on(c) && TvHelper.running(c)
                 ? changedText(c, changed, Outages.dateOf(now / 1000)) : null;
         if (text != null) put.put(P_CHANGED, now + " " + text);
         write(c, put);
-        if (text != null) Prefs.notice(c, text);
         OutageJob.sync(c);
     }
 
