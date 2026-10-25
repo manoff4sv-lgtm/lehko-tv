@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.PixelFormat;
 import android.os.Build;
+import android.os.FileObserver;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.util.TypedValue;
@@ -20,7 +21,6 @@ import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
 import android.widget.TextView;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -117,14 +117,17 @@ public final class TvHelper extends AccessibilityService {
 
     // MARK: - Over other apps: one timer for the next thing due, nothing while the screen is off
 
-    /** Looks at helper.txt at least this often while the screen is on: a stat of one small file. */
-    private static final long LOOK_MS = 60_000;
     private static final long CARD_MS = 12_000;
 
     private boolean screenOn, listening;
-    /** helper.txt as last read, and its time: read again only when it changed. */
+    /** helper.txt as last read, and whether it was rewritten since (then it is read again when next needed). */
     private Map<String, String> settings = Collections.emptyMap();
-    private long settingsTime = -1;
+    private boolean settingsOld = true;
+    /**
+     * Tells when the home screen's process renames a new helper.txt over the old one (inotify, no polling), so a sleep
+     * timer just set is seen at once. Kept in a field: an observer that is collected stops telling.
+     */
+    private FileObserver watcher;
     /** The helper's own notes (Keys.STATE). */
     private Map<String, String> state;
     private TextView card;
@@ -133,24 +136,31 @@ public final class TvHelper extends AccessibilityService {
 
     private final BroadcastReceiver screen = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) {
-            screenOn = Intent.ACTION_SCREEN_ON.equals(i.getAction());
-            if (screenOn) {
-                wakeLater(1);
-                arm();
+            String action = i.getAction();
+            if (Intent.ACTION_SCREEN_OFF.equals(action)) {
+                screenOn = false;
+                screenOff();
                 return;
             }
-            App.MAIN.removeCallbacks(tick);
-            App.MAIN.removeCallbacks(wake);
-            removeCard();
-            // Turned off before the sleep timer's end (with the remote, or by the TV's own timer): that ends it.
-            long at = Keys.number(settings(), SleepTimer.P_AT);
-            int step = SleepTimer.step(at, Keys.number(state, SleepTimer.P_DONE), System.currentTimeMillis());
-            if (step == SleepTimer.WAIT || step == SleepTimer.CARD) note(SleepTimer.P_DONE, String.valueOf(at));
+            if (Intent.ACTION_SCREEN_ON.equals(action)) {
+                screenOn = true;
+                wakeLater(1);
+            }
+            // The screen on, or the clock or time zone set anew: what is due is counted again.
+            arm();
         }
     };
 
     private final Runnable tick = new Runnable() {
         @Override public void run() {
+            arm();
+        }
+    };
+
+    /** helper.txt was written anew. */
+    private final Runnable reread = new Runnable() {
+        @Override public void run() {
+            settingsOld = true;
             arm();
         }
     };
@@ -162,8 +172,17 @@ public final class TvHelper extends AccessibilityService {
         state = Keys.read(getFilesDir(), Keys.STATE);
         IntentFilter f = new IntentFilter(Intent.ACTION_SCREEN_ON);
         f.addAction(Intent.ACTION_SCREEN_OFF);
+        f.addAction(Intent.ACTION_TIME_CHANGED);
+        f.addAction(Intent.ACTION_TIMEZONE_CHANGED);
         registerReceiver(screen, f);
         listening = true;
+        // The path form: the File one is Android 10+.
+        watcher = new FileObserver(getFilesDir().getPath(), FileObserver.CLOSE_WRITE | FileObserver.MOVED_TO) {
+            @Override public void onEvent(int event, String path) {
+                if (Keys.FILE.equals(path)) App.MAIN.post(reread);
+            }
+        };
+        watcher.startWatching();
         // Started with the system: the TV was just turned on from cold, which brings no "screen on".
         if (screenOn && SystemClock.elapsedRealtime() < COLD_START_MS) wakeLater(COLD_TRIES);
         arm();
@@ -172,27 +191,40 @@ public final class TvHelper extends AccessibilityService {
     @Override public void onDestroy() {
         if (listening) unregisterReceiver(screen);
         listening = false;
+        if (watcher != null) watcher.stopWatching();
+        App.MAIN.removeCallbacks(reread);
         App.MAIN.removeCallbacks(tick);
         App.MAIN.removeCallbacks(wake);
         removeCard();
         super.onDestroy();
     }
 
-    /** helper.txt, read again when its time changed (the home screen's process rewrites it whole). */
+    private void screenOff() {
+        App.MAIN.removeCallbacks(tick);
+        App.MAIN.removeCallbacks(wake);
+        removeCard();
+        // Turned off before the sleep timer's end or in its last moments (with the remote, or by the TV's own timer):
+        // that ends it, so turning the TV on again doesn't put it straight back to sleep.
+        long at = Keys.number(settings(), SleepTimer.P_AT);
+        if (SleepTimer.step(at, Keys.number(state, SleepTimer.P_DONE), System.currentTimeMillis()) != SleepTimer.NONE) {
+            note(SleepTimer.P_DONE, String.valueOf(at));
+        }
+    }
+
+    /** helper.txt, read again after the home screen's process rewrote it. */
     private Map<String, String> settings() {
-        long t = new File(getFilesDir(), Keys.FILE).lastModified();
-        if (t != settingsTime) {
-            settingsTime = t;
+        if (settingsOld) {
+            settingsOld = false;
             settings = Keys.read(getFilesDir());
         }
         return settings;
     }
 
-    /** Shows what is due now and sets the timer for the next thing, a minute away at most. */
+    /** Shows what is due now and sets the timer for the next thing. */
     private void arm() {
         App.MAIN.removeCallbacks(tick);
         if (!screenOn) return;
-        long now = System.currentTimeMillis(), next = now + LOOK_MS;
+        long now = System.currentTimeMillis(), next = Long.MAX_VALUE;
         Map<String, String> s = settings();
         long at = Keys.number(s, SleepTimer.P_AT);
         int step = SleepTimer.step(at, Keys.number(state, SleepTimer.P_DONE), now);
@@ -229,7 +261,8 @@ public final class TvHelper extends AccessibilityService {
             }
             next = Math.min(next, OutageWarning.nextDue(runs, now, Keys.number(state, OutageWarning.P_WARNED)));
         }
-        App.MAIN.postDelayed(tick, Math.max(1_000, next - now));
+        // Nothing ahead: a new helper.txt, the screen coming on or the clock set anew looks again.
+        if (next != Long.MAX_VALUE) App.MAIN.postDelayed(tick, Math.max(1_000, next - now));
     }
 
     /** A button pressed in the sleep timer's last minute: the TV stays on. */
