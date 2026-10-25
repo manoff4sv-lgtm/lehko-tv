@@ -5,6 +5,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import android.content.pm.PackageInstaller;
+
 import org.junit.Test;
 
 public class UpdateTest {
@@ -62,5 +64,24 @@ public class UpdateTest {
         assertFalse(Update.enabled(Update.DEV));
         assertFalse(Update.enabled("quick"));
         assertFalse(Update.enabled("?"));
+    }
+
+    @Test public void theDownloadedFile() {
+        assertTrue(Update.fits("ua.lehko.tv", "0.10.0-beta.3", "0.10.0-beta.2"));
+        // Betas of one version share a versionCode: the same one again is fine.
+        assertTrue(Update.fits("ua.lehko.tv", "0.10.0-beta.2", "0.10.0-beta.2"));
+        assertFalse(Update.fits("ua.lehko.tv", "0.9.0", "0.10.0-beta.2"));
+        assertFalse(Update.fits("com.example.other", "0.11.0", "0.10.0"));
+        assertFalse(Update.fits("ua.lehko.tv", null, "0.10.0"));
+    }
+
+    @Test public void theInstallersAnswerInWords() {
+        assertEquals(R.string.update_cancelled, Update.resultText(PackageInstaller.STATUS_FAILURE_ABORTED, null));
+        assertEquals(R.string.update_storage, Update.resultText(PackageInstaller.STATUS_FAILURE_STORAGE, null));
+        assertEquals(R.string.update_signature, Update.resultText(PackageInstaller.STATUS_FAILURE_CONFLICT, null));
+        assertEquals(R.string.update_signature, Update.resultText(PackageInstaller.STATUS_FAILURE,
+                "INSTALL_FAILED_UPDATE_INCOMPATIBLE: Package ua.lehko.tv signatures do not match previously installed version; ignoring!"));
+        assertEquals(R.string.update_failed, Update.resultText(PackageInstaller.STATUS_FAILURE_INCOMPATIBLE, null));
+        assertEquals(R.string.update_failed, Update.resultText(PackageInstaller.STATUS_FAILURE, "INSTALL_FAILED_INTERNAL_ERROR"));
     }
 }

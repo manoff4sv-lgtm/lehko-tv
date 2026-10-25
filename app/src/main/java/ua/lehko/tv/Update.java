@@ -1,19 +1,32 @@
 package ua.lehko.tv;
 
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageInstaller;
+import android.os.Build;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Lehko's own updates. Once a day the home screen asks GitHub for the latest release, and a newer one gets a notice
- * and shows in Settings. The parsing and the version order are pure, so they can be tested.
+ * Lehko's own updates. Once a day the home screen asks GitHub for the latest release; Settings downloads its Lehko.apk
+ * and hands it to the TV's installer, which asks for a confirmation (UpdateReceiver brings its screen up). The parsing
+ * and the version order are pure, so they can be tested.
  */
 final class Update {
     private Update() {}
@@ -30,10 +43,12 @@ final class Update {
     static final long MAX_BYTES = 30L * 1024 * 1024;
 
     static final String CHECKED = "update_checked", VERSION = "update_version", APK_URL = "update_url",
-            SIZE = "update_size", NOTICED = "update_noticed";
+            SIZE = "update_size", NOTICED = "update_noticed", RESULT = "update_result";
 
     private static volatile boolean checking;
     private static volatile long failedAt;
+    /** A download or hand-over is under way: Settings may have been closed and opened again meanwhile. */
+    static volatile boolean installing;
 
     /** A release build: the dev build and the quick build ("quick") have no version to compare. */
     static boolean enabled() {
@@ -193,5 +208,139 @@ final class Update {
             if (c != 0) return c;
         }
         return Integer.compare(x.length, y.length);
+    }
+
+    // MARK: - Installing
+
+    /** Why the update didn't reach the installer, in words for Settings. */
+    static final class Failure extends IOException {
+        final int text;
+
+        Failure(int text, Throwable cause) {
+            super(cause);
+            this.text = text;
+        }
+    }
+
+    /**
+     * Downloads the release the last check found into the cache, makes sure it is Lehko of this version or a later
+     * one and hands it to the TV's installer, which then asks for a confirmation. The file goes once the installer
+     * has its own copy, or on failure. A Failure says why in words; any other IOException is the network. Slow: on
+     * App.NET.
+     */
+    static void install(Context c, HomeMode.Progress p) throws IOException {
+        SharedPreferences prefs = Prefs.of(c);
+        prefs.edit().remove(RESULT).apply();
+        File apk = new File(c.getCacheDir(), ASSET);
+        try {
+            download(prefs.getString(APK_URL, ""), prefs.getLong(SIZE, 0), apk, c, p);
+            PackageInfo file = c.getPackageManager().getPackageArchiveInfo(apk.getPath(), 0);
+            if (file == null || !fits(file.packageName, file.versionName, App.version)) {
+                throw new Failure(R.string.update_bad_file, null);
+            }
+            p.step(c.getString(R.string.update_installing));
+            try {
+                commit(c, apk);
+            } catch (IOException | RuntimeException e) {
+                throw new Failure(R.string.update_failed, e);
+            }
+        } finally {
+            apk.delete();
+        }
+    }
+
+    /** The downloaded file is Lehko, of this version or a later one (Android itself refuses a lower versionCode). */
+    static boolean fits(String pkg, String versionName, String ours) {
+        Version v = version(versionName), o = version(ours);
+        return HomeMode.PKG.equals(pkg) && v != null && o != null && compare(v, o) >= 0;
+    }
+
+    /** Exactly {@code size} bytes from {@code url} into {@code to}, the percentage as Settings' status. */
+    private static void download(String url, long size, File to, Context c, HomeMode.Progress p) throws IOException {
+        // Follows the redirect to GitHub's file host by itself (https to https only).
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        try {
+            conn.setConnectTimeout(15_000);
+            conn.setReadTimeout(30_000);
+            conn.setRequestProperty("User-Agent", Net.userAgent());
+            int code = conn.getResponseCode();
+            if (code < 200 || code >= 300) throw new Net.HttpError(code);
+            try (InputStream in = conn.getInputStream(); OutputStream out = new FileOutputStream(to)) {
+                byte[] buf = new byte[16 * 1024];
+                long total = 0;
+                int shown = -1;
+                for (int n; (n = in.read(buf)) != -1; ) {
+                    total += n;
+                    if (total > size) throw new Failure(R.string.update_bad_file, null);
+                    out.write(buf, 0, n);
+                    int percent = (int) (total * 100 / size);
+                    if (percent != shown) {
+                        shown = percent;
+                        p.step(c.getString(R.string.update_downloading, percent));
+                    }
+                }
+                if (total != size) throw new IOException("download cut short");
+            }
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    /** A PackageInstaller session (no shell): the installer answers UpdateReceiver. */
+    private static void commit(Context c, File apk) throws IOException {
+        PackageInstaller installer = c.getPackageManager().getPackageInstaller();
+        PackageInstaller.SessionParams params =
+                new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+        params.setAppPackageName(c.getPackageName());
+        params.setSize(apk.length());
+        int id = installer.createSession(params);
+        try (PackageInstaller.Session s = installer.openSession(id)) {
+            try {
+                try (InputStream in = new FileInputStream(apk);
+                     OutputStream out = s.openWrite(ASSET, 0, apk.length())) {
+                    byte[] buf = new byte[16 * 1024];
+                    for (int n; (n = in.read(buf)) != -1; ) out.write(buf, 0, n);
+                    s.fsync(out);
+                }
+                // Mutable: the installer adds its answer to the intent.
+                int flags = PendingIntent.FLAG_UPDATE_CURRENT
+                        | (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0);
+                Intent answer = new Intent(c, UpdateReceiver.class);
+                s.commit(PendingIntent.getBroadcast(c, id, answer, flags).getIntentSender());
+            } catch (IOException | RuntimeException e) {
+                s.abandon();
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * The installer's final answer (UpdateReceiver). On success Android restarts Lehko as the new version; a failure
+     * is kept for Settings' status card.
+     */
+    static void finished(Context c, int status, String message) {
+        if (status == PackageInstaller.STATUS_SUCCESS) return;
+        String text = c.getString(resultText(status, message), App.REPO_URL.replace("https://", ""));
+        Prefs.of(c).edit().putString(RESULT, text).apply();
+    }
+
+    /** The installer's answer in words: cancelled, no room, another signing key (a test build), or anything else. */
+    static int resultText(int status, String message) {
+        if (status == PackageInstaller.STATUS_FAILURE_ABORTED) return R.string.update_cancelled;
+        if (status == PackageInstaller.STATUS_FAILURE_STORAGE) return R.string.update_storage;
+        // "INSTALL_FAILED_UPDATE_INCOMPATIBLE: ... signatures do not match", which most versions report as a conflict.
+        if (status == PackageInstaller.STATUS_FAILURE_CONFLICT
+                || (message != null && (message.contains("signatures") || message.contains("CERTIFICATES")))) {
+            return R.string.update_signature;
+        }
+        return R.string.update_failed;
+    }
+
+    /** The installer's last failure for Settings' status card, once. */
+    static String takeResult(Context c) {
+        SharedPreferences p = Prefs.of(c);
+        String r = p.getString(RESULT, null);
+        if (r != null) p.edit().remove(RESULT).apply();
+        return r;
     }
 }

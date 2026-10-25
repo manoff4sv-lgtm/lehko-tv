@@ -68,6 +68,9 @@ public final class SettingsActivity extends Activity {
     @Override protected void onStart() {
         super.onStart();
         visible = true;
+        // Why an update didn't go in: the TV's installer may have answered while Settings was out of sight.
+        Prefs.of(this).registerOnSharedPreferenceChangeListener(updateWatch);
+        showUpdateResult();
     }
 
     @Override protected void onResume() {
@@ -78,6 +81,7 @@ public final class SettingsActivity extends Activity {
 
     @Override protected void onStop() {
         visible = false;
+        Prefs.of(this).unregisterOnSharedPreferenceChangeListener(updateWatch);
         super.onStop();
     }
 
@@ -230,7 +234,7 @@ public final class SettingsActivity extends Activity {
                 buildRows();
                 break;
             case UPDATE:
-                checkUpdate();
+                update();
                 break;
             default:
                 about();
@@ -841,11 +845,36 @@ public final class SettingsActivity extends Activity {
 
     private static final int UPDATE = 40;
 
+    /** The TV's installer answered (UpdateReceiver) while Settings is in front. */
+    private final android.content.SharedPreferences.OnSharedPreferenceChangeListener updateWatch =
+            new android.content.SharedPreferences.OnSharedPreferenceChangeListener() {
+        @Override public void onSharedPreferenceChanged(android.content.SharedPreferences p, String key) {
+            if (Update.RESULT.equals(key)) showUpdateResult();
+        }
+    };
+
+    private void showUpdateResult() {
+        String result = Update.takeResult(this);
+        if (result != null) showStatus(result, true);
+    }
+
     /** "Version 0.10.0 · 0.11.0 is out", "Version 0.10.0, the latest", or before the first check "check now". */
     private String updateSummary() {
         String newer = Update.available(this);
         if (newer != null) return getString(R.string.update_available, App.version, newer);
         return getString(Update.checked(this) ? R.string.update_latest : R.string.update_check_now, App.version);
+    }
+
+    /**
+     * A newer version known: download and install it, first letting Lehko install apps where the TV doesn't yet
+     * (over debugging when it is on, else on the TV's own screen). Otherwise: check now.
+     */
+    private void update() {
+        if (Update.available(this) == null) checkUpdate();
+        else if (Update.installing) showStatus(getString(R.string.working), false);
+        else if (getPackageManager().canRequestPackageInstalls()) downloadUpdate();
+        else if (Settings.Global.getInt(getContentResolver(), Settings.Global.ADB_ENABLED, 0) == 1) allowInstalls();
+        else allowInstallsByHand();
     }
 
     private void checkUpdate() {
@@ -856,8 +885,78 @@ public final class SettingsActivity extends Activity {
 
             @Override public void done(String newer) {
                 buildRows();
-                showStatus(newer != null ? getString(R.string.update_available, App.version, newer)
+                showStatus(newer != null ? getString(R.string.update_found, newer)
                         : getString(R.string.update_latest, App.version), false);
+            }
+        });
+    }
+
+    private void allowInstalls() {
+        setBusy(true);
+        showStatus(getString(R.string.working), false);
+        final Context app = getApplicationContext();
+        final HomeMode.Progress progress = steps();
+        App.ADB.execute(new Runnable() {
+            @Override public void run() {
+                boolean allowed;
+                try {
+                    HomeMode.allowInstalls(app, progress);
+                    allowed = app.getPackageManager().canRequestPackageInstalls();
+                } catch (IOException | RuntimeException e) {
+                    // Not allowed, or no answer: the TV's own switch does the same.
+                    allowed = false;
+                }
+                final boolean ok = allowed;
+                App.MAIN.post(new Runnable() {
+                    @Override public void run() {
+                        if (isDestroyed() || isFinishing()) return;
+                        setBusy(false);
+                        if (ok) downloadUpdate();
+                        else allowInstallsByHand();
+                    }
+                });
+            }
+        });
+    }
+
+    /** The TV's own "Install unknown apps" switch for Lehko, with a line saying what to switch on. */
+    private void allowInstallsByHand() {
+        showStatus(getString(R.string.update_allow), false);
+        Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                android.net.Uri.parse("package:" + getPackageName()));
+        if (!Apps.start(this, i)) openSettings(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
+    }
+
+    /** Download (the percentage in the status card), check and hand over; the installer's screen comes next. */
+    private void downloadUpdate() {
+        setBusy(true);
+        Update.installing = true;
+        showStatus(getString(R.string.update_downloading, 0), false);
+        final Context app = getApplicationContext();
+        final HomeMode.Progress progress = steps();
+        App.NET.execute(new Runnable() {
+            @Override public void run() {
+                String error = null;
+                try {
+                    Update.install(app, progress);
+                } catch (Update.Failure e) {
+                    error = app.getString(e.text);
+                } catch (IOException e) {
+                    error = app.getString(R.string.network_error);
+                } catch (RuntimeException e) {
+                    error = app.getString(R.string.error_generic, e.getClass().getSimpleName());
+                } finally {
+                    Update.installing = false;
+                }
+                final String err = error;
+                App.MAIN.post(new Runnable() {
+                    @Override public void run() {
+                        if (isDestroyed() || isFinishing()) return;
+                        setBusy(false);
+                        // Handed over: "Installing…" stays until the installer's screen or answer.
+                        if (err != null) showStatus(err, true);
+                    }
+                });
             }
         });
     }
