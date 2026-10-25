@@ -992,6 +992,16 @@ final class HomeMode {
         adb.shell("settings put secure enabled_accessibility_services '" + String.join(":", services) + "'");
     }
 
+    /**
+     * The sleep timer's end (the helper calls it, off its main thread): the TV goes to sleep as with the remote's
+     * power button. Never asks for permission: nobody may be watching.
+     */
+    static void sleep(Context c) throws IOException {
+        try (Adb adb = Adb.connect(c, 0, null)) {
+            adb.shell("input keyevent KEYCODE_SLEEP");
+        }
+    }
+
     // MARK: - Turning single apps off and on (the "unneeded apps" screen)
 
     static synchronized void setAppEnabled(Env c, String pkg, boolean enabled, Progress p) throws IOException {

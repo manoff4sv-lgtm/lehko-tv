@@ -52,7 +52,7 @@ public final class HomeActivity extends Activity {
     private CharSequence ratesShort, ratesLong;
     /** The key of the favorite that had focus last, so Down from the details goes back to it (even after a rebuild). */
     private Object lastFavorite;
-    /** A favorite's menu while it is open (Home closes it). */
+    /** A favorite's menu (or the sleep timer's choice) while it is open (Home closes it). */
     private AlertDialog menu;
     private DialView dial;
     /** The next hours under the current weather. */
@@ -804,6 +804,16 @@ public final class HomeActivity extends Activity {
             }
         });
         updateMemoryTile();
+        // Only while the remote's helper runs: it is what puts the TV to sleep.
+        sleepButton = TvHelper.running(this) ? shortcut("sleep", R.drawable.ic_sleep, getString(R.string.sleep_timer)) : null;
+        if (sleepButton != null) {
+            sleepButton.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    sleepChoice();
+                }
+            });
+            nameSleepButton();
+        }
         IconButton lehko = new IconButton(this, "lehko", getDrawable(R.drawable.ic_lehko_button), getString(R.string.settings_title), false);
         addWithGap(quickRow, lehko);
         lehko.setOnClickListener(new View.OnClickListener() {
@@ -879,10 +889,55 @@ public final class HomeActivity extends Activity {
         });
     }
 
+    // MARK: - Sleep timer (the remote's helper ends it)
+
+    private IconButton sleepButton;
+
+    /** The button's name, which says until when; the button itself is there only while the helper runs. */
+    private void updateSleepButton() {
+        if ((sleepButton != null) != TvHelper.running(this)) buildQuickRow();
+        else nameSleepButton();
+    }
+
+    /** "Sleep timer · off at 23:40" while it is set. */
+    private void nameSleepButton() {
+        if (sleepButton == null) return;
+        long at = SleepTimer.at(this);
+        sleepButton.setName(at == 0 ? getString(R.string.sleep_timer)
+                : getString(R.string.sleep_timer_at, DateFormat.getTimeFormat(this).format(new java.util.Date(at))));
+        // Only the time changed: the new text without the fade, which is for a focus change.
+        if (sleepButton.isFocused()) focusName.setText(sleepButton.getContentDescription());
+    }
+
+    private void sleepChoice() {
+        if (isFinishing() || isDestroyed()) return;
+        final int[] choices = SleepTimer.CHOICES;
+        CharSequence[] labels = new CharSequence[choices.length];
+        for (int i = 0; i < choices.length; i++) {
+            labels[i] = choices[i] > 0 ? OutageText.duration(this, choices[i]) : getString(R.string.state_off);
+        }
+        // "Off" is marked while it isn't set; a timer that runs is none of the choices.
+        menu = new AlertDialog.Builder(this)
+                .setTitle(R.string.sleep_timer)
+                .setSingleChoiceItems(labels, SleepTimer.at(this) == 0 ? 0 : -1, new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int which) {
+                        d.dismiss();
+                        try {
+                            SleepTimer.set(HomeActivity.this, choices[which]);
+                        } catch (java.io.IOException e) {
+                            showNotice(getString(R.string.error_generic, e.getClass().getSimpleName()));
+                        }
+                        nameSleepButton();
+                    }
+                })
+                .show();
+    }
+
     // MARK: - Weather
 
     /** Downloads what is stale, but not again within a few minutes of a failure. */
     private void maybeRefresh() {
+        updateSleepButton(); // not a download: it only rides along, every minute and on each return
         // No network yet (just booted or woken, the router still starting): a try would fail at once and hold the
         // next one off for minutes. The minute ticker tries again.
         if (!Net.online(this)) return;

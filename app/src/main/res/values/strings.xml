@@ -136,6 +136,9 @@
     <string name="outage_changed">The schedule changed: %s</string>
     <string name="outage_today_lc">today</string>
     <string name="outage_none_left">no more outages</string>
+    <string name="sleep_timer">Sleep timer</string>
+    <string name="sleep_timer_at">Sleep timer · off at %s</string>
+    <string name="sleep_card">The TV turns off in a minute · press any button to keep it on</string>
     <string name="outage_then_maybe">then a possible outage</string>
     <string name="outage_then_maybe_tomorrow">until %s tomorrow, then a possible outage</string>
     <string name="outage_off_until_maybe">No power until %s · then a possible outage</string>
@@ -240,5 +243,5 @@
     <string name="remote_star_default">%s while the stock launcher is off</string>
     <string name="remote_keys_too">The YouTube and “all apps” buttons work again too.</string>
     <string name="helper_label">Lehko helper</string>
-    <string name="helper_description">Makes the remote’s star, YouTube and “all apps” buttons work while the stock launcher is off; the star can open the app chosen in Lehko settings. Over any app it warns of power outages. Every other button goes straight on, and nothing on the screen is read.</string>
+    <string name="helper_description">Makes the remote’s star, YouTube and “all apps” buttons work while the stock launcher is off; the star can open the app chosen in Lehko settings. Over any app it warns of power outages and turns the TV off when the sleep timer ends. Every other button goes straight on, and nothing on the screen is read.</string>
 </resources>

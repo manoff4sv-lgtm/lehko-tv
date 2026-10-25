@@ -150,6 +150,9 @@ s("warn_at", "at %s", "о %s", "в %s")
 s("outage_changed", "The schedule changed: %s", "Графік змінився: %s", "График изменился: %s")
 s("outage_today_lc", "today", "сьогодні", "сегодня")
 s("outage_none_left", "no more outages", "більше без відключень", "больше без отключений")
+s("sleep_timer", "Sleep timer", "Таймер сну", "Таймер сна")
+s("sleep_timer_at", "Sleep timer · off at %s", "Таймер сну · вимкнеться о %s", "Таймер сна · выключится в %s")
+s("sleep_card", "The TV turns off in a minute · press any button to keep it on", "Телевізор вимкнеться за хвилину · натисніть будь-яку кнопку, щоб залишити", "Телевизор выключится через минуту · нажмите любую кнопку, чтобы оставить")
 
 s("outage_then_maybe", "then a possible outage", "далі можливе відключення", "дальше возможное отключение")
 s("outage_then_maybe_tomorrow", "until %s tomorrow, then a possible outage", "до %s завтра, далі можливе відключення", "до %s завтра, дальше возможное отключение")
@@ -266,7 +269,7 @@ s("remote_star_tv", "As the TV does", "Як у телевізора", "Как у
 s("remote_star_default", "%s while the stock launcher is off", "%s, поки стандартний лаунчер вимкнений", "%s, пока стандартный лаунчер выключен")
 s("remote_keys_too", "The YouTube and “all apps” buttons work again too.", "Кнопки YouTube і «усі додатки» теж знову працюють.", "Кнопки YouTube и «все приложения» тоже снова работают.")
 s("helper_label", "Lehko helper", "Помічник Lehko", "Помощник Lehko")
-s("helper_description", "Makes the remote’s star, YouTube and “all apps” buttons work while the stock launcher is off; the star can open the app chosen in Lehko settings. Over any app it warns of power outages. Every other button goes straight on, and nothing on the screen is read.", "Кнопки ☆, YouTube і «усі додатки» на пульті працюють, поки стандартний лаунчер вимкнений; ☆ може відкривати додаток, вибраний у налаштуваннях Lehko. Поверх будь-якого додатка попереджає про відключення світла. Інші кнопки проходять одразу, і нічого з екрана не читається.", "Кнопки ☆, YouTube и «все приложения» на пульте работают, пока стандартный лаунчер выключен; ☆ может открывать приложение, выбранное в настройках Lehko. Поверх любого приложения предупреждает об отключениях света. Остальные кнопки проходят сразу, и ничего с экрана не читается.")
+s("helper_description", "Makes the remote’s star, YouTube and “all apps” buttons work while the stock launcher is off; the star can open the app chosen in Lehko settings. Over any app it warns of power outages and turns the TV off when the sleep timer ends. Every other button goes straight on, and nothing on the screen is read.", "Кнопки ☆, YouTube і «усі додатки» на пульті працюють, поки стандартний лаунчер вимкнений; ☆ може відкривати додаток, вибраний у налаштуваннях Lehko. Поверх будь-якого додатка попереджає про відключення світла і вимикає телевізор за таймером сну. Інші кнопки проходять одразу, і нічого з екрана не читається.", "Кнопки ☆, YouTube и «все приложения» на пульте работают, пока стандартный лаунчер выключен; ☆ может открывать приложение, выбранное в настройках Lehko. Поверх любого приложения предупреждает об отключениях света и выключает телевизор по таймеру сна. Остальные кнопки проходят сразу, и ничего с экрана не читается.")
 
 
 res = sys.argv[1]

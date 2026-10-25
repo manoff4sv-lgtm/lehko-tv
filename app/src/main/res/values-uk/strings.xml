@@ -134,6 +134,9 @@
     <string name="outage_changed">Графік змінився: %s</string>
     <string name="outage_today_lc">сьогодні</string>
     <string name="outage_none_left">більше без відключень</string>
+    <string name="sleep_timer">Таймер сну</string>
+    <string name="sleep_timer_at">Таймер сну · вимкнеться о %s</string>
+    <string name="sleep_card">Телевізор вимкнеться за хвилину · натисніть будь-яку кнопку, щоб залишити</string>
     <string name="outage_then_maybe">далі можливе відключення</string>
     <string name="outage_then_maybe_tomorrow">до %s завтра, далі можливе відключення</string>
     <string name="outage_off_until_maybe">Світла немає до %s · далі можливе відключення</string>
@@ -238,5 +241,5 @@
     <string name="remote_star_default">%s, поки стандартний лаунчер вимкнений</string>
     <string name="remote_keys_too">Кнопки YouTube і «усі додатки» теж знову працюють.</string>
     <string name="helper_label">Помічник Lehko</string>
-    <string name="helper_description">Кнопки ☆, YouTube і «усі додатки» на пульті працюють, поки стандартний лаунчер вимкнений; ☆ може відкривати додаток, вибраний у налаштуваннях Lehko. Поверх будь-якого додатка попереджає про відключення світла. Інші кнопки проходять одразу, і нічого з екрана не читається.</string>
+    <string name="helper_description">Кнопки ☆, YouTube і «усі додатки» на пульті працюють, поки стандартний лаунчер вимкнений; ☆ може відкривати додаток, вибраний у налаштуваннях Lehko. Поверх будь-якого додатка попереджає про відключення світла і вимикає телевізор за таймером сну. Інші кнопки проходять одразу, і нічого з екрана не читається.</string>
 </resources>

@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.PixelFormat;
+import android.os.Build;
 import android.os.PowerManager;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -29,8 +30,8 @@ import java.util.Map;
  * Google TV hands those buttons to its launcher, so with the launcher turned off the system took the presses and
  * nothing happened. An accessibility service's key filter sees a key before the system hands it out, so this one opens
  * what {@link Keys} says and keeps the press; every other key, and any press it can't open anything for, goes on
- * untouched. Over whatever is on screen it shows the outage warning and a changed schedule ({@link OutageWarning}).
- * It reads no screen content. HomeMode turns it on with Lehko where it can act (Google TV's launcher installed, or a
+ * untouched. Over whatever is on screen it shows the outage warning and a changed schedule ({@link OutageWarning}),
+ * and it ends the sleep timer ({@link SleepTimer}). It reads no screen content. HomeMode turns it on with Lehko where it can act (Google TV's launcher installed, or a
  * star button on the remote), over the debugging connection, and off with "Bring back".
  */
 public final class TvHelper extends AccessibilityService {
@@ -46,6 +47,8 @@ public final class TvHelper extends AccessibilityService {
     }
 
     @Override protected boolean onKeyEvent(KeyEvent e) {
+        // Any button in the sleep timer's last minute keeps the TV on; the press goes on as usual.
+        if (sleepCard != 0 && e.getAction() == KeyEvent.ACTION_DOWN) keepOn();
         int key = e.getKeyCode();
         if (!Keys.handled(key, e.getSource())) return false;
         if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
@@ -123,16 +126,22 @@ public final class TvHelper extends AccessibilityService {
     /** The helper's own notes (Keys.STATE). */
     private Map<String, String> state;
     private TextView card;
+    /** The sleep timer (its moment) whose last minute the card shows, or 0. */
+    private long sleepCard;
 
     private final BroadcastReceiver screen = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) {
             screenOn = Intent.ACTION_SCREEN_ON.equals(i.getAction());
             if (screenOn) {
                 arm();
-            } else {
-                App.MAIN.removeCallbacks(tick);
-                removeCard();
+                return;
             }
+            App.MAIN.removeCallbacks(tick);
+            removeCard();
+            // Turned off before the sleep timer's end (with the remote, or by the TV's own timer): that ends it.
+            long at = Keys.number(settings(), SleepTimer.P_AT);
+            int step = SleepTimer.step(at, Keys.number(state, SleepTimer.P_DONE), System.currentTimeMillis());
+            if (step == SleepTimer.WAIT || step == SleepTimer.CARD) note(SleepTimer.P_DONE, String.valueOf(at));
         }
     };
 
@@ -178,6 +187,22 @@ public final class TvHelper extends AccessibilityService {
         if (!screenOn) return;
         long now = System.currentTimeMillis(), next = now + LOOK_MS;
         Map<String, String> s = settings();
+        long at = Keys.number(s, SleepTimer.P_AT);
+        int step = SleepTimer.step(at, Keys.number(state, SleepTimer.P_DONE), now);
+        // Turned off or set anew on the home screen meanwhile: the old timer's card goes.
+        if (sleepCard != 0 && (sleepCard != at || step != SleepTimer.CARD)) removeCard();
+        if (step == SleepTimer.SLEEP) {
+            sleep(at);
+        } else if (step == SleepTimer.CARD) {
+            // Before any other card: it asks for a button press.
+            if (sleepCard != at && mayAct()) {
+                showCard(getString(R.string.sleep_card), getColor(R.color.text_primary), 0);
+                if (card != null) sleepCard = at;
+            }
+            next = Math.min(next, at);
+        } else if (step == SleepTimer.WAIT) {
+            next = Math.min(next, at - SleepTimer.CARD_MS);
+        }
         // One card at a time: the next one is looked for when this one has gone.
         if (OutageWarning.on(s) && card == null) {
             List<OutageWarning.Run> runs = OutageWarning.parse(s.get(OutageWarning.P_RUNS));
@@ -189,15 +214,47 @@ public final class TvHelper extends AccessibilityService {
                 if (due != null) {
                     note(OutageWarning.P_WARNED, String.valueOf(due.start));
                     showCard(OutageWarning.text(this, due, now), getColor(due.kind == Outages.OFF ? R.color.ember
-                            : R.color.power_maybe));
+                            : R.color.power_maybe), CARD_MS);
                 } else {
                     note(OutageWarning.P_SEEN, String.valueOf(OutageWarning.changedId(entry)));
-                    showCard(changed, getColor(R.color.text_primary));
+                    showCard(changed, getColor(R.color.text_primary), CARD_MS);
                 }
             }
             next = Math.min(next, OutageWarning.nextDue(runs, now, Keys.number(state, OutageWarning.P_WARNED)));
         }
         App.MAIN.postDelayed(tick, Math.max(1_000, next - now));
+    }
+
+    /** A button pressed in the sleep timer's last minute: the TV stays on. */
+    private void keepOn() {
+        note(SleepTimer.P_DONE, String.valueOf(sleepCard));
+        removeCard();
+        arm();
+    }
+
+    /**
+     * The sleep timer's end: noted first (the home screen stops showing it), then the TV goes to sleep through the
+     * debugging connection, off the main thread (it never asks for permission).
+     */
+    private void sleep(long at) {
+        note(SleepTimer.P_DONE, String.valueOf(at));
+        removeCard();
+        if (!mayAct()) return;
+        App.ADB.execute(new Runnable() {
+            @Override public void run() {
+                try {
+                    HomeMode.sleep(TvHelper.this);
+                } catch (IOException | RuntimeException e) {
+                    // No debugging: Android 9+ lets an accessibility service lock the screen, the nearest it has.
+                    if (Build.VERSION.SDK_INT < 28) return;
+                    App.MAIN.post(new Runnable() {
+                        @Override public void run() {
+                            performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN);
+                        }
+                    });
+                }
+            }
+        });
     }
 
     /** Writes one of the helper's own notes. */
@@ -214,12 +271,13 @@ public final class TvHelper extends AccessibilityService {
 
     /**
      * A small card at the top right, inside the TV's safe area, over whatever is on screen: the app's dark card with a
-     * hairline. It takes no focus and no touch, so the app under it goes on as before.
+     * hairline. It takes no focus and no touch, so the app under it goes on as before. It goes after {@code ms} (0:
+     * when it is taken away).
      */
-    private void showCard(String text, int color) {
+    private void showCard(String text, int color, long ms) {
         removeCard();
         float dp = getResources().getDisplayMetrics().density;
-        TextView t = new TextView(this);
+        final TextView t = new TextView(this);
         t.setText(text);
         t.setTextColor(color);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
@@ -245,10 +303,10 @@ public final class TvHelper extends AccessibilityService {
         final String spoken = text;
         t.post(new Runnable() {
             @Override public void run() {
-                if (card != null) card.announceForAccessibility(spoken);
+                t.announceForAccessibility(spoken);
             }
         });
-        App.MAIN.postDelayed(fadeCard, CARD_MS);
+        if (ms > 0) App.MAIN.postDelayed(fadeCard, ms);
     }
 
     private final Runnable fadeCard = new Runnable() {
@@ -275,5 +333,6 @@ public final class TvHelper extends AccessibilityService {
             // Already gone with its window.
         }
         card = null;
+        sleepCard = 0;
     }
 }
