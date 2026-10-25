@@ -30,6 +30,7 @@ import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.TextClock;
 import android.widget.TextView;
 
@@ -930,17 +931,28 @@ public final class HomeActivity extends Activity {
 
     /** Off, or 15 to 90 minutes. Kept in {@link #menu}, so Home closes it like a favorite's menu. */
     private void sleepChoice() {
-        if (isFinishing() || isDestroyed()) return;
+        if (isFinishing() || isDestroyed() || (menu != null && menu.isShowing())) return;
         final int[] choices = SleepTimer.CHOICES;
         CharSequence[] labels = new CharSequence[choices.length];
         for (int i = 0; i < choices.length; i++) {
             labels[i] = choices[i] > 0 ? OutageText.duration(this, choices[i]) : getString(R.string.state_off);
         }
         // "Off" is marked while it isn't set; a timer that runs is none of the choices.
+        final int checked = SleepTimer.at(this) == 0 ? 0 : -1;
+        final long[] shownAt = {Long.MAX_VALUE};
         menu = new AlertDialog.Builder(this)
                 .setTitle(R.string.sleep_timer)
-                .setSingleChoiceItems(labels, SleepTimer.at(this) == 0 ? 0 : -1, new DialogInterface.OnClickListener() {
+                .setSingleChoiceItems(labels, checked, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
+                        // On a slow TV a quick second OK on the moon button lands here: no choice (on "Off" it
+                        // would end a running timer without a word). The list had marked it already.
+                        if (SystemClock.uptimeMillis() - shownAt[0] < 700) {
+                            ListView list = ((AlertDialog) d).getListView();
+                            if (checked < 0) list.clearChoices();
+                            else list.setItemChecked(checked, true);
+                            list.invalidateViews();
+                            return;
+                        }
                         d.dismiss();
                         try {
                             SleepTimer.set(HomeActivity.this, choices[which]);
@@ -951,6 +963,9 @@ public final class HomeActivity extends Activity {
                     }
                 })
                 .show();
+        shownAt[0] = SystemClock.uptimeMillis();
+        // While a timer runs, focus starts on the first time, not "Off": a stray OK later can't turn it off.
+        if (checked < 0) menu.getListView().setSelection(1);
     }
 
     // MARK: - Weather
