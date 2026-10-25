@@ -976,11 +976,6 @@ final class HomeMode {
                 && !helperListed(c);
     }
 
-    /** Single-quoted: a class name may contain '$', which the shell would expand. The names checked hold no quote. */
-    private static void putServices(Adb adb, List<String> services) throws IOException {
-        adb.shell("settings put secure enabled_accessibility_services '" + String.join(":", services) + "'");
-    }
-
     /**
      * The sleep timer's end (the helper calls it, off its main thread): the TV goes to sleep as with the remote's
      * power button. Never asks for permission: nobody may be watching.
@@ -989,6 +984,11 @@ final class HomeMode {
         try (Adb adb = Adb.connect(c, 0, null)) {
             adb.shell("input keyevent KEYCODE_SLEEP");
         }
+    }
+
+    /** Single-quoted: a class name may contain '$', which the shell would expand. The names checked hold no quote. */
+    private static void putServices(Adb adb, List<String> services) throws IOException {
+        adb.shell("settings put secure enabled_accessibility_services '" + String.join(":", services) + "'");
     }
 
     // MARK: - Turning single apps off and on (the "unneeded apps" screen)
