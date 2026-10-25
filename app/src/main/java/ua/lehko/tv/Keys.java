@@ -11,7 +11,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
@@ -125,15 +124,23 @@ final class Keys {
         return read(dir, FILE);
     }
 
-    /** {@link #FILE} or {@link #STATE} in {@code dir}; empty when there is none yet. */
+    /** {@link #FILE} or {@link #STATE} in {@code dir}; empty when there is none yet, or it can't be read. */
     static Map<String, String> read(File dir, String name) {
-        try (InputStream in = new FileInputStream(new File(dir, name))) {
+        try {
+            return load(new File(dir, name));
+        } catch (IOException e) {
+            return new TreeMap<>();
+        }
+    }
+
+    /** Empty when the file isn't there yet; one that is there and can't be read is an error, not "nothing set". */
+    private static Map<String, String> load(File f) throws IOException {
+        if (!f.exists()) return new TreeMap<>();
+        try (InputStream in = new FileInputStream(f)) {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             byte[] buf = new byte[512];
             for (int n; (n = in.read(buf)) > 0; ) bytes.write(buf, 0, n);
             return parse(new String(bytes.toByteArray(), StandardCharsets.UTF_8));
-        } catch (IOException e) {
-            return new TreeMap<>();
         }
     }
 
@@ -146,18 +153,21 @@ final class Keys {
      * Sets several values in {@code name} at once (a null value removes its key); a file that would stay the same isn't
      * touched, so the helper doesn't read it again for nothing. Written next to the file and renamed over it, so the
      * other process, reading at any moment, gets the old file or the new one, never half of one. Synchronized: a
-     * process writes from more than one thread (the settings screen, downloads).
+     * process writes from more than one thread (the settings screen, downloads). A file it can't read isn't written:
+     * the keys it doesn't change would be lost.
      */
     static synchronized void putAll(File dir, String name, Map<String, String> changes) throws IOException {
-        Map<String, String> before = read(dir, name), settings = new TreeMap<>(before);
+        Map<String, String> before = load(new File(dir, name)), settings = new TreeMap<>(before);
         for (Map.Entry<String, String> e : changes.entrySet()) {
             if (e.getValue() == null) settings.remove(e.getKey());
             else settings.put(e.getKey(), e.getValue());
         }
         if (settings.equals(before)) return;
         File tmp = new File(dir, name + ".tmp");
-        try (OutputStream out = new FileOutputStream(tmp)) {
+        try (FileOutputStream out = new FileOutputStream(tmp)) {
             out.write(format(settings).getBytes(StandardCharsets.UTF_8));
+            // On the disk before the rename: a power cut (an outage) right after must not leave an empty file.
+            out.getFD().sync();
         }
         if (!tmp.renameTo(new File(dir, name))) throw new IOException("rename " + tmp);
     }
