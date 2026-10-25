@@ -82,8 +82,13 @@ public final class SettingsActivity extends Activity {
             toOutages = false;
             for (int i = 0; i < rows.size(); i++) if (rows.get(i)[0] == OUTAGES) list.setSelection(i);
             // While the home screen invites to set the schedule up: straight into the setup (region, then address or
-            // group), as OK on the row goes. Not while a switch runs, which locks the list.
-            if (!busy && outageInvite(this)) outageRegion();
+            // group), as OK on the row goes. Not while a switch runs, which locks the list, nor over the region dialog
+            // still up (a quick second OK on the home screen, or Home pressed while it was open).
+            if (!busy && outageInvite(this) && (regionDialog == null || !regionDialog.isShowing())) {
+                outageRegion();
+                // On the first region, not "Off": a stray second OK must not turn the invitation off for good.
+                regionDialog.getListView().setSelection(1);
+            }
         }
     }
 
@@ -611,12 +616,15 @@ public final class SettingsActivity extends Activity {
         return !Outages.enabled(c) && !Prefs.of(c).getBoolean(P_OUTAGES_DECLINED, false);
     }
 
+    /** The region dialog, so the home screen's info panel doesn't open a second one over it. */
+    private AlertDialog regionDialog;
+
     private void outageRegion() {
         final Outages.Region[] regions = Outages.REGIONS;
         CharSequence[] labels = new CharSequence[regions.length + 1];
         labels[0] = getString(R.string.outages_off);
         for (int i = 0; i < regions.length; i++) labels[i + 1] = getString(regions[i].label);
-        new AlertDialog.Builder(this)
+        regionDialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.outage_pick_region)
                 .setItems(labels, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {

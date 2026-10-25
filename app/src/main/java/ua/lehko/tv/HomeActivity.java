@@ -50,6 +50,8 @@ public final class HomeActivity extends Activity {
     private TextView weatherTemp, weatherText, weatherSun, powerTitle, powerDetail, notice, focusName, ratesLine;
     /** The rates line's two versions: short, and full while the details are open. */
     private CharSequence ratesShort, ratesLong;
+    /** The last OK on the info panel: on a slow TV a quick second one still lands here and would open Settings again. */
+    private long infoClickedAt;
     /** The key of the favorite that had focus last, so Down from the details goes back to it (even after a rebuild). */
     private Object lastFavorite;
     /** A favorite's menu while it is open (Home closes it). */
@@ -269,6 +271,9 @@ public final class HomeActivity extends Activity {
         // OK on it: the outage schedule in Lehko settings (its setup, while the power lines invite to it).
         info.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
+                long now = SystemClock.uptimeMillis();
+                if (now - infoClickedAt < 1000) return;
+                infoClickedAt = now;
                 Apps.start(HomeActivity.this, new Intent(HomeActivity.this, SettingsActivity.class)
                         .putExtra(SettingsActivity.EXTRA_OUTAGES, true));
             }
