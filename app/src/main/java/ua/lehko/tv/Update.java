@@ -42,8 +42,12 @@ final class Update {
     /** Lehko is well under a megabyte: a file this big isn't it. */
     static final long MAX_BYTES = 30L * 1024 * 1024;
 
+    /** An answer older than this would turn up in Settings with nothing to tie it to. */
+    static final long RESULT_MS = 10 * 60_000L;
+
     static final String CHECKED = "update_checked", VERSION = "update_version", APK_URL = "update_url",
-            SIZE = "update_size", NOTICED = "update_noticed", RESULT = "update_result", SESSION = "update_session";
+            SIZE = "update_size", NOTICED = "update_noticed", RESULT = "update_result", SESSION = "update_session",
+            RESULT_AT = "update_result_at", RESULT_ERROR = "update_result_error";
 
     private static volatile boolean checking;
     private static volatile long failedAt;
@@ -378,15 +382,29 @@ final class Update {
     }
 
     /**
-     * The installer's final answer (UpdateReceiver). On success Android restarts Lehko as the new version; a failure
-     * is kept for Settings' status card.
+     * The installer's final answer (UpdateReceiver). On success Android restarts Lehko as the new version; anything
+     * else is reported.
      */
     static void finished(Context c, int status, String message) {
         confirmation = null;
         Prefs.of(c).edit().remove(SESSION).apply();
         if (status == PackageInstaller.STATUS_SUCCESS) return;
         String text = c.getString(resultText(status, message), App.REPO_URL.replace("https://", ""));
-        Prefs.of(c).edit().putString(RESULT, text).apply();
+        report(c, text, status != PackageInstaller.STATUS_FAILURE_ABORTED);
+    }
+
+    /**
+     * Why the update didn't go in, or that it was cancelled, from any thread. Settings shows it in its status card,
+     * at once when it is in sight (its prefs listener), else when it is opened within RESULT_MS. Lehko's home says it
+     * too; when Settings shows it first, the home notice goes (takeResult).
+     */
+    static void report(Context c, String text, boolean error) {
+        SharedPreferences.Editor edit = Prefs.of(c).edit().putString(RESULT, text).putBoolean(RESULT_ERROR, error)
+                .putLong(RESULT_AT, System.currentTimeMillis());
+        // Only Lehko's home shows notices: with Lehko off this one would pop up, stale, next time. One apply, so
+        // Settings' listener finds the notice there to take back.
+        if (HomeMode.isOn(c)) edit.putString(Prefs.NOTICE, text);
+        edit.apply();
     }
 
     /** The installer's answer in words: cancelled, no room, another signing key (a test build), or anything else. */
@@ -401,11 +419,16 @@ final class Update {
         return R.string.update_failed;
     }
 
-    /** The installer's last failure for Settings' status card, once. */
+    /** The last answer for Settings' status card, once and only while it is fresh (RESULT_ERROR says how to show it). */
     static String takeResult(Context c) {
         SharedPreferences p = Prefs.of(c);
         String r = p.getString(RESULT, null);
-        if (r != null) p.edit().remove(RESULT).apply();
-        return r;
+        if (r == null) return null;
+        boolean fresh = !Net.stale(System.currentTimeMillis(), p.getLong(RESULT_AT, 0), RESULT_MS);
+        SharedPreferences.Editor edit = p.edit().remove(RESULT);
+        // Seen here: the home screen needn't say it again.
+        if (fresh && r.equals(p.getString(Prefs.NOTICE, null))) edit.remove(Prefs.NOTICE);
+        edit.apply();
+        return fresh ? r : null;
     }
 }

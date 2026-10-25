@@ -68,7 +68,7 @@ public final class SettingsActivity extends Activity {
     @Override protected void onStart() {
         super.onStart();
         visible = true;
-        // Why an update didn't go in: the TV's installer may have answered while Settings was out of sight.
+        // Why an update didn't go in: the answer may have come while Settings was out of sight or closed.
         Prefs.of(this).registerOnSharedPreferenceChangeListener(updateWatch);
         showUpdateResult();
     }
@@ -845,7 +845,7 @@ public final class SettingsActivity extends Activity {
 
     private static final int UPDATE = 40;
 
-    /** The TV's installer answered (UpdateReceiver) while Settings is in front. */
+    /** An answer about the update (Update.report) while Settings is in front. */
     private final android.content.SharedPreferences.OnSharedPreferenceChangeListener updateWatch =
             new android.content.SharedPreferences.OnSharedPreferenceChangeListener() {
         @Override public void onSharedPreferenceChanged(android.content.SharedPreferences p, String key) {
@@ -854,8 +854,9 @@ public final class SettingsActivity extends Activity {
     };
 
     private void showUpdateResult() {
+        boolean error = Prefs.of(this).getBoolean(Update.RESULT_ERROR, true);
         String result = Update.takeResult(this);
-        if (result != null) showStatus(result, true);
+        if (result != null) showStatus(result, error);
     }
 
     /** "Version 0.10.0 · 0.11.0 is out", "Version 0.10.0, the latest", or before the first check "check now". */
@@ -960,15 +961,16 @@ public final class SettingsActivity extends Activity {
                 } finally {
                     Update.installing = false;
                 }
-                final String err = error;
+                // Like the installer's answers: Settings may have been closed (and before Android 12 a new one
+                // opened), or be out of sight.
+                if (error != null) Update.report(app, error, true);
                 final boolean latest = error == null && !handed;
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
                         if (isDestroyed() || isFinishing()) return;
                         setBusy(false);
-                        // Handed over: "Installing…" stays until the installer's screen or answer.
-                        if (err != null) showStatus(err, true);
-                        // The release was taken down since the last check.
+                        // A failure came through updateWatch. Handed over: "Installing…" stays until the installer's
+                        // screen or answer. Neither: the release was taken down since the last check.
                         if (latest) {
                             buildRows();
                             showStatus(getString(R.string.update_latest, App.version), false);
