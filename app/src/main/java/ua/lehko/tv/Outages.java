@@ -172,8 +172,8 @@ final class Outages {
     // MARK: - Fetching
 
     /**
-     * Fetches the schedule for the chosen region and group, caches it, hands the outages ahead to the helper and returns
-     * it. Network: off the UI thread.
+     * Fetches the schedule for the chosen region and group, caches it, tells the helper about the outages ahead (and
+     * what changed) and returns it. Network: off the UI thread.
      */
     static Schedule refresh(Context c) throws IOException, JSONException {
         // A second round when another region or group was chosen during the download: the answer is for the old one.
@@ -185,9 +185,11 @@ final class Outages {
             Schedule s = fetch(r, group);
             synchronized (Outages.class) {
                 if (r != chosenRegion(c) || !group.equals(chosenGroup(c))) continue;
+                // The same group's last download, or null (a new choice, a group change): what changed since.
+                Schedule before = cached(c);
                 Prefs.of(c).edit().putString(P_CACHE, toJson(s).toString()).putLong(P_FETCHED, System.currentTimeMillis()).apply();
                 // Under the same lock as choose(): an old group's outages never land after its forget().
-                OutageWarning.update(c, s);
+                OutageWarning.update(c, before, s);
             }
             return s;
         }

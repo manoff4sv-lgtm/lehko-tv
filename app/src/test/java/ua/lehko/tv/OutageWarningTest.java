@@ -107,6 +107,67 @@ public class OutageWarningTest {
         assertEquals(Long.MAX_VALUE, OutageWarning.nextDue(runs, now, runs.get(1).start));
     }
 
+    @Test public void whatChangedAhead() {
+        Outages.Day today = new Outages.Day("2026-10-22", Outages.ON), tomorrow = new Outages.Day("2026-10-23", Outages.ON);
+        fill(today, 16, 24, Outages.OFF); // 08:00 to 12:00
+        fill(today, 36, 42, Outages.OFF); // 18:00 to 21:00
+        Outages.Schedule before = schedule(today, tomorrow);
+        long now = kyiv(2026, 10, 22, 13, 0);
+        assertTrue("the first download", OutageWarning.changedDays(null, before, now).isEmpty());
+
+        Outages.Day today2 = new Outages.Day("2026-10-22", Outages.ON);
+        fill(today2, 14, 24, Outages.OFF); // the morning's outage changed: it's over, no news
+        fill(today2, 36, 42, Outages.OFF);
+        Outages.Day tomorrow2 = new Outages.Day("2026-10-23", Outages.ON);
+        Outages.Day after = new Outages.Day("2026-10-24", Outages.ON); // a new day: no change either
+        fill(after, 0, 10, Outages.OFF);
+        assertTrue(OutageWarning.changedDays(before, schedule(today2, tomorrow2, after), now).isEmpty());
+
+        fill(tomorrow2, 12, 18, Outages.MAYBE);
+        List<Outages.Day> changed = OutageWarning.changedDays(before, schedule(today2, tomorrow2), now);
+        assertEquals(1, changed.size());
+        assertEquals("2026-10-23", changed.get(0).date);
+
+        fill(today2, 42, 44, Outages.OFF); // 18:00 to 22:00 now
+        changed = OutageWarning.changedDays(before, schedule(today2, tomorrow2), now);
+        assertEquals(2, changed.size());
+        Outages.Day ahead = changed.get(0);
+        assertEquals("2026-10-22", ahead.date);
+        assertEquals("the morning is left out", 1, Outages.runs(ahead.slots, Outages.OFF).size());
+        assertEquals(1320, Outages.runs(ahead.slots, Outages.OFF).get(0)[1]);
+
+        // Tomorrow not published in one of them, or an emergency day: nothing to compare there.
+        Outages.Day emergency = new Outages.Day("2026-10-23", Outages.UNKNOWN);
+        emergency.emergency = true;
+        assertEquals(1, OutageWarning.changedDays(before, schedule(today2, emergency), now).size());
+        assertEquals(1, OutageWarning.changedDays(schedule(today), schedule(today2, tomorrow2), now).size());
+    }
+
+    @Test public void theOutageGoingOnStaysWhole() {
+        Outages.Day d = new Outages.Day("2026-10-22", Outages.ON);
+        fill(d, 16, 24, Outages.OFF); // 08:00 to 12:00
+        fill(d, 36, 42, Outages.MAYBE); // 18:00 to 21:00
+        Outages.Day a = OutageWarning.ahead(d, 38); // 19:00
+        assertTrue(Outages.runs(a.slots, Outages.OFF).isEmpty());
+        assertEquals(1080, Outages.runs(a.slots, Outages.MAYBE).get(0)[0]);
+        assertEquals("not the day itself", 1, Outages.runs(d.slots, Outages.OFF).size());
+    }
+
+    @Test public void aChangeIsShownOnceTheSameHour() {
+        long found = kyiv(2026, 10, 22, 17, 30);
+        String entry = found + " The schedule changed: today no power 18:00 to 22:00";
+        assertEquals(found, OutageWarning.changedId(entry));
+        assertEquals("The schedule changed: today no power 18:00 to 22:00",
+                OutageWarning.changed(entry, found + 60_000, 0));
+        assertNull("shown", OutageWarning.changed(entry, found + 60_000, found));
+        assertNull("an hour later it's old", OutageWarning.changed(entry, found + 61 * 60_000L, 0));
+        long late = kyiv(2026, 10, 22, 23, 40);
+        assertNull("its \"today\" is over", OutageWarning.changed(late + " x", kyiv(2026, 10, 23, 0, 10), 0));
+        assertNull(OutageWarning.changed(null, found, 0));
+        assertEquals(0, OutageWarning.changedId("soon text"));
+        assertEquals(0, OutageWarning.changedId("1792681200000"));
+    }
+
     @Test public void kyivTimes() {
         assertEquals("18:00", OutageWarning.hhmm(kyiv(2026, 10, 22, 18, 0), false));
         assertEquals("00:00", OutageWarning.hhmm(kyiv(2026, 10, 23, 0, 0), false));

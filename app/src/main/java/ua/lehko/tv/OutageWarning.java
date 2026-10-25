@@ -13,17 +13,23 @@ import java.util.Map;
 /**
  * The heads-up over any app, 15 minutes before an outage: the home screen's process writes the outages ahead into
  * helper.txt after each download, and {@link TvHelper} shows a card when one comes close. Moments are absolute (epoch
- * ms), so the helper needs no schedule, time zone or clock change logic of its own.
+ * ms), so the helper needs no schedule, time zone or clock change logic of its own. A download that changes what lies
+ * ahead leaves a ready text for one more card, and a notice on the home screen.
  */
 final class OutageWarning {
     private OutageWarning() {}
 
-    /** helper.txt: the outages ahead ("start:end:off,..."), and "0" while the warning is turned off. */
-    static final String P_RUNS = "warn", P_ON = "warn_on";
-    /** The helper's notes: the start of the last outage it warned about. */
-    static final String P_WARNED = "warned";
+    /**
+     * helper.txt: the outages ahead ("start:end:off,..."), "0" while the warning is turned off, and the last change
+     * ("id text", the id the moment it was found).
+     */
+    static final String P_RUNS = "warn", P_ON = "warn_on", P_CHANGED = "changed";
+    /** The helper's notes: the start of the last outage it warned about, and the last change it showed. */
+    static final String P_WARNED = "warned", P_SEEN = "changed_seen";
     /** How long before an outage the card shows. */
     static final long LEAD_MS = 15 * 60_000L;
+    /** A change is news for this long (and only on its own Kyiv day: its text says "today"). */
+    static final long CHANGED_FOR_MS = 3600_000L;
 
     /** An outage ahead: no power ({@link Outages#OFF}) or possibly none ({@link Outages#MAYBE}). */
     static final class Run {
@@ -140,17 +146,109 @@ final class OutageWarning {
         return OutageText.hhmm(end && minutes == 0 ? 1440 : minutes);
     }
 
-    /** After a download (on App.NET): the outages ahead for the helper. */
-    static void update(Context c, Outages.Schedule after) {
+    // MARK: - The schedule changed
+
+    /**
+     * The days (today, then tomorrow) whose outages from now on differ between two downloads, as the new one has them
+     * with the outages already over left out; empty when nothing ahead changed. A day only one of them has (tomorrow
+     * just published, yesterday gone) is no change, nor is an emergency day (it has no schedule).
+     */
+    static List<Outages.Day> changedDays(Outages.Schedule before, Outages.Schedule after, long now) {
+        List<Outages.Day> out = new ArrayList<>();
+        if (before == null || after == null) return out;
+        Calendar c = Calendar.getInstance(Outages.KYIV);
+        c.setTimeInMillis(now);
+        int slot = (c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE)) / (1440 / Outages.SLOTS);
+        String today = Outages.format(c);
+        c.add(Calendar.DAY_OF_MONTH, 1);
+        for (String date : new String[]{today, Outages.format(c)}) {
+            Outages.Day a = before.day(date), b = after.day(date);
+            if (a == null || b == null || a.emergency || b.emergency) continue;
+            int from = date.equals(today) ? Math.min(slot, Outages.SLOTS - 1) : 0;
+            for (int k = from; k < Outages.SLOTS; k++) {
+                if (kind(a.slots[k]) != kind(b.slots[k])) {
+                    out.add(ahead(b, from));
+                    break;
+                }
+            }
+        }
+        return out;
+    }
+
+    /** OFF, MAYBE, or ON for anything else (an unknown slot isn't an outage to tell about). */
+    private static byte kind(byte state) {
+        return state == Outages.OFF || state == Outages.MAYBE ? state : Outages.ON;
+    }
+
+    /** A copy of {@code d} without the outages over before slot {@code from}; the one going on stays whole. */
+    static Outages.Day ahead(Outages.Day d, int from) {
+        Outages.Day out = new Outages.Day(d.date, Outages.ON);
+        System.arraycopy(d.slots, 0, out.slots, 0, Outages.SLOTS);
+        int keep = from;
+        while (keep > 0 && kind(out.slots[from]) != Outages.ON && out.slots[keep - 1] == out.slots[from]) keep--;
+        Arrays.fill(out.slots, 0, keep, Outages.ON);
+        return out;
+    }
+
+    /** "The schedule changed: today no power 18:00 to 21:00 · tomorrow no outages". */
+    static String changedText(Context c, List<Outages.Day> days, String today) {
+        StringBuilder b = new StringBuilder();
+        for (Outages.Day d : days) {
+            if (b.length() > 0) b.append(" · ");
+            boolean isToday = d.date.equals(today);
+            b.append(c.getString(isToday ? R.string.outage_today_lc : R.string.outage_tomorrow_lc)).append(' ');
+            boolean none = Outages.runs(d.slots, Outages.OFF).isEmpty() && Outages.runs(d.slots, Outages.MAYBE).isEmpty();
+            b.append(none && isToday ? c.getString(R.string.outage_none_left) : OutageText.describe(c, d));
+        }
+        return c.getString(R.string.outage_changed, b);
+    }
+
+    /**
+     * The helper: the change to show at {@code now}, or null. Shown once ({@code seen}: the last one shown), within an
+     * hour of the download and on the same Kyiv day.
+     */
+    static String changed(String entry, long now, long seen) {
+        long id = changedId(entry);
+        if (id <= seen || now < id || now - id > CHANGED_FOR_MS) return null;
+        return Outages.dateOf(id / 1000).equals(Outages.dateOf(now / 1000)) ? entry.substring(entry.indexOf(' ') + 1)
+                : null;
+    }
+
+    /** The change's id (when it was found), or 0 for none. */
+    static long changedId(String entry) {
+        int space = entry == null ? -1 : entry.indexOf(' ');
+        if (space < 0) return 0;
+        try {
+            return Long.parseLong(entry.substring(0, space));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    // MARK: - Writing for the helper
+
+    /**
+     * After a download (on App.NET): the outages ahead for the helper and, when what lies ahead changed since the same
+     * group's last download ({@code before}; null: the first one), the change for a card and a home screen notice.
+     */
+    static void update(Context c, Outages.Schedule before, Outages.Schedule after) {
+        long now = System.currentTimeMillis();
         Map<String, String> put = new HashMap<>();
-        put.put(P_RUNS, format(upcoming(after, System.currentTimeMillis())));
+        put.put(P_RUNS, format(upcoming(after, now)));
+        List<Outages.Day> changed = changedDays(before, after, now);
+        // Told only where the helper can show it, and with the warning on: it is part of the warning.
+        String text = !changed.isEmpty() && on(c) && TvHelper.running(c)
+                ? changedText(c, changed, Outages.dateOf(now / 1000)) : null;
+        if (text != null) put.put(P_CHANGED, now + " " + text);
         write(c, put);
+        if (text != null) Prefs.notice(c, text);
     }
 
     /** Another group, or no schedule any more: the old outages mustn't be warned about. */
     static void forget(Context c) {
         Map<String, String> put = new HashMap<>();
         put.put(P_RUNS, null);
+        put.put(P_CHANGED, null);
         write(c, put);
     }
 

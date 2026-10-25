@@ -147,6 +147,9 @@ s("outage_warning_on", "15 min ahead, over any app", "За 15 хв, поверх
 s("warn_off", "Power outage in %1$s · %2$s", "Через %1$s відключення світла · %2$s", "Через %1$s отключение света · %2$s")
 s("warn_maybe", "Possible outage in %1$s · %2$s", "За %1$s можливе відключення · %2$s", "Через %1$s возможное отключение · %2$s")
 s("warn_at", "at %s", "о %s", "в %s")
+s("outage_changed", "The schedule changed: %s", "Графік змінився: %s", "График изменился: %s")
+s("outage_today_lc", "today", "сьогодні", "сегодня")
+s("outage_none_left", "no more outages", "більше без відключень", "больше без отключений")
 
 s("outage_then_maybe", "then a possible outage", "далі можливе відключення", "дальше возможное отключение")
 s("outage_then_maybe_tomorrow", "until %s tomorrow, then a possible outage", "до %s завтра, далі можливе відключення", "до %s завтра, дальше возможное отключение")

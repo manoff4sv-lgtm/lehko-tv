@@ -29,9 +29,9 @@ import java.util.Map;
  * Google TV hands those buttons to its launcher, so with the launcher turned off the system took the presses and
  * nothing happened. An accessibility service's key filter sees a key before the system hands it out, so this one opens
  * what {@link Keys} says and keeps the press; every other key, and any press it can't open anything for, goes on
- * untouched. It also shows the outage warning over whatever is on screen ({@link OutageWarning}). It reads no screen
- * content. HomeMode turns it on with Lehko where it can act (Google TV's launcher installed, or a star button on the
- * remote), over the debugging connection, and off with "Bring back".
+ * untouched. Over whatever is on screen it shows the outage warning and a changed schedule ({@link OutageWarning}).
+ * It reads no screen content. HomeMode turns it on with Lehko where it can act (Google TV's launcher installed, or a
+ * star button on the remote), over the debugging connection, and off with "Bring back".
  */
 public final class TvHelper extends AccessibilityService {
     /** The button whose press opened something: its repeats and its release are kept too, never half a press. */
@@ -181,12 +181,19 @@ public final class TvHelper extends AccessibilityService {
         // One card at a time: the next one is looked for when this one has gone.
         if (OutageWarning.on(s) && card == null) {
             List<OutageWarning.Run> runs = OutageWarning.parse(s.get(OutageWarning.P_RUNS));
-            long warned = Keys.number(state, OutageWarning.P_WARNED);
-            OutageWarning.Run due = OutageWarning.due(runs, now, warned);
-            if (due != null && mayAct()) {
-                note(OutageWarning.P_WARNED, String.valueOf(due.start));
-                showCard(OutageWarning.text(this, due, now), getColor(due.kind == Outages.OFF ? R.color.ember
-                        : R.color.power_maybe));
+            OutageWarning.Run due = OutageWarning.due(runs, now, Keys.number(state, OutageWarning.P_WARNED));
+            String entry = s.get(OutageWarning.P_CHANGED);
+            String changed = OutageWarning.changed(entry, now, Keys.number(state, OutageWarning.P_SEEN));
+            if ((due != null || changed != null) && mayAct()) {
+                // The outage first: the change waits the 12 seconds.
+                if (due != null) {
+                    note(OutageWarning.P_WARNED, String.valueOf(due.start));
+                    showCard(OutageWarning.text(this, due, now), getColor(due.kind == Outages.OFF ? R.color.ember
+                            : R.color.power_maybe));
+                } else {
+                    note(OutageWarning.P_SEEN, String.valueOf(OutageWarning.changedId(entry)));
+                    showCard(changed, getColor(R.color.text_primary));
+                }
             }
             next = Math.min(next, OutageWarning.nextDue(runs, now, Keys.number(state, OutageWarning.P_WARNED)));
         }

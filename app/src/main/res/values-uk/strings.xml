@@ -131,6 +131,9 @@
     <string name="warn_off">Через %1$s відключення світла · %2$s</string>
     <string name="warn_maybe">За %1$s можливе відключення · %2$s</string>
     <string name="warn_at">о %s</string>
+    <string name="outage_changed">Графік змінився: %s</string>
+    <string name="outage_today_lc">сьогодні</string>
+    <string name="outage_none_left">більше без відключень</string>
     <string name="outage_then_maybe">далі можливе відключення</string>
     <string name="outage_then_maybe_tomorrow">до %s завтра, далі можливе відключення</string>
     <string name="outage_off_until_maybe">Світла немає до %s · далі можливе відключення</string>
