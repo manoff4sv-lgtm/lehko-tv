@@ -48,7 +48,10 @@ final class Watchdog {
     private static void check(Context c) {
         SharedPreferences p = Prefs.of(c);
         if (p.getBoolean(SAFE, false)) {
-            // Still in safe mode (the last try didn't finish, or the process was killed): try again.
+            // Still in safe mode (the last try didn't finish, or the process was killed): try again. The half-hourly
+            // outage download goes, in case it was scheduled before: it would start this process, and this try, over
+            // whatever is playing.
+            OutageJob.sync(c);
             revertInBackground(c);
             return;
         }
@@ -69,6 +72,7 @@ final class Watchdog {
         if (on) recent += nativeCrashesAndHangs(c, now, p.getLong(SINCE, 0));
         if (recent >= LIMIT && on) {
             p.edit().putBoolean(SAFE, true).remove(KEY).putLong(SINCE, now).commit();
+            OutageJob.sync(c); // cancelled now: see above
             revertInBackground(c);
             ModeJob.schedule(c, ModeJob.REVERT, 60_000);
         } else if (!list.isEmpty()) {

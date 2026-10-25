@@ -587,8 +587,10 @@ final class HomeMode {
         try (Adb adb = c.connect(120_000, p == null ? null : approvalOf(p))) {
             adopt(c, adb);
             Restored r = restore(c, adb, p);
-            goHome(adb);
             if (r.homeOk) {
+                // Only then: Lehko's safe screen is still the home screen otherwise, and a try from the background
+                // would pull it over the app in front.
+                goHome(adb);
                 Watchdog.lastFailure = 0;
                 String text = c.text(R.string.reverted_crash);
                 if (!r.failed.isEmpty()) text += " " + r.message(c);

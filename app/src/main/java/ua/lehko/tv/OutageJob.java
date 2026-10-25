@@ -39,9 +39,13 @@ public final class OutageJob extends JobService {
         }
     }
 
-    /** The schedule set up, the warning on, Lehko and its helper on. */
+    /**
+     * The schedule set up, the warning on, Lehko and its helper on. Not in the watchdog's safe mode: each start of the
+     * home screen's process then tries the switch back again ("Allow USB debugging?", the TV's home screen), which
+     * must not happen every half hour over whatever is playing.
+     */
     private static boolean wanted(Context c) {
-        return Outages.enabled(c) && OutageWarning.on(c) && TvHelper.running(c);
+        return Outages.enabled(c) && OutageWarning.on(c) && TvHelper.running(c) && !Watchdog.safeMode(c);
     }
 
     @Override public boolean onStartJob(final JobParameters params) {
