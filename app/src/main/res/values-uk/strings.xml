@@ -138,6 +138,7 @@
     <string name="sleep_timer_at">Таймер сну · вимкнеться о %s</string>
     <string name="sleep_card">Телевізор вимкнеться за хвилину · натисніть будь-яку кнопку, щоб залишити</string>
     <string name="wake">Після увімкнення телевізора</string>
+    <string name="wake_instead">%s замість головного екрана</string>
     <string name="outage_then_maybe">далі можливе відключення</string>
     <string name="outage_then_maybe_tomorrow">до %s завтра, далі можливе відключення</string>
     <string name="outage_off_until_maybe">Світла немає до %s · далі можливе відключення</string>

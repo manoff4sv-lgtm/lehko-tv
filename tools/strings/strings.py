@@ -154,6 +154,7 @@ s("sleep_timer", "Sleep timer", "Таймер сну", "Таймер сна")
 s("sleep_timer_at", "Sleep timer · off at %s", "Таймер сну · вимкнеться о %s", "Таймер сна · выключится в %s")
 s("sleep_card", "The TV turns off in a minute · press any button to keep it on", "Телевізор вимкнеться за хвилину · натисніть будь-яку кнопку, щоб залишити", "Телевизор выключится через минуту · нажмите любую кнопку, чтобы оставить")
 s("wake", "When the TV turns on", "Після увімкнення телевізора", "После включения телевизора")
+s("wake_instead", "%s instead of the home screen", "%s замість головного екрана", "%s вместо главного экрана")
 
 s("outage_then_maybe", "then a possible outage", "далі можливе відключення", "дальше возможное отключение")
 s("outage_then_maybe_tomorrow", "until %s tomorrow, then a possible outage", "до %s завтра, далі можливе відключення", "до %s завтра, дальше возможное отключение")

@@ -101,11 +101,14 @@ public final class SettingsActivity extends Activity {
         rows.add(new int[]{SAVER});
         rows.add(new int[]{FIRE_IDLE});
         rows.add(new int[]{FIRE_SOUND});
-        // What the remote's helper does beyond the home screen: only while it runs.
+        // What the remote's helper does beyond the home screen: only while it runs. "When the TV turns on" goes once
+        // the inputs are in and there are none (a TV stick).
         if (TvHelper.running(this)) {
-            rows.add(new int[]{HEADER, R.string.section_beyond});
-            if (Outages.enabled(this)) rows.add(new int[]{WARN});
-            rows.add(new int[]{WAKE});
+            if (inputs == null) loadInputs();
+            boolean warn = Outages.enabled(this), wake = inputs == null || !inputs.isEmpty();
+            if (warn || wake) rows.add(new int[]{HEADER, R.string.section_beyond});
+            if (warn) rows.add(new int[]{WARN});
+            if (wake) rows.add(new int[]{WAKE});
         }
         rows.add(new int[]{HEADER, R.string.section_memory});
         rows.add(new int[]{CLEANUP});
@@ -546,17 +549,14 @@ public final class SettingsActivity extends Activity {
     private List<Inputs.Input> inputs;
     private boolean inputsLoading, pickWhenLoaded;
 
-    /** The home screen, or the input by the TV's own label. */
+    /** The home screen, or the input by the TV's own label, which the helper opens when the TV comes on to Lehko. */
     private String wakeSummary() {
         String choice = Keys.read(getFilesDir()).get(Keys.P_WAKE);
         if (choice == null || !choice.startsWith(Keys.WAKE_INPUT)) return getString(R.string.home_screen);
-        if (inputs == null) {
-            loadInputs();
-            return getString(R.string.loading);
-        }
+        if (inputs == null) return getString(R.string.loading);
         Inputs.Input in = Keys.wakeInput(choice, inputs);
         // No longer there (after a TV update, say): the helper leaves the home screen as it is.
-        return in != null ? in.label : getString(R.string.home_screen);
+        return in != null ? getString(R.string.wake_instead, in.label) : getString(R.string.home_screen);
     }
 
     private void wakeChoice() {
@@ -581,11 +581,16 @@ public final class SettingsActivity extends Activity {
                         inputsLoading = false;
                         if (isDestroyed() || isFinishing()) return;
                         inputs = list;
-                        adapter.notifyDataSetChanged();
-                        if (!pickWhenLoaded) return;
+                        boolean pick = pickWhenLoaded;
                         pickWhenLoaded = false;
-                        status.setVisibility(View.GONE);
-                        pickWake();
+                        if (pick) status.setVisibility(View.GONE);
+                        // None to open: the row goes.
+                        if (inputs.isEmpty()) {
+                            buildRows();
+                            return;
+                        }
+                        adapter.notifyDataSetChanged();
+                        if (pick) pickWake();
                     }
                 });
             }

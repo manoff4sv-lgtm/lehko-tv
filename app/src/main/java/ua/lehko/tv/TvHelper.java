@@ -1,6 +1,7 @@
 package ua.lehko.tv;
 
 import android.accessibilityservice.AccessibilityService;
+import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -144,7 +145,7 @@ public final class TvHelper extends AccessibilityService {
             }
             if (Intent.ACTION_SCREEN_ON.equals(action)) {
                 screenOn = true;
-                wakeLater(1);
+                wakeLater(WAKE_TRIES);
             }
             // The screen on, or the clock or time zone set anew: what is due is counted again.
             arm();
@@ -301,6 +302,8 @@ public final class TvHelper extends AccessibilityService {
 
     /** After the screen comes on: the TV's own start (Lehko's home screen) comes first. */
     private static final long WAKE_DELAY_MS = 1_500, WAKE_RETRY_MS = 3_000;
+    /** One more look 3 s later, for a home screen slow to come back. */
+    private static final int WAKE_TRIES = 2;
     /** Booted this recently when the helper starts: a cold start. Its inputs may still be coming up, so it tries on. */
     private static final long COLD_START_MS = 3 * 60_000L;
     private static final int COLD_TRIES = 10;
@@ -312,27 +315,60 @@ public final class TvHelper extends AccessibilityService {
         App.MAIN.postDelayed(wake, WAKE_DELAY_MS);
     }
 
-    /** Opens the input chosen in Lehko settings, as the home screen's buttons do, if the TV still has it. */
+    private void wakeAgain() {
+        if (--wakeTries > 0) App.MAIN.postDelayed(wake, WAKE_RETRY_MS);
+    }
+
+    /**
+     * Opens the input chosen in Lehko settings, as the home screen's buttons do, instead of Lehko's home screen: only
+     * when the TV came on to that (a TV woken by casting, by a console over HDMI or by an app's button on the remote
+     * shows what was asked for, and that stays), and only if the TV still has the input.
+     */
     private final Runnable wake = new Runnable() {
         @Override public void run() {
-            final String choice = settings().get(Keys.P_WAKE);
+            String choice = settings().get(Keys.P_WAKE);
             if (choice == null || !choice.startsWith(Keys.WAKE_INPUT) || !screenOn || !mayAct()) return;
+            if (!lehkoInFront()) {
+                wakeAgain();
+                return;
+            }
+            final String id = choice.substring(Keys.WAKE_INPUT.length());
             final Context app = TvHelper.this;
-            // The TV's input list takes a few calls to the system: not on the thread that answers the keys.
+            // A call to the TV's input service: not on the thread that answers the keys.
             App.IO.execute(new Runnable() {
                 @Override public void run() {
-                    final Inputs.Input in = Keys.wakeInput(choice, Inputs.load(app));
+                    final Inputs.Input in = Inputs.byId(app, id);
                     App.MAIN.post(new Runnable() {
                         @Override public void run() {
                             if (!screenOn) return;
-                            if (in != null) Inputs.open(app, in);
-                            else if (--wakeTries > 0) App.MAIN.postDelayed(wake, WAKE_RETRY_MS);
+                            if (in == null) wakeAgain();
+                            else if (lehkoInFront()) Inputs.open(app, in);
                         }
                     });
                 }
             });
         }
     };
+
+    /**
+     * One of Lehko's screens is what the TV shows (after the TV comes on: its home screen). Asked of the process list,
+     * which holds only the app's own two processes: no screen content is read.
+     */
+    private boolean lehkoInFront() {
+        try {
+            ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+            List<ActivityManager.RunningAppProcessInfo> list = am == null ? null : am.getRunningAppProcesses();
+            if (list == null) return false;
+            for (ActivityManager.RunningAppProcessInfo p : list) {
+                if (getPackageName().equals(p.processName)) {
+                    return p.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND;
+                }
+            }
+        } catch (RuntimeException e) {
+            // The system busy or restarting: nothing is opened.
+        }
+        return false;
+    }
 
     /** Writes one of the helper's own notes. */
     private void note(String key, String value) {
