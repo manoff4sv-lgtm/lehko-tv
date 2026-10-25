@@ -867,11 +867,13 @@ public final class SettingsActivity extends Activity {
 
     /**
      * A newer version known: download and install it, first letting Lehko install apps where the TV doesn't yet
-     * (over debugging when it is on, else on the TV's own screen). Otherwise: check now.
+     * (over debugging when it is on, else on the TV's own screen). A confirmation that didn't come up (another app
+     * was in front) comes up now. Otherwise: check now.
      */
     private void update() {
         if (Update.available(this) == null) checkUpdate();
         else if (Update.installing) showStatus(getString(R.string.working), false);
+        else if (Update.confirmAgain(this)) showStatus(getString(R.string.update_installing), false);
         else if (getPackageManager().canRequestPackageInstalls()) downloadUpdate();
         else if (Settings.Global.getInt(getContentResolver(), Settings.Global.ADB_ENABLED, 0) == 1) allowInstalls();
         else allowInstallsByHand();

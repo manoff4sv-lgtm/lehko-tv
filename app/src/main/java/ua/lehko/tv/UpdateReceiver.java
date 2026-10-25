@@ -11,19 +11,17 @@ import android.content.pm.PackageInstaller;
  */
 public final class UpdateReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context c, Intent intent) {
+        int id = intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1);
+        // A try Lehko gave up on: its "aborted" is no news.
+        if (!Update.current(c, id)) return;
         int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
             Intent confirm = intent.getParcelableExtra(Intent.EXTRA_INTENT);
-            // Lehko's settings screen is in front (the update was asked for there), so Android lets it start this.
-            if (confirm != null && Apps.start(c, confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))) return;
-            // No confirmation screen: the session would wait forever.
-            try {
-                c.getPackageManager().getPackageInstaller()
-                        .abandonSession(intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1));
-            } catch (RuntimeException ignored) {
-                // Already gone.
-            }
-            status = PackageInstaller.STATUS_FAILURE;
+            if (confirm != null && Update.confirm(c, confirm)) return;
+            // No confirmation screen: the session would wait forever. Answered first, so its "aborted" is ignored.
+            Update.finished(c, PackageInstaller.STATUS_FAILURE, null);
+            Update.abandon(c.getPackageManager().getPackageInstaller(), id);
+            return;
         }
         Update.finished(c, status, intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE));
     }

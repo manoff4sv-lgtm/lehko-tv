@@ -43,12 +43,14 @@ final class Update {
     static final long MAX_BYTES = 30L * 1024 * 1024;
 
     static final String CHECKED = "update_checked", VERSION = "update_version", APK_URL = "update_url",
-            SIZE = "update_size", NOTICED = "update_noticed", RESULT = "update_result";
+            SIZE = "update_size", NOTICED = "update_noticed", RESULT = "update_result", SESSION = "update_session";
 
     private static volatile boolean checking;
     private static volatile long failedAt;
     /** A download or hand-over is under way: Settings may have been closed and opened again meanwhile. */
     static volatile boolean installing;
+    /** The installer's confirmation screen for the session handed over, until its answer. */
+    private static volatile Intent confirmation;
 
     /** A release build: the dev build and the quick build ("quick") have no version to compare. */
     static boolean enabled() {
@@ -231,6 +233,7 @@ final class Update {
     static void install(Context c, HomeMode.Progress p) throws IOException {
         SharedPreferences prefs = Prefs.of(c);
         prefs.edit().remove(RESULT).apply();
+        dropSessions(c);
         File apk = new File(c.getCacheDir(), ASSET);
         try {
             download(prefs.getString(APK_URL, ""), prefs.getLong(SIZE, 0), apk, c, p);
@@ -286,6 +289,17 @@ final class Update {
         }
     }
 
+    /**
+     * Gives up on earlier tries. A session whose confirmation never came up (another app was in front) would wait
+     * with its own copy of the file, and Android lets an app keep only so many. Their "aborted" answers are ignored.
+     */
+    private static void dropSessions(Context c) {
+        confirmation = null;
+        Prefs.of(c).edit().remove(SESSION).apply();
+        PackageInstaller installer = c.getPackageManager().getPackageInstaller();
+        for (PackageInstaller.SessionInfo s : installer.getMySessions()) abandon(installer, s.getSessionId());
+    }
+
     /** A PackageInstaller session (no shell): the installer answers UpdateReceiver. */
     private static void commit(Context c, File apk) throws IOException {
         PackageInstaller installer = c.getPackageManager().getPackageInstaller();
@@ -294,24 +308,60 @@ final class Update {
         params.setAppPackageName(c.getPackageName());
         params.setSize(apk.length());
         int id = installer.createSession(params);
+        boolean handed = false;
         try (PackageInstaller.Session s = installer.openSession(id)) {
-            try {
-                try (InputStream in = new FileInputStream(apk);
-                     OutputStream out = s.openWrite(ASSET, 0, apk.length())) {
-                    byte[] buf = new byte[16 * 1024];
-                    for (int n; (n = in.read(buf)) != -1; ) out.write(buf, 0, n);
-                    s.fsync(out);
-                }
-                // Mutable: the installer adds its answer to the intent.
-                int flags = PendingIntent.FLAG_UPDATE_CURRENT
-                        | (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0);
-                Intent answer = new Intent(c, UpdateReceiver.class);
-                s.commit(PendingIntent.getBroadcast(c, id, answer, flags).getIntentSender());
-            } catch (IOException | RuntimeException e) {
-                s.abandon();
-                throw e;
+            try (InputStream in = new FileInputStream(apk);
+                 OutputStream out = s.openWrite(ASSET, 0, apk.length())) {
+                byte[] buf = new byte[16 * 1024];
+                for (int n; (n = in.read(buf)) != -1; ) out.write(buf, 0, n);
+                s.fsync(out);
             }
+            // Mutable: the installer adds its answer to the intent.
+            int flags = PendingIntent.FLAG_UPDATE_CURRENT
+                    | (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0);
+            Intent answer = new Intent(c, UpdateReceiver.class);
+            // Before the commit: the answer may come at once.
+            Prefs.of(c).edit().putInt(SESSION, id).apply();
+            s.commit(PendingIntent.getBroadcast(c, id, answer, flags).getIntentSender());
+            handed = true;
+        } finally {
+            if (!handed) abandon(installer, id);
         }
+    }
+
+    static void abandon(PackageInstaller installer, int id) {
+        try {
+            installer.abandonSession(id);
+        } catch (RuntimeException e) {
+            // Already gone.
+        }
+    }
+
+    /** The installer's answer is about the session handed over last, not one given up on. */
+    static boolean current(Context c, int id) {
+        return id != -1 && id == Prefs.of(c).getInt(SESSION, -1);
+    }
+
+    /**
+     * The installer wants the user's OK (UpdateReceiver). Android lets Lehko bring its screen up only while a Lehko
+     * screen is on show; when none is, it refuses without a word, so OK on "Update" in Settings brings it up again.
+     * False when there is no such screen at all.
+     */
+    static boolean confirm(Context c, Intent screen) {
+        confirmation = screen.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        return Apps.start(c, screen);
+    }
+
+    /** Settings, in front: brings a confirmation that is still waiting up again. False when none is waiting. */
+    static boolean confirmAgain(Context c) {
+        Intent screen = confirmation;
+        if (screen == null) return false;
+        if (c.getPackageManager().getPackageInstaller().getSessionInfo(Prefs.of(c).getInt(SESSION, -1)) == null) {
+            // The session ended without an answer reaching Lehko.
+            confirmation = null;
+            return false;
+        }
+        return Apps.start(c, screen);
     }
 
     /**
@@ -319,6 +369,8 @@ final class Update {
      * is kept for Settings' status card.
      */
     static void finished(Context c, int status, String message) {
+        confirmation = null;
+        Prefs.of(c).edit().remove(SESSION).apply();
         if (status == PackageInstaller.STATUS_SUCCESS) return;
         String text = c.getString(resultText(status, message), App.REPO_URL.replace("https://", ""));
         Prefs.of(c).edit().putString(RESULT, text).apply();
