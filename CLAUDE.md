@@ -126,7 +126,8 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   won't turn the launcher off again, and what stayed off is still recorded for "Bring back") / enableApps (Lehko off:
   turns recorded apps back on) / allowAgain ("Allow debugging again": may prompt, then check()) / verify (after boot or
   a Lehko update, never prompts) / revertAfterCrash / setScreensaver / setAppEnabled / systemState / killAll / sleep /
-  canSleep / allowInstalls. Each has a Context wrapper over the `HomeMode.Env` version (prefs, text, connect, notice,
+  canSleep / allowInstalls. Each except sleep and canSleep (Context-only, a silent Adb.connect of their own) has a
+  Context wrapper over the `HomeMode.Env` version (prefs, text, connect, notice,
   sdk, debuggingOn, helperTurnedOff) that HomeModeTest drives against `tools/fake_adbd.py --tv`. Records original home,
   checks Wi-Fi network owners (disabling an owner deletes the Wi-Fi network: refuse), `cmd package set-home-activity
   --user 0 ua.lehko.tv/.HomeActivity`, full mode disables original launcher pkg (+ tvrecommendations on classic ATV, +
@@ -190,7 +191,8 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   owner/check and Refused texts; other exceptions show only their class name inside a translated sentence. Rows (plain
   int ids; spec B gave bundle H 20-29, N 30-39, U 40-49): STAR 15 right under Home (`remote_star`; shown when
   `HomeMode.isOn`, `KeyCharacterMap.deviceHasKey(Keys.STAR)` and `HomeMode.helperListed`; summary: the chosen app,
-  `remote_star_tv`, or with nothing chosen `remote_star_default` where launcherx is installed, plus a second line
+  `remote_star_tv`, or with nothing chosen `remote_star_default` (the first openable `Keys.DEFAULT_STAR` app) where
+  launcherx is installed and such an app is, else `remote_star_tv`; a second line
   `remote_keys_too` while launcherx is installed and off, following `Keys.launcher`, not `HomeMode.launcherOff`; OK:
   `Apps.load` on App.IO, guarded against a double OK, then a single-choice list "As the TV does" + every openable app,
   where with nothing chosen the row of what the star does now is marked and OK on it keeps "nothing chosen"; writes
@@ -292,8 +294,9 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   Back leave it). HomeActivity's moon button (`ic_sleep`, after Memory, while `TvHelper.running`) is named
   `sleep_timer_at` ("Sleep timer · off at 23:40", the TV's 12/24-hour format) while set; card text `sleep_card`.
 - Wake input ("When the TV turns on", Settings WAKE): `wake=home` (the default: nothing opens) or `wake=input:<id>`
-  (`Keys.P_WAKE`; choices: the home screen, then `Inputs.load`'s order, HDMI then Live TV). `Keys.wakeInput` resolves it
-  (null when the TV no longer has it: nothing opens). The helper does the rest (see `TvHelper`). Whether Google TV comes
+  (`Keys.P_WAKE`; choices: the home screen, then `Inputs.load`'s order, HDMI then Live TV). Settings resolves it for its
+  summary and picker with `Keys.wakeInput` (null when the TV no longer has it: the row says the home screen); the helper
+  resolves the id itself with `Inputs.byId` on App.IO (null: nothing opens, see `TvHelper`). Whether Google TV comes
   back from standby to Lehko's home rather than the last app decides whether it ever fires.
 - `Update` + `UpdateReceiver`: Lehko's own updates. `Update.maybeCheck` is the last call in HomeActivity.maybeRefresh
   (after the outage refresh: App.NET runs one download at a time): at most once a day (`EVERY_MS`, pref
@@ -419,7 +422,8 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   and no services list at the start, as on Eugene's TV), `settings put` with the shell's quoting (single quotes keep
   '$', an unquoted `$NAME` expands to nothing), the flag `settings_silent` (`settings get` answers nothing, as adbd does
   when it can't open a shell) and `appops set` modes (under settings["appops"] in fake:state). It has no `input
-  keyevent` and no command log yet, so `HomeMode.sleep` has no test.
+  keyevent`, its command log (self.log) isn't exposed through fake:state, and `HomeMode.sleep` has no Env version, so it
+  has no test.
 - Release signing: CI reads secrets LEHKO_KEYSTORE_BASE64, LEHKO_KEYSTORE_PASSWORD, LEHKO_KEY_ALIAS,
   LEHKO_KEY_PASSWORD; without them release is debug-signed. Keep the release key stable (updates need it).
 
@@ -460,29 +464,32 @@ the overlay card over YouTube, HDMI and Live TV (readable, no stutter, doesn't t
 turning the TV on, OutageJob with an app in front and nothing in standby; the sleep timer (KEYCODE_SLEEP, the card's
 press not reaching the player, cancel by turning the TV off); the wake input (does Google TV come back from standby to
 Lehko's home or to the last app? cold start); a force stop of Lehko, then Home: the helper listed again within a minute;
-the `:helper` PSS (Eugene saw about 4 MB); whether Google TV shows Android 12+'s periodic "full control" reminder or
-shows the sideloaded helper as restricted; the update path (needs two releases with this code: install the first by
-hand), Back on the confirmation, the "Unknown sources" path with Lehko off and debugging off, nothing left in the cache.
-`scripts/revert.bat` has never been run (no Windows here; its new check was only emulated in Python): one run with other
-services plus Lehko's, Lehko's only, an unset list and no notes. Auto clean will rarely or never run on a 1 GB TV (see
-`Memory`). Before testing the star, Eugene's own earlier helper `ua.lehkyi.launcher/.RemoteKeys` may still be in
-enabled_accessibility_services: with both on, one press starts two apps; `adb shell settings get secure
-enabled_accessibility_services` shows it, and his own revert.bat removes it (Lehko never touches other services).
+the `:helper` PSS (not measured yet; Eugene's own earlier RemoteKeys helper took about 4 MB); whether Google TV shows
+Android 12+'s periodic "full control" reminder or shows the sideloaded helper as restricted; the update path (needs two
+releases with this code: install the first by hand), Back on the confirmation, the "Unknown sources" path with Lehko off
+and debugging off, nothing left in the cache. `scripts/revert.bat` has never been run (no Windows here; its new check
+was only emulated in Python): one run with other services plus Lehko's, Lehko's only, an unset list and no notes. Auto
+clean will rarely or never run on a 1 GB TV (see `Memory`). Before testing the star, Eugene's own earlier helper
+`ua.lehkyi.launcher/.RemoteKeys` may still be in enabled_accessibility_services: with both on, one press starts two
+apps; `adb shell settings get secure enabled_accessibility_services` shows it, and his own revert.bat removes it (Lehko
+never touches other services).
 
 Open question (2026-10-25): after the fireplace screensaver, a paused YouTube video's picture stayed frozen. Eugene is
 checking whether the TV's own screensaver does the same; if it doesn't, look at `FireDream` (5b92d3e already stopped it
 taking the player's audio focus).
 
-Waiting for Eugene's OK on these choices: (1) the helper is on with Lehko on every TV (489c4f9 can be reverted alone to
-limit it to Google TV or a star key); (2) a changed schedule shows only as the helper's card, not as a home notice; (3)
-the wake input opens only when the TV comes on to Lehko's home, not after every screen-on; (4) OutageJob downloads
-nothing in standby; (5) the outage invitation shows only in the Kyiv time zone and says "address or group" (the spec
-said "address"), and the focused panel shows only "OK: ..."; (6) OK on the panel after "Off" only selects the outage
-row, and installs that turned the schedule off before `outages_declined` existed are invited once more; (7) the update
-notice says "→ Оновлення" (the row's title), not the spec's "→ Оновити"; (8) the original enabled_accessibility_services
-isn't recorded (see `HomeMode`); (9) a star app uninstalled later passes the key to the TV rather than to the default
-list. Known gaps: `HomeMode.sleep` has no test; turning Lehko off doesn't cancel OutageJob directly; on Android 8 the
-sleep timer needs debugging.
+Waiting for Eugene's OK on these choices: (1) the helper is on with Lehko on every TV (489c4f9 made that change; it no
+longer reverts cleanly because b25d563 and later commits touched the same lines, so limiting it to Google TV or a star
+key means putting back by hand the `present.contains(Keys.LAUNCHERX) || starKey()` test in helperOn, plus its Env method
+and tests); (2) a changed schedule shows only as the helper's card, not as a home notice; (3) the wake input opens only
+when the TV comes on to Lehko's home, not after every screen-on; (4) OutageJob downloads nothing in standby; (5) the
+outage invitation shows only in the Kyiv time zone and says "address or group" (the spec said "address"), and the
+focused panel shows only "OK: ..."; (6) OK on the panel after "Off" only selects the outage row, and installs that
+turned the schedule off before `outages_declined` existed are invited once more; (7) the update notice says
+"→ Оновлення" (the row's title), not the spec's "→ Оновити"; (8) the original enabled_accessibility_services isn't
+recorded (see `HomeMode`); (9) a star app uninstalled later passes the key to the TV rather than to the default list.
+Known gaps: `HomeMode.sleep` has no test; turning Lehko off doesn't cancel OutageJob directly; on Android 8 the sleep
+timer needs debugging.
 
 A release v0.10.0-beta.3 (the audit, its follow-ups and all of the above) waits for Eugene's OK. Its notes must say that
 updating from Lehko's settings starts with it (earlier versions are updated by hand once), and trying the update path

@@ -59,25 +59,26 @@
   помічник Lehko: кнопка YouTube відкриває YouTube, кнопка «усі додатки» відкриває список додатків Lehko, а ☆
   відкриває додаток, вибраний у налаштуваннях Lehko в рядку «Кнопка ☆ на пульті» (він є, якщо на пульті є така
   кнопка), або, якщо нічого не вибрано, один з відомих IPTV-плеєрів, коли такий встановлений. Вибраний додаток ☆
-  відкриває і з увімкненим лаунчером; «Як у телевізора» залишає кнопку системі. Інші кнопки помічник пропускає
-  одразу і нічого з екрана не читає.
+  відкриває і з увімкненим лаунчером; «Як у телевізора» залишає кнопку системі. Інші кнопки помічник пропускає одразу
+  (крім останньої хвилини таймера сну, див. вище) і нічого з екрана не читає.
 - **Після увімкнення телевізора** Lehko може одразу відкрити вхід HDMI чи ефірне ТБ замість головного екрана:
   налаштування Lehko, «Після увімкнення телевізора». Вхід відкривається, лише якщо телевізор прокинувся на головному
   екрані Lehko і ви ще нічого не натиснули. Якщо телевізор розбудила трансляція з телефона, приставка через HDMI-CEC
-  чи кнопка додатка на пульті, лишається те, що ви попросили. Якщо телевізор був знеструмлений, вхід відкриється
-  протягом приблизно пів хвилини після старту. Деякі телевізори після режиму очікування повертаються в останній
-  додаток, а не на головний екран: тоді ця функція не спрацьовує.
+  чи кнопка додатка на пульті, лишається те, що ви попросили. Якщо телевізор був знеструмлений, Lehko пробує відкрити
+  вхід протягом приблизно пів хвилини після старту; якщо головний екран Lehko зʼявиться пізніше, вхід не відкриється.
+  Деякі телевізори після режиму очікування повертаються в останній додаток, а не на головний екран: тоді після режиму
+  очікування ця функція не спрацьовує.
 - **Входи HDMI і ефірне ТБ** в один клік, налаштування телевізора, усі додатки, таймер сну: круглі кнопки внизу,
   назва зʼявляється під рядом улюблених.
 - **Вимкнення зайвих додатків**, щоб звільнити памʼять. Нічого не видаляється, усе вмикається назад однією кнопкою.
 - **Памʼять.** Кнопка «Памʼять» показує, скільки вільно. Натискання закриває додатки, які Android тримає у фоні
   (через режим налагодження; без нього звичайним способом Android, який працює до Android 13), і пише, скільки
   звільнилося. На Android 14 і новіших, якщо налагодження недоступне, кнопка пише, чому нічого не закрила.
-  Автоочищення робить те саме автоматично, але лише коли сам Android каже, що памʼяті мало, і поки на головному
-  екрані нічого не натискають (перед каміном, а без каміна приблизно через 5 хвилин без натискань), не частіше ніж
-  раз на пів години. Тому спрацьовує воно нечасто; його можна вимкнути. Закриті додатки наступного разу
-  відкриваються трохи довше. У налаштуваннях видно, скільки займає Lehko (разом з помічником) і скільки займав
-  стандартний лаунчер.
+  Автоочищення закриває їх автоматично (лише через налагодження USB), але тільки коли сам Android каже, що памʼяті мало,
+  і поки на головному екрані нічого не натискають (перед каміном, а без каміна приблизно через 5 хвилин без натискань
+  або трохи раніше за заставку телевізора, якщо вона вмикається швидше), не частіше ніж раз на пів години. Тому
+  спрацьовує воно нечасто; його можна вимкнути. Закриті додатки наступного разу відкриваються трохи довше. У
+  налаштуваннях видно, скільки займає Lehko (разом з помічником) і скільки займав стандартний лаунчер.
 - **Камін.** Якщо 5 хвилин нічого не натискати на головному екрані, запалюється камін: цегла, поліна, живий вогонь,
   тьмяний годинник і стан світла з графіка. Кнопки гучності й відтворення працюють як завжди, будь-яка інша повертає
   назад. Можна поставити 10 чи 15 хвилин або вимкнути. Тихе потріскування вмикається окремо і звучить лише в каміні
@@ -177,12 +178,13 @@ IP:5555` теж не працює, тож підключіться до теле
   adb shell settings get secure enabled_accessibility_services
   ```
 
-  Запис Lehko виглядає як `ua.lehko.tv/.TvHelper`. Інший помічник вимкніть у спеціальних можливостях телевізора або
-  засобом відкату того лаунчера. Чужих служб Lehko не чіпає.
+  Запис Lehko виглядає як `ua.lehko.tv/.TvHelper` (або `ua.lehko.tv/ua.lehko.tv.TvHelper`, якщо його вмикали в
+  налаштуваннях телевізора). Інший помічник вимкніть у спеціальних можливостях телевізора або засобом відкату того
+  лаунчера. Чужих служб Lehko не чіпає.
 - **Кнопки пульта, попередження і таймер сну перестали працювати.** Перевірте, чи увімкнено «Помічник Lehko» у
-  спеціальних можливостях телевізора. Якщо ви вимкнули його там, Lehko сам його не вмикає: увімкніть там само. Після
-  примусової зупинки Lehko Android вимикає помічника сам; тоді Lehko повертає його (через налагодження USB), щойно ви
-  повернетеся на головний екран.
+  спеціальних можливостях телевізора. Якщо ви вимкнули його там, Lehko сам його не вмикає (лише коли ви знову вмикаєте
+  Lehko або вимикаєте в ньому стандартний лаунчер): увімкніть там само. Після примусової зупинки Lehko Android вимикає
+  помічника сам; тоді Lehko повертає його (через налагодження USB), щойно ви повернетеся на головний екран.
 
 ## Як повернути все назад
 
@@ -289,7 +291,7 @@ exchange rates, favorite apps and HDMI inputs. No ads and no heavy effects: Lehk
   or Odesa), or, with no schedule, Kyiv on a TV in the Kyiv time zone.
 - **Rates:** the dollar and the euro in hryvnias: Monobank's sell rate (or the NBU's official rate when Monobank
   doesn't answer), with buy and sell in the details. Turned on in the settings; the last values show offline.
-- **Power outage schedule**: power now or not and until when, when it goes off or comes back, today's ring,
+- **Power outage schedule**: whether there is power now and until when, when it goes off or comes back, today's ring,
   tomorrow's bar in the details. When the schedule can't be updated for over 2 hours (say, there is no internet during
   an outage), the line says "No update since 09:00" (with the date if the last update wasn't today). The fireplace
   says it too. Until the schedule is set up, a TV in the Kyiv time zone shows "Power schedule · Up, then OK: enter
@@ -300,9 +302,9 @@ exchange rates, favorite apps and HDMI inputs. No ads and no heavy effects: Lehk
   - Dnipro region (DnEM and CEK): YASNO data, group by address.
 - **Outage warning over any app.** 15 minutes before an outage a small card shows at the top right for 12 seconds,
   for example "Power outage in 15 min · 18:00 to 21:00" (orange for no power, yellow for a possible outage). It
-  doesn't take the remote, and the video under it plays on. If the TV is turned on closer to the outage, the card
-  gives the minutes really left. When today's or tomorrow's schedule changes, "The schedule changed: ..." shows once
-  the same way. For this, Lehko updates the schedule every half hour while another app is in front (nothing in
+  doesn't take the remote, and the video under it plays on. If the TV is turned on closer to the outage, the card shows
+  how many minutes are actually left. When today's or tomorrow's schedule changes, "The schedule changed: ..." shows
+  once the same way. For this, Lehko updates the schedule every half hour while another app is in front (nothing in
   standby). Turn it off in Lehko settings: "Outage warning".
 - **Sleep timer.** A round moon button: 15, 30, 60 or 90 minutes. While it runs, the button's name says when the TV
   turns off ("Sleep timer · off at 23:40"). A minute before the end a card comes up over any app: any button keeps
@@ -315,25 +317,28 @@ exchange rates, favorite apps and HDMI inputs. No ads and no heavy effects: Lehk
   them: the YouTube button opens YouTube, the "all apps" button opens Lehko's app list, and ☆ opens the app chosen in
   Lehko settings under "Star button on the remote" (shown when the remote has that button) or, with nothing chosen,
   one of a few well-known IPTV players when one is installed. A chosen app opens with the launcher on too; "As the TV
-  does" leaves the button to the TV. The helper passes every other button straight on and reads nothing on the screen.
+  does" leaves the button to the TV. The helper passes every other button straight on (except in the sleep timer's last
+  minute, see above) and reads nothing on the screen.
 - **When the TV turns on**, Lehko can open an HDMI input or Live TV instead of the home screen: Lehko settings, "When
   the TV turns on". The input opens only when the TV wakes up to Lehko's home screen and you haven't pressed anything
   yet. If casting from a phone, a console over HDMI-CEC or an app's button on the remote woke the TV, what you asked
-  for stays. After the TV was off at the wall, the input opens within about half a minute of the start. Some TVs come
-  back from standby to the last app rather than the home screen; on those this choice does nothing.
+  for stays. After the TV was off at the wall, Lehko tries for about half a minute after the start; if its home screen
+  comes up later, nothing opens. Some TVs come back from standby to the last app rather than the home screen; on those
+  this choice works only after a power cut.
 - **HDMI inputs and Live TV** in one click, the TV's settings, all apps and the sleep timer: round buttons at the
   bottom, with the name under the favorites row.
 - **Turning off unneeded apps** to free memory. Nothing is uninstalled, and one button turns everything back on.
 - **Memory.** The "Memory" button shows how much is free. Pressing it closes the apps Android keeps in the background
   (through debugging; without it, Android's own way, which works up to Android 13) and says how much was freed. On
-  Android 14 and later, when debugging can't be reached, the button says why nothing was closed. Auto clean does the
-  same by itself, but only when Android itself says memory is low and while nothing is pressed on the home screen
-  (just before the fireplace, or after about 5 idle minutes without one), at most every half hour. So it runs rarely;
-  it can be turned off. Closed apps take a little longer to open the next time. The settings show how much Lehko
-  (with its helper) takes and how much the stock launcher took.
+  Android 14 and later, when debugging can't be reached, the button says why nothing was closed. Auto clean closes them
+  by itself, through USB debugging only, and only when Android itself says memory is low and while nothing is pressed on
+  the home screen (just before the fireplace, or without one after about 5 idle minutes, or a little before the TV's
+  screensaver if that comes sooner), at most every half hour. So it runs rarely; it can be turned off. Closed apps take
+  a little longer to open the next time. The settings show how much Lehko (with its helper) takes and how much the stock
+  launcher took.
 - **Fireplace.** After 5 idle minutes on the home screen a fireplace lights up: bricks, logs, a live fire, a dim
   clock and the power status from the schedule. Volume and playback buttons work as usual; any other button goes back.
-  You can set 10 or 15 minutes or turn it off. A quiet crackle is turned on separately and plays only by the idle
+  You can set 10 or 15 minutes or turn it off. A quiet crackle is turned on separately and plays only with the idle
   fireplace (the fireplace screensaver is always silent); it never plays over music and stops as soon as music or a
   video starts. The fireplace doesn't keep the screen on: the TV's screensaver and sleep work as usual. So if the
   TV's screensaver timer is no longer than the time before the fireplace (5, 10 or 15 min), the TV's screensaver
@@ -427,12 +432,13 @@ says so too.
   adb shell settings get secure enabled_accessibility_services
   ```
 
-  Lehko's entry reads `ua.lehko.tv/.TvHelper`. Turn the other helper off in the TV's accessibility settings, or with
-  that launcher's own revert. Lehko never touches other services.
+  Lehko's entry reads `ua.lehko.tv/.TvHelper` (or `ua.lehko.tv/ua.lehko.tv.TvHelper` if it was turned on in the TV's
+  settings). Turn the other helper off in the TV's accessibility settings, or with that launcher's own revert. Lehko
+  never touches other services.
 - **The remote's buttons, the warning and the sleep timer stopped working.** Check that "Lehko helper" is on in the
-  TV's accessibility settings. If you turned it off there, Lehko doesn't turn it on by itself: turn it on there again.
-  A force stop of Lehko makes Android turn the helper off; Lehko then puts it back (through USB debugging) as soon as
-  you return to the home screen.
+  TV's accessibility settings. If you turned it off there, Lehko leaves it off (only turning Lehko on again, or turning
+  the stock launcher off in Lehko, brings it back): turn it on there again. A force stop of Lehko makes Android turn the
+  helper off; Lehko then puts it back (through USB debugging) as soon as you return to the home screen.
 
 ### How to put everything back
 
