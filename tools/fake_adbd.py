@@ -211,6 +211,14 @@ class TV:
                 return "No process found for: %s\n" % p
             pss = self.running[p]
             return MEMINFO.format(pid=4242, pkg=p, pss=pss, native=pss // 5, rss=pss + 60000)
+        m = re.fullmatch(r"appops set (\S+) (\S+) (allow|deny|ignore|default)", cmd)
+        if m:
+            p, op, mode = m.groups()
+            if p not in self.pkgs:
+                return "Error: No UID for %s in user 0\n" % p
+            # Kept with the settings, so fake:state shows it.
+            self.settings.setdefault("appops", {})[p + " " + op] = mode
+            return ""
         if cmd == "am kill-all":
             # Only cached apps go: the home screen and what is on screen stay.
             self.kills += 1
