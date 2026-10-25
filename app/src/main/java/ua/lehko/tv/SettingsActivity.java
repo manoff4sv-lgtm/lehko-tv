@@ -88,11 +88,7 @@ public final class SettingsActivity extends Activity {
             // While the home screen invites to set the schedule up: straight into the setup (region, then address or
             // group), as OK on the row goes. Not while a switch runs, which locks the list, nor over the region dialog
             // still up (a quick second OK on the home screen, or Home pressed while it was open).
-            if (!busy && outageInvite(this) && (regionDialog == null || !regionDialog.isShowing())) {
-                outageRegion();
-                // On the first region, not "Off": a stray second OK must not turn the invitation off for good.
-                regionDialog.getListView().setSelection(1);
-            }
+            if (!busy && outageInvite(this) && (regionDialog == null || !regionDialog.isShowing())) outageRegion();
         }
     }
 
@@ -767,6 +763,12 @@ public final class SettingsActivity extends Activity {
                     }
                 })
                 .show();
+        // On the region set up, or the first one: never on "Off", where a stray second OK (from the row or the home
+        // screen's info panel) would turn the schedule off, and the invitation for good. "Off" is one Up away.
+        Outages.Region current = Outages.enabled(this) ? Outages.chosenRegion(this) : null;
+        int at = 1;
+        for (int i = 0; i < regions.length; i++) if (regions[i] == current) at = i + 1;
+        regionDialog.getListView().setSelection(at);
     }
 
     private void outageMethod(final Outages.Region r) {
