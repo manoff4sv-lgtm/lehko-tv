@@ -1026,6 +1026,23 @@ final class HomeMode {
         }
     }
 
+    // MARK: - Lehko's own updates
+
+    /**
+     * Lets Lehko hand its update to the TV's installer, as "Install unknown apps" for Lehko in the TV's settings
+     * would. The user pressed "Update", so "Allow USB debugging?" may appear. Whether it worked, the caller asks
+     * Android (canRequestPackageInstalls).
+     */
+    static synchronized void allowInstalls(Env c, Progress p) throws IOException {
+        try (Adb adb = connect(c, p)) {
+            adb.shell("appops set " + PKG + " REQUEST_INSTALL_PACKAGES allow");
+        }
+    }
+
+    static void allowInstalls(Context c, Progress p) throws IOException {
+        allowInstalls(env(c), p);
+    }
+
     // MARK: - Helpers (all through adb)
 
     /**

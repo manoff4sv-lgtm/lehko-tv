@@ -966,6 +966,9 @@ public final class HomeActivity extends Activity {
         if (Rates.due(this) && Net.stale(now, ratesFailedAt, RETRY_AFTER_FAILURE_MS)) refreshRates();
         // Shared with the fireplace: one download at a time, one pause after a failure.
         Outages.refreshIfStale(this, outageFetched);
+        // Once a day; a new version comes up as a notice (Prefs.notice). After the schedule: App.NET runs one thing
+        // at a time, and a slow GitHub mustn't hold it up.
+        Update.maybeCheck(this);
     }
 
     /** For a hint that follows other text after a comma or a dot. */

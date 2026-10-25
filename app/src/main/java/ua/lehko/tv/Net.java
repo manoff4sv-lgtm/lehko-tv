@@ -14,7 +14,7 @@ import java.nio.charset.StandardCharsets;
 final class Net {
     private Net() {}
 
-    private static String userAgent() {
+    static String userAgent() {
         return "Lehko/" + App.version + " (Android TV launcher; +" + App.REPO_URL + ")";
     }
 
