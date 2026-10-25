@@ -1076,6 +1076,16 @@ public final class SettingsActivity extends Activity {
                     @Override public void run() {
                         if (isDestroyed() || isFinishing()) return;
                         setBusy(false);
+                        if (!visible) {
+                            // Left meanwhile (up to 90 s for "Allow USB debugging?"). As the home app Lehko may start
+                            // screens from behind, so the TV's switch would open over the app in front: nothing
+                            // opens and nothing downloads. OK on "Update" carries on; allowed, straight to the download.
+                            buildRows();
+                            String newer = Update.available(SettingsActivity.this);
+                            showStatus(newer != null ? getString(R.string.update_found, newer) : updateSummary(),
+                                    false);
+                            return;
+                        }
                         if (ok) downloadUpdate();
                         else allowInstallsByHand();
                     }
