@@ -189,6 +189,8 @@ public final class TvHelper extends AccessibilityService {
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         screenOn = pm == null || pm.isInteractive();
         state = Keys.read(getFilesDir(), Keys.STATE);
+        // On again (in the TV's settings, or with Lehko): Lehko may put it back after a force stop once more.
+        if (state.containsKey(P_OFF)) note(P_OFF, null);
         IntentFilter f = new IntentFilter(Intent.ACTION_SCREEN_ON);
         f.addAction(Intent.ACTION_SCREEN_OFF);
         f.addAction(Intent.ACTION_TIME_CHANGED);
@@ -224,6 +226,27 @@ public final class TvHelper extends AccessibilityService {
         if (String.valueOf(boot).equals(state.get(P_BOOT))) return false;
         note(P_BOOT, String.valueOf(boot));
         return true;
+    }
+
+    /** The helper's notes: when it was turned off (see onUnbind); gone once it is on again. */
+    static final String P_OFF = "turned_off";
+
+    /**
+     * Main process: the helper was turned off, in the TV's accessibility settings or by Lehko, and hasn't been on
+     * since. One turned off by the user stays off: Lehko puts back only a helper a force stop took out.
+     */
+    static boolean turnedOff(Context c) {
+        return Keys.read(c.getFilesDir(), Keys.STATE).containsKey(P_OFF);
+    }
+
+    /**
+     * Android unbinds the helper when it is taken off the TV's list: in the TV's accessibility settings (or with its
+     * shortcut), or by Lehko's "Bring back". Noted. A force stop, an update of Lehko or a restart ends the process
+     * without this, and an unbind for any other reason leaves the helper on the list.
+     */
+    @Override public boolean onUnbind(Intent intent) {
+        if (state != null && !HomeMode.helperListed(this)) note(P_OFF, String.valueOf(System.currentTimeMillis()));
+        return super.onUnbind(intent);
     }
 
     @Override public void onDestroy() {
@@ -458,9 +481,10 @@ public final class TvHelper extends AccessibilityService {
         return false;
     }
 
-    /** Writes one of the helper's own notes. */
+    /** Writes one of the helper's own notes ({@code value} null: removes it). */
     private void note(String key, String value) {
-        state.put(key, value);
+        if (value == null) state.remove(key);
+        else state.put(key, value);
         try {
             Keys.putAll(getFilesDir(), Keys.STATE, Collections.singletonMap(key, value));
         } catch (IOException ignored) {

@@ -116,6 +116,9 @@ final class HomeMode {
 
         /** "USB debugging" is on in the TV's developer options. */
         boolean debuggingOn();
+
+        /** The remote's helper was turned off (in the TV's accessibility settings) and hasn't been on since. */
+        boolean helperTurnedOff();
     }
 
     static Env env(final Context c) {
@@ -143,6 +146,10 @@ final class HomeMode {
 
             @Override public boolean debuggingOn() {
                 return Settings.Global.getInt(app.getContentResolver(), Settings.Global.ADB_ENABLED, 0) == 1;
+            }
+
+            @Override public boolean helperTurnedOff() {
+                return TvHelper.turnedOff(app);
             }
         };
     }
@@ -424,7 +431,7 @@ final class HomeMode {
                 }
             }
             // In both modes, on any TV: the sleep timer and the outage warning need it, and a star button may have
-            // an app.
+            // an app. Also after it was turned off in the TV's settings: turning Lehko on asks for it again.
             helperOn(c, adb);
 
             Set<String> ours = disabled(c);
@@ -664,10 +671,11 @@ final class HomeMode {
         adopt(c, adb);
         if (acceptOutsideRevert(c, adb)) return fixed;
         keepDebuggingAllowed(c, adb);
-        // The remote's helper, taken out by a TV update, a force stop of Lehko or in the TV's settings: put back
-        // without a word, as part of Lehko being on (the first time after the update of Lehko that brought it, it is
-        // new rather than fixed anyway).
-        helperOn(c, adb);
+        // The remote's helper, taken out by a TV update or a force stop of Lehko: put back without a word, as part of
+        // Lehko being on (the first time after the update of Lehko that brought it, it is new rather than fixed
+        // anyway). One turned off in the TV's accessibility settings stays off: the user's choice, until Lehko is
+        // turned on again.
+        if (!c.helperTurnedOff()) helperOn(c, adb);
         if (!homeHolder(adb).contains(PKG)) {
             adb.shell("cmd package set-home-activity --user 0 " + HOME);
             fixed.add(c.text(R.string.the_home_screen));
@@ -968,12 +976,13 @@ final class HomeMode {
 
     /**
      * Lehko turned its helper on, and it is gone from the TV's list: a force stop of Lehko (in the TV's app info, or
-     * a vendor cleaner) makes Android drop the app's accessibility services. verify() puts it back.
+     * a vendor cleaner) makes Android drop the app's accessibility services. verify() puts it back. Not one turned off
+     * in the TV's accessibility settings: that stays off.
      */
     static boolean helperDropped(Context c) {
         SharedPreferences p = Prefs.of(c);
         return p.getBoolean(K_ON, false) && p.getBoolean(K_A11Y_CHANGED, false) && !Watchdog.safeMode(p)
-                && !helperListed(c);
+                && !helperListed(c) && !TvHelper.turnedOff(c);
     }
 
     /**

@@ -76,6 +76,8 @@ public class HomeModeTest {
         String notice;
         int port = PORT;
         boolean debugging = true;
+        /** The helper's note that it was turned off in the TV's accessibility settings. */
+        boolean helperOff;
 
         Env(File keyDir) {
             this.keyDir = keyDir;
@@ -103,6 +105,10 @@ public class HomeModeTest {
 
         @Override public boolean debuggingOn() {
             return debugging;
+        }
+
+        @Override public boolean helperTurnedOff() {
+            return helperOff;
         }
     }
 
@@ -345,13 +351,29 @@ public class HomeModeTest {
         Env e = new Env(keys);
         HomeMode.enable(e, true, QUIET);
         e.notice = null;
-        // A TV update, a force stop of Lehko or the TV's accessibility settings took it out.
+        // A TV update or a force stop of Lehko took it out.
         tv("settings delete secure " + SERVICES);
         tv("settings put secure " + A11Y_ON + " 0");
         HomeMode.verify(e);
         assertEquals(HomeMode.HELPER, secure(SERVICES));
         assertEquals("1", secure(A11Y_ON));
         assertNull("part of Lehko being on: back without a word", e.notice);
+    }
+
+    @Test public void aHelperTurnedOffInTheTvsSettingsStaysOff() throws Exception {
+        Env e = new Env(keys);
+        HomeMode.enable(e, false, QUIET);
+        // Turned off in the TV's accessibility settings: Android unbinds it, and the helper notes that.
+        tv("settings delete secure " + SERVICES);
+        e.helperOff = true;
+        HomeMode.verify(e);
+        assertNull("the user's choice", secure(SERVICES));
+        assertEquals("ua.lehko.tv", state().getString("holder"));
+        HomeMode.allowAgain(e, QUIET);
+        assertNull("not by the same check either", secure(SERVICES));
+        // Turning Lehko on (here full mode, from the lighter one) asks for it again.
+        HomeMode.enable(e, true, QUIET);
+        assertEquals(HomeMode.HELPER, secure(SERVICES));
     }
 
     @Test public void theHelperComesOnWithLehkoOnAnyTv() throws Exception {
