@@ -6,12 +6,13 @@ import android.app.job.JobScheduler;
 import android.app.job.JobService;
 import android.content.ComponentName;
 import android.content.Context;
+import android.os.PowerManager;
 
 /**
  * Downloads the outage schedule every half hour while other apps are in front, so the helper's warning
  * ({@link OutageWarning}) follows a changed schedule though the home screen hasn't been seen for hours. It goes the
  * home screen's way (one download at a time, the pause after a failure, nothing while the schedule is fresh), and it
- * wakes the home screen's process, so it does nothing else.
+ * wakes the home screen's process, so it does nothing else, and nothing at all while the TV is in standby.
  */
 public final class OutageJob extends JobService {
     /** Job ids are the app's own: ModeJob has 1 and 2. */
@@ -50,6 +51,10 @@ public final class OutageJob extends JobService {
             sync(app);
             return false;
         }
+        // In standby the helper shows nothing, so a night of downloads would be for no one. The outages already
+        // handed to it keep their moments; the first run after the TV comes on, or the home screen, catches up.
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        if (pm != null && !pm.isInteractive()) return false;
         // The download hands the outages ahead to the helper itself (Outages.refresh).
         return Outages.refreshIfStale(app, new Runnable() {
             @Override public void run() {
