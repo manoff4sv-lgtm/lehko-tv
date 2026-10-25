@@ -113,6 +113,8 @@ final class Update {
         try {
             r = parse(Net.get(LATEST, 15_000, "Accept", "application/vnd.github+json"));
         } catch (Net.HttpError e) {
+            // GitHub's limit for one address (60 an hour, shared behind a provider's address): not the internet.
+            if (e.code == 403 || e.code == 429) throw new Failure(R.string.update_busy, e);
             // No release published yet.
             if (e.code != 404) throw e;
             r = null;
