@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
 
 /** Lehko's settings: the "Lehko" tile in the app list and the last tile on the home screen. */
 public final class SettingsActivity extends Activity {
@@ -611,9 +612,13 @@ public final class SettingsActivity extends Activity {
     /** "Off" was picked in the outage dialog: the home screen doesn't invite to set the schedule up any more. */
     static final String P_OUTAGES_DECLINED = "outages_declined";
 
-    /** The schedule isn't set up and wasn't turned off on purpose: the home screen invites to set it up. */
+    /**
+     * The schedule isn't set up and wasn't turned off on purpose, on a TV in the Kyiv time zone (the schedules are
+     * Ukraine's, and Lehko is for TVs anywhere): the home screen invites to set it up.
+     */
     static boolean outageInvite(Context c) {
-        return !Outages.enabled(c) && !Prefs.of(c).getBoolean(P_OUTAGES_DECLINED, false);
+        return Weather.kyivZone(TimeZone.getDefault().getID()) && !Outages.enabled(c)
+                && !Prefs.of(c).getBoolean(P_OUTAGES_DECLINED, false);
     }
 
     /** The region dialog, so the home screen's info panel doesn't open a second one over it. */
