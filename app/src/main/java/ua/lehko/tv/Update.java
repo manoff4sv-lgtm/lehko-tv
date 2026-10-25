@@ -94,7 +94,7 @@ final class Update {
                     check(app, true);
                     failedAt = 0;
                 } catch (IOException | JSONException | RuntimeException e) {
-                    // Offline, or GitHub's limit: again in an hour.
+                    // Offline, GitHub's limit, or the release's file not there yet: again in an hour.
                     failedAt = System.currentTimeMillis();
                 } finally {
                     checking = false;
