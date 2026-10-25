@@ -141,6 +141,12 @@ s("dur_h", "%d h", "%d год", "%d ч")
 s("dur_h_min", "%1$d h %2$d min", "%1$d год %2$d хв", "%1$d ч %2$d мин")
 
 # FIX-STRINGS-N (temporary anchor: new strings of bundle N go right below)
+s("section_beyond", "Beyond the home screen", "Поза головним екраном", "За пределами главного экрана")
+s("outage_warning", "Outage warning", "Попередження про відключення", "Предупреждение об отключении")
+s("outage_warning_on", "15 min ahead, over any app", "За 15 хв, поверх будь-якого додатка", "За 15 мин, поверх любого приложения")
+s("warn_off", "Power outage in %1$s · %2$s", "Через %1$s відключення світла · %2$s", "Через %1$s отключение света · %2$s")
+s("warn_maybe", "Possible outage in %1$s · %2$s", "За %1$s можливе відключення · %2$s", "Через %1$s возможное отключение · %2$s")
+s("warn_at", "at %s", "о %s", "в %s")
 
 s("outage_then_maybe", "then a possible outage", "далі можливе відключення", "дальше возможное отключение")
 s("outage_then_maybe_tomorrow", "until %s tomorrow, then a possible outage", "до %s завтра, далі можливе відключення", "до %s завтра, дальше возможное отключение")
@@ -256,8 +262,8 @@ s("remote_star", "Star button on the remote", "Кнопка ☆ на пульт�
 s("remote_star_tv", "As the TV does", "Як у телевізора", "Как у телевизора")
 s("remote_star_default", "%s while the stock launcher is off", "%s, поки стандартний лаунчер вимкнений", "%s, пока стандартный лаунчер выключен")
 s("remote_keys_too", "The YouTube and “all apps” buttons work again too.", "Кнопки YouTube і «усі додатки» теж знову працюють.", "Кнопки YouTube и «все приложения» тоже снова работают.")
-s("helper_label", "Lehko: remote buttons", "Lehko: кнопки пульта", "Lehko: кнопки пульта")
-s("helper_description", "Makes the remote’s star, YouTube and “all apps” buttons work while the stock launcher is off; the star can open the app chosen in Lehko settings. Every other button goes straight on, and nothing on the screen is read.", "Кнопки ☆, YouTube і «усі додатки» на пульті працюють, поки стандартний лаунчер вимкнений; ☆ може відкривати додаток, вибраний у налаштуваннях Lehko. Інші кнопки проходять одразу, і нічого з екрана не читається.", "Кнопки ☆, YouTube и «все приложения» на пульте работают, пока стандартный лаунчер выключен; ☆ может открывать приложение, выбранное в настройках Lehko. Остальные кнопки проходят сразу, и ничего с экрана не читается.")
+s("helper_label", "Lehko helper", "Помічник Lehko", "Помощник Lehko")
+s("helper_description", "Makes the remote’s star, YouTube and “all apps” buttons work while the stock launcher is off; the star can open the app chosen in Lehko settings. Over any app it warns of power outages. Every other button goes straight on, and nothing on the screen is read.", "Кнопки ☆, YouTube і «усі додатки» на пульті працюють, поки стандартний лаунчер вимкнений; ☆ може відкривати додаток, вибраний у налаштуваннях Lehko. Поверх будь-якого додатка попереджає про відключення світла. Інші кнопки проходять одразу, і нічого з екрана не читається.", "Кнопки ☆, YouTube и «все приложения» на пульте работают, пока стандартный лаунчер выключен; ☆ может открывать приложение, выбранное в настройках Lehko. Поверх любого приложения предупреждает об отключениях света. Остальные кнопки проходят сразу, и ничего с экрана не читается.")
 
 
 res = sys.argv[1]

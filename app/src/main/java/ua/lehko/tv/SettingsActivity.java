@@ -101,6 +101,11 @@ public final class SettingsActivity extends Activity {
         rows.add(new int[]{SAVER});
         rows.add(new int[]{FIRE_IDLE});
         rows.add(new int[]{FIRE_SOUND});
+        // What the remote's helper does over other apps: only while it runs.
+        if (TvHelper.running(this) && Outages.enabled(this)) {
+            rows.add(new int[]{HEADER, R.string.section_beyond});
+            rows.add(new int[]{WARN});
+        }
         rows.add(new int[]{HEADER, R.string.section_memory});
         rows.add(new int[]{CLEANUP});
         rows.add(new int[]{MEMORY});
@@ -122,6 +127,7 @@ public final class SettingsActivity extends Activity {
             case SAVER: return getString(R.string.screensaver);
             case FIRE_IDLE: return getString(R.string.fireplace);
             case FIRE_SOUND: return getString(R.string.fireplace_sound);
+            case WARN: return getString(R.string.outage_warning);
             case CLEANUP: return getString(R.string.cleanup);
             case MEMORY: return getString(R.string.memory);
             case AUTO_CLEAN: return getString(R.string.memory_auto);
@@ -167,6 +173,7 @@ public final class SettingsActivity extends Activity {
                 return getString(R.string.fireplace_after, min);
             }
             case FIRE_SOUND: return getString(FireScene.sound(this) ? R.string.fireplace_sound_on : R.string.state_off);
+            case WARN: return getString(OutageWarning.on(this) ? R.string.outage_warning_on : R.string.state_off);
             case CLEANUP: return getString(R.string.cleanup_summary);
             case MEMORY: return memorySummary();
             case AUTO_CLEAN: return getString(Memory.autoEnabled(this) ? R.string.memory_auto_on : R.string.state_off);
@@ -211,6 +218,9 @@ public final class SettingsActivity extends Activity {
             case FIRE_SOUND:
                 Prefs.of(this).edit().putBoolean(FireScene.P_SOUND, !FireScene.sound(this)).apply();
                 buildRows();
+                break;
+            case WARN:
+                toggleWarning();
                 break;
             case CLEANUP:
                 Apps.start(this, new Intent(this, CleanupActivity.class));
@@ -508,6 +518,20 @@ public final class SettingsActivity extends Activity {
                     }
                 })
                 .show();
+    }
+
+    // MARK: - Beyond the home screen (TvHelper reads these from helper.txt)
+
+    private static final int WARN = 30;
+
+    private void toggleWarning() {
+        try {
+            // Absent means on: the default once the schedule is set up.
+            Keys.put(getFilesDir(), OutageWarning.P_ON, OutageWarning.on(this) ? "0" : null);
+        } catch (IOException e) {
+            showStatus(getString(R.string.error_generic, e.getClass().getSimpleName()), true);
+        }
+        buildRows();
     }
 
     // MARK: - Weather city

@@ -110,11 +110,13 @@ final class Outages {
             e.remove(P_ADDRESS).remove(P_STREET).remove(P_HOUSE).remove(P_RESOLVED);
         }
         e.apply();
+        OutageWarning.forget(c);
     }
 
     static synchronized void turnOff(Context c) {
         Prefs.of(c).edit().remove(P_REGION).remove(P_GROUP).remove(P_ADDRESS).remove(P_STREET).remove(P_HOUSE)
                 .remove(P_RESOLVED).remove(P_CACHE).remove(P_FETCHED).remove(P_ETAG).apply();
+        OutageWarning.forget(c);
     }
 
     // MARK: - The schedule
@@ -169,7 +171,10 @@ final class Outages {
 
     // MARK: - Fetching
 
-    /** Fetches the schedule for the chosen region and group, caches it and returns it. Network: off the UI thread. */
+    /**
+     * Fetches the schedule for the chosen region and group, caches it, hands the outages ahead to the helper and returns
+     * it. Network: off the UI thread.
+     */
     static Schedule refresh(Context c) throws IOException, JSONException {
         // A second round when another region or group was chosen during the download: the answer is for the old one.
         for (int round = 0; round < 2; round++) {
@@ -181,6 +186,8 @@ final class Outages {
             synchronized (Outages.class) {
                 if (r != chosenRegion(c) || !group.equals(chosenGroup(c))) continue;
                 Prefs.of(c).edit().putString(P_CACHE, toJson(s).toString()).putLong(P_FETCHED, System.currentTimeMillis()).apply();
+                // Under the same lock as choose(): an old group's outages never land after its forget().
+                OutageWarning.update(c, s);
             }
             return s;
         }
@@ -671,6 +678,24 @@ final class Outages {
     static String format(Calendar c) {
         return String.format(Locale.ROOT, "%04d-%02d-%02d", c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1,
                 c.get(Calendar.DAY_OF_MONTH));
+    }
+
+    /**
+     * The moment Kyiv's wall clock shows {@code minutes} after the midnight that starts {@code date} (1440 and more: the
+     * next day), the first time when the clocks go back and it comes twice; a time the clocks skip in spring is the
+     * hour after, as in {@link #minutesUntil}.
+     */
+    static long at(String date, int minutes) {
+        Calendar at = Calendar.getInstance(KYIV);
+        at.setTimeInMillis(epoch(date) * 1000);
+        at.add(Calendar.DAY_OF_MONTH, minutes / 1440);
+        at.set(Calendar.HOUR_OF_DAY, minutes % 1440 / 60);
+        at.set(Calendar.MINUTE, minutes % 60);
+        at.set(Calendar.SECOND, 0);
+        at.set(Calendar.MILLISECOND, 0);
+        long t = at.getTimeInMillis();
+        long back = KYIV.getOffset(t - 3600_000L) - KYIV.getOffset(t);
+        return back > 0 ? t - back : t;
     }
 
     /** Unix seconds of Kyiv midnight on "yyyy-MM-dd". */

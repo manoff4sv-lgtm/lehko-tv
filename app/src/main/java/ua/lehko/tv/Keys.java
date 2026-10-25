@@ -40,7 +40,13 @@ final class Keys {
 
     /** helper.txt: what the star opens, a package or {@link #STAR_TV}. */
     static final String P_STAR = "star", STAR_TV = "tv";
+    /** Written by the home screen's process only, read by the helper. */
     static final String FILE = "helper.txt";
+    /**
+     * The helper's own notes, written by the helper only (each file has one writing process, so a write never loses
+     * another's): what it has shown, and the sleep timer it ended. The home screen reads the last.
+     */
+    static final String STATE = "helper_state.txt";
 
     /** One of the buttons the helper looks at. Gamepads have a BUTTON_3 too: theirs, like every other key, go on. */
     static boolean handled(int keyCode, int source) {
@@ -105,7 +111,12 @@ final class Keys {
 
     /** The helper's settings in {@code dir} (the app's files folder); empty when there are none yet. */
     static Map<String, String> read(File dir) {
-        try (InputStream in = new FileInputStream(new File(dir, FILE))) {
+        return read(dir, FILE);
+    }
+
+    /** {@link #FILE} or {@link #STATE} in {@code dir}; empty when there is none yet. */
+    static Map<String, String> read(File dir, String name) {
+        try (InputStream in = new FileInputStream(new File(dir, name))) {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             byte[] buf = new byte[512];
             for (int n; (n = in.read(buf)) > 0; ) bytes.write(buf, 0, n);
@@ -115,18 +126,37 @@ final class Keys {
         }
     }
 
-    /**
-     * Sets one setting ({@code value} null: removes it). Written next to the file and renamed over it, so the helper,
-     * reading at any moment, gets the old file or the new one, never half of one.
-     */
+    /** Sets one setting ({@code value} null: removes it). */
     static void put(File dir, String key, String value) throws IOException {
-        Map<String, String> settings = read(dir);
-        if (value == null) settings.remove(key);
-        else settings.put(key, value);
-        File tmp = new File(dir, FILE + ".tmp");
+        putAll(dir, FILE, Collections.singletonMap(key, value));
+    }
+
+    /**
+     * Sets several values in {@code name} at once (a null value removes its key); a file that would stay the same isn't
+     * touched, so the helper doesn't read it again for nothing. Written next to the file and renamed over it, so the
+     * other process, reading at any moment, gets the old file or the new one, never half of one. Synchronized: a
+     * process writes from more than one thread (the settings screen, downloads).
+     */
+    static synchronized void putAll(File dir, String name, Map<String, String> changes) throws IOException {
+        Map<String, String> before = read(dir, name), settings = new TreeMap<>(before);
+        for (Map.Entry<String, String> e : changes.entrySet()) {
+            if (e.getValue() == null) settings.remove(e.getKey());
+            else settings.put(e.getKey(), e.getValue());
+        }
+        if (settings.equals(before)) return;
+        File tmp = new File(dir, name + ".tmp");
         try (OutputStream out = new FileOutputStream(tmp)) {
             out.write(format(settings).getBytes(StandardCharsets.UTF_8));
         }
-        if (!tmp.renameTo(new File(dir, FILE))) throw new IOException("rename " + tmp);
+        if (!tmp.renameTo(new File(dir, name))) throw new IOException("rename " + tmp);
+    }
+
+    /** A number in the helper's files: an id or a moment (epoch ms); 0 when there is none. */
+    static long number(Map<String, String> settings, String key) {
+        try {
+            return Long.parseLong(settings.get(key));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 }
