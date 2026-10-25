@@ -86,9 +86,11 @@ public final class SettingsActivity extends Activity {
             toOutages = false;
             for (int i = 0; i < rows.size(); i++) if (rows.get(i)[0] == OUTAGES) list.setSelection(i);
             // While the home screen invites to set the schedule up: straight into the setup (region, then address or
-            // group), as OK on the row goes. Not while a switch runs, which locks the list, nor over the region dialog
-            // still up (a quick second OK on the home screen, or Home pressed while it was open).
-            if (!busy && outageInvite(this) && (regionDialog == null || !regionDialog.isShowing())) outageRegion();
+            // group), as OK on the row goes. Not while a switch runs, which locks the list, nor over a setup that is
+            // still under way (a quick second OK on the home screen, or Home pressed during it): its dialog is still
+            // up, or its lookup brings the next one.
+            boolean setupOn = lookups > 0 || (setupDialog != null && setupDialog.isShowing());
+            if (!busy && !setupOn && outageInvite(this)) outageRegion();
         }
     }
 
@@ -741,15 +743,18 @@ public final class SettingsActivity extends Activity {
                 && !Prefs.of(c).getBoolean(P_OUTAGES_DECLINED, false);
     }
 
-    /** The region dialog, so the home screen's info panel doesn't open a second one over it. */
-    private AlertDialog regionDialog;
+    /**
+     * The outage setup's dialog last shown (region, way, group, street, house or a list to pick from), so the home
+     * screen's info panel doesn't start the setup again over it.
+     */
+    private AlertDialog setupDialog;
 
     private void outageRegion() {
         final Outages.Region[] regions = Outages.REGIONS;
         CharSequence[] labels = new CharSequence[regions.length + 1];
         labels[0] = getString(R.string.outages_off);
         for (int i = 0; i < regions.length; i++) labels[i + 1] = getString(regions[i].label);
-        regionDialog = new AlertDialog.Builder(this)
+        setupDialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.outage_pick_region)
                 .setItems(labels, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
@@ -768,7 +773,7 @@ public final class SettingsActivity extends Activity {
         Outages.Region current = Outages.enabled(this) ? Outages.chosenRegion(this) : null;
         int at = 1;
         for (int i = 0; i < regions.length; i++) if (regions[i] == current) at = i + 1;
-        regionDialog.getListView().setSelection(at);
+        setupDialog.getListView().setSelection(at);
     }
 
     private void outageMethod(final Outages.Region r) {
@@ -776,7 +781,7 @@ public final class SettingsActivity extends Activity {
             pickGroup(r);
             return;
         }
-        new AlertDialog.Builder(this)
+        setupDialog = new AlertDialog.Builder(this)
                 .setTitle(getString(r.label))
                 .setItems(new CharSequence[]{getString(R.string.outage_by_address), getString(R.string.outage_by_group)},
                         new DialogInterface.OnClickListener() {
@@ -801,7 +806,7 @@ public final class SettingsActivity extends Activity {
                 }
                 CharSequence[] labels = new CharSequence[groups.size()];
                 for (int i = 0; i < labels.length; i++) labels[i] = getString(R.string.outage_group, groups.get(i));
-                new AlertDialog.Builder(SettingsActivity.this)
+                setupDialog = new AlertDialog.Builder(SettingsActivity.this)
                         .setTitle(R.string.outage_pick_group)
                         .setItems(labels, new DialogInterface.OnClickListener() {
                             @Override public void onClick(DialogInterface d, int which) {
@@ -846,6 +851,7 @@ public final class SettingsActivity extends Activity {
                 });
             }
         });
+        setupDialog = d;
         d.show();
     }
 
@@ -894,6 +900,7 @@ public final class SettingsActivity extends Activity {
                 });
             }
         });
+        setupDialog = d;
         d.show();
     }
 
@@ -904,7 +911,7 @@ public final class SettingsActivity extends Activity {
     private void pickItem(int title, final List<Outages.Item> items, final Picked picked) {
         CharSequence[] labels = new CharSequence[items.size()];
         for (int i = 0; i < labels.length; i++) labels[i] = items.get(i).name;
-        new AlertDialog.Builder(this)
+        setupDialog = new AlertDialog.Builder(this)
                 .setTitle(title)
                 .setItems(labels, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
@@ -1241,9 +1248,13 @@ public final class SettingsActivity extends Activity {
         abstract void done(T result);
     }
 
+    /** Lookups under way (background()): the outage setup's next step comes when one ends. Main thread. */
+    private int lookups;
+
     /** Network lookups for the pickers; failures become a toast. */
     private <T> void background(final Work<T> work) {
         showStatus(getString(R.string.loading), false);
+        lookups++;
         App.NET.execute(new Runnable() {
             @Override public void run() {
                 T result = null;
@@ -1257,6 +1268,7 @@ public final class SettingsActivity extends Activity {
                 final Exception err = error;
                 App.MAIN.post(new Runnable() {
                     @Override public void run() {
+                        lookups--;
                         if (isDestroyed() || isFinishing()) return;
                         status.setVisibility(View.GONE);
                         if (err != null) {
