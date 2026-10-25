@@ -110,11 +110,15 @@ final class Outages {
             e.remove(P_ADDRESS).remove(P_STREET).remove(P_HOUSE).remove(P_RESOLVED);
         }
         e.apply();
+        OutageWarning.forget(c);
     }
 
     static synchronized void turnOff(Context c) {
         Prefs.of(c).edit().remove(P_REGION).remove(P_GROUP).remove(P_ADDRESS).remove(P_STREET).remove(P_HOUSE)
                 .remove(P_RESOLVED).remove(P_CACHE).remove(P_FETCHED).remove(P_ETAG).apply();
+        OutageWarning.forget(c);
+        // No schedule, no downloads while an app is in front.
+        OutageJob.sync(c);
     }
 
     // MARK: - The schedule
@@ -169,7 +173,10 @@ final class Outages {
 
     // MARK: - Fetching
 
-    /** Fetches the schedule for the chosen region and group, caches it and returns it. Network: off the UI thread. */
+    /**
+     * Fetches the schedule for the chosen region and group, caches it, tells the helper about the outages ahead (and
+     * what changed) and returns it. Network: off the UI thread.
+     */
     static Schedule refresh(Context c) throws IOException, JSONException {
         // A second round when another region or group was chosen during the download: the answer is for the old one.
         for (int round = 0; round < 2; round++) {
@@ -180,7 +187,11 @@ final class Outages {
             Schedule s = fetch(r, group);
             synchronized (Outages.class) {
                 if (r != chosenRegion(c) || !group.equals(chosenGroup(c))) continue;
+                // The same group's last download, or null (a new choice, a group change): what changed since.
+                Schedule before = cached(c);
                 Prefs.of(c).edit().putString(P_CACHE, toJson(s).toString()).putLong(P_FETCHED, System.currentTimeMillis()).apply();
+                // Under the same lock as choose(): an old group's outages never land after its forget().
+                OutageWarning.update(c, before, s);
             }
             return s;
         }
@@ -246,16 +257,19 @@ final class Outages {
                 && (failed > fetched || (failed != 0 && fetched > now) || !online);
     }
 
-    /** Main thread: downloads the schedule in the background when it is old, then runs {@code done} on the main thread. */
-    static void refreshIfStale(Context c, final Runnable done) {
+    /**
+     * Main thread: downloads the schedule in the background when it is old, then runs {@code done} on the main thread.
+     * Returns whether it started a download (only then does {@code done} run).
+     */
+    static boolean refreshIfStale(Context c, final Runnable done) {
         final Context app = c.getApplicationContext();
         long now = System.currentTimeMillis();
         if (loading || !enabled(app) || !Net.stale(now, fetchedAt(app), MAX_AGE_MS) || !Net.stale(now, failedAt, RETRY_MS)) {
-            return;
+            return false;
         }
         // No network (the router down in an outage): a try would fail at once and hold off the first one after it is
         // back. Not recorded as a failure: old() counts offline as old anyway.
-        if (!Net.online(app)) return;
+        if (!Net.online(app)) return false;
         loading = true;
         App.NET.execute(new Runnable() {
             @Override public void run() {
@@ -275,6 +289,7 @@ final class Outages {
                 });
             }
         });
+        return true;
     }
 
     /** The cached schedule, or null (also when it is another group's: the weekly re-check may have moved us). */
@@ -648,9 +663,9 @@ final class Outages {
         at.set(Calendar.MINUTE, (k % 2) * 30);
         at.set(Calendar.SECOND, 0);
         at.set(Calendar.MILLISECOND, 0);
-        long from = now.getTimeInMillis() / 60_000 * 60_000, t = at.getTimeInMillis();
+        long from = now.getTimeInMillis() / 60_000 * 60_000, t = moment(at, (k % SLOTS) * 30);
         // When the clocks go back, 03:00-03:59 comes twice and Calendar takes the second time. The slot starts at the
-        // first, unless that has passed. (A time the clocks skip in spring comes out right: it is the hour after.)
+        // first, unless that has passed.
         long back = KYIV.getOffset(t - 3600_000L) - KYIV.getOffset(t);
         if (back > 0 && t - back >= from) t -= back;
         return (int) ((t - from) / 60_000);
@@ -671,6 +686,36 @@ final class Outages {
     static String format(Calendar c) {
         return String.format(Locale.ROOT, "%04d-%02d-%02d", c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1,
                 c.get(Calendar.DAY_OF_MONTH));
+    }
+
+    /**
+     * The moment Kyiv's wall clock shows {@code minutes} after the midnight that starts {@code date} (1440 and more: the
+     * next day), the first time when the clocks go back and it comes twice; a time the clocks skip in spring is the
+     * moment they jump, as in {@link #minutesUntil}.
+     */
+    static long at(String date, int minutes) {
+        Calendar at = Calendar.getInstance(KYIV);
+        at.setTimeInMillis(epoch(date) * 1000);
+        at.add(Calendar.DAY_OF_MONTH, minutes / 1440);
+        at.set(Calendar.HOUR_OF_DAY, minutes % 1440 / 60);
+        at.set(Calendar.MINUTE, minutes % 60);
+        at.set(Calendar.SECOND, 0);
+        at.set(Calendar.MILLISECOND, 0);
+        long t = moment(at, minutes % 1440);
+        long back = KYIV.getOffset(t - 3600_000L) - KYIV.getOffset(t);
+        return back > 0 ? t - back : t;
+    }
+
+    /**
+     * The moment of {@code at}, a Kyiv calendar set to {@code minute} past midnight. A time the clocks skip in spring
+     * (03:00 to 03:59) is the moment they jump: Calendar puts it an hour on, so 03:30 would come after 04:00 and an
+     * outage from 03:30 would start half an hour late.
+     */
+    private static long moment(Calendar at, int minute) {
+        long t = at.getTimeInMillis();
+        int skipped = (at.get(Calendar.HOUR_OF_DAY) * 60 + at.get(Calendar.MINUTE) - minute + 1440) % 1440;
+        for (int i = 0; i < skipped && KYIV.getOffset(t - 60_000) == KYIV.getOffset(t); i++) t -= 60_000;
+        return t;
     }
 
     /** Unix seconds of Kyiv midnight on "yyyy-MM-dd". */

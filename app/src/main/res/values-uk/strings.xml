@@ -130,6 +130,20 @@
     <string name="dur_min">%d хв</string>
     <string name="dur_h">%d год</string>
     <string name="dur_h_min">%1$d год %2$d хв</string>
+    <string name="section_beyond">Поза головним екраном</string>
+    <string name="outage_warning">Попередження про відключення</string>
+    <string name="outage_warning_on">За 15 хв, поверх будь-якого додатка</string>
+    <string name="warn_off">Через %1$s відключення світла · %2$s</string>
+    <string name="warn_maybe">За %1$s можливе відключення · %2$s</string>
+    <string name="warn_at">о %s</string>
+    <string name="outage_changed">Графік змінився: %s</string>
+    <string name="outage_today_lc">сьогодні</string>
+    <string name="outage_none_left">більше без відключень</string>
+    <string name="sleep_timer">Таймер сну</string>
+    <string name="sleep_timer_at">Таймер сну · вимкнеться о %s</string>
+    <string name="sleep_card">Телевізор вимкнеться за хвилину · натисніть будь-яку кнопку, щоб залишити</string>
+    <string name="wake">Після увімкнення телевізора</string>
+    <string name="wake_instead">%s замість головного екрана</string>
     <string name="outage_then_maybe">далі можливе відключення</string>
     <string name="outage_then_maybe_tomorrow">до %s завтра, далі можливе відключення</string>
     <string name="outage_off_until_maybe">Світла немає до %s · далі можливе відключення</string>
@@ -233,6 +247,6 @@
     <string name="remote_star_tv">Як у телевізора</string>
     <string name="remote_star_default">%s, поки стандартний лаунчер вимкнений</string>
     <string name="remote_keys_too">Кнопки YouTube і «усі додатки» теж знову працюють.</string>
-    <string name="helper_label">Lehko: кнопки пульта</string>
-    <string name="helper_description">Кнопки ☆, YouTube і «усі додатки» на пульті працюють, поки стандартний лаунчер вимкнений; ☆ може відкривати додаток, вибраний у налаштуваннях Lehko. Інші кнопки проходять одразу, і нічого з екрана не читається.</string>
+    <string name="helper_label">Помічник Lehko</string>
+    <string name="helper_description">Кнопки ☆, YouTube і «усі додатки» на пульті працюють, поки стандартний лаунчер вимкнений; ☆ може відкривати додаток, вибраний у налаштуваннях Lehko. Поверх будь-якого додатка попереджає про відключення світла і вимикає телевізор за таймером сну; після увімкнення телевізора може відкрити вхід, вибраний у налаштуваннях Lehko. Інші кнопки проходять одразу, і нічого з екрана не читається.</string>
 </resources>

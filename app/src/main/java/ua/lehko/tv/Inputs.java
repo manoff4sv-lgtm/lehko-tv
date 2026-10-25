@@ -96,6 +96,20 @@ final class Inputs {
         return out;
     }
 
+    /**
+     * The input with this id (from {@link #load}) if the TV still has it, else null: enough to {@link #open} it. One
+     * call to the system, for the helper, which needs no labels.
+     */
+    static Input byId(Context c, String id) {
+        try {
+            TvInputManager tim = (TvInputManager) c.getSystemService(Context.TV_INPUT_SERVICE);
+            TvInputInfo info = tim == null ? null : tim.getTvInputInfo(id);
+            return info == null ? null : new Input(id, "", "", !info.isPassthroughInput());
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     static void open(Context c, Input in) {
         Intent i = new Intent(Intent.ACTION_VIEW, in.tuner
                 ? TvContract.buildChannelsUriForInput(in.id)

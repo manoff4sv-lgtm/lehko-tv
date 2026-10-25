@@ -132,6 +132,20 @@
     <string name="dur_min">%d min</string>
     <string name="dur_h">%d h</string>
     <string name="dur_h_min">%1$d h %2$d min</string>
+    <string name="section_beyond">Beyond the home screen</string>
+    <string name="outage_warning">Outage warning</string>
+    <string name="outage_warning_on">15 min ahead, over any app</string>
+    <string name="warn_off">Power outage in %1$s · %2$s</string>
+    <string name="warn_maybe">Possible outage in %1$s · %2$s</string>
+    <string name="warn_at">at %s</string>
+    <string name="outage_changed">The schedule changed: %s</string>
+    <string name="outage_today_lc">today</string>
+    <string name="outage_none_left">no more outages</string>
+    <string name="sleep_timer">Sleep timer</string>
+    <string name="sleep_timer_at">Sleep timer · off at %s</string>
+    <string name="sleep_card">The TV turns off in a minute · press any button to keep it on</string>
+    <string name="wake">When the TV turns on</string>
+    <string name="wake_instead">%s instead of the home screen</string>
     <string name="outage_then_maybe">then a possible outage</string>
     <string name="outage_then_maybe_tomorrow">until %s tomorrow, then a possible outage</string>
     <string name="outage_off_until_maybe">No power until %s · then a possible outage</string>
@@ -235,6 +249,6 @@
     <string name="remote_star_tv">As the TV does</string>
     <string name="remote_star_default">%s while the stock launcher is off</string>
     <string name="remote_keys_too">The YouTube and “all apps” buttons work again too.</string>
-    <string name="helper_label">Lehko: remote buttons</string>
-    <string name="helper_description">Makes the remote’s star, YouTube and “all apps” buttons work while the stock launcher is off; the star can open the app chosen in Lehko settings. Every other button goes straight on, and nothing on the screen is read.</string>
+    <string name="helper_label">Lehko helper</string>
+    <string name="helper_description">Makes the remote’s star, YouTube and “all apps” buttons work while the stock launcher is off; the star can open the app chosen in Lehko settings. Over any app it warns of power outages and turns the TV off when the sleep timer ends; when the TV is turned on it can open the input chosen in Lehko settings. Every other button goes straight on, and nothing on the screen is read.</string>
 </resources>
