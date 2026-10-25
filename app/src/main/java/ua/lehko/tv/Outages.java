@@ -316,11 +316,15 @@ final class Outages {
                 // Something else was chosen meanwhile: this answer is for the old address.
                 if (r != chosenRegion(c) || p.getLong(P_STREET, 0) != street || p.getLong(P_HOUSE, 0) != house) return;
                 SharedPreferences.Editor e = p.edit().putLong(P_RESOLVED, System.currentTimeMillis());
-                if (group != null && !group.equals(chosenGroup(c))) {
+                boolean moved = group != null && !group.equals(chosenGroup(c));
+                if (moved) {
                     e.putString(P_GROUP, group);
                     Prefs.notice(c, c.getString(R.string.outage_group_changed, group));
                 }
                 e.apply();
+                // As in choose(): the helper warns of nothing from the old group's schedule, also if the download
+                // that follows fails.
+                if (moved) OutageWarning.forget(c);
             }
         } catch (IOException | JSONException ignored) {
             // Try again on the next refresh.
