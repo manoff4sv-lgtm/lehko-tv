@@ -76,7 +76,6 @@ public class HomeModeTest {
         String notice;
         int port = PORT;
         boolean debugging = true;
-        boolean starKey;
 
         Env(File keyDir) {
             this.keyDir = keyDir;
@@ -104,10 +103,6 @@ public class HomeModeTest {
 
         @Override public boolean debuggingOn() {
             return debugging;
-        }
-
-        @Override public boolean starKey() {
-            return starKey;
         }
     }
 
@@ -227,7 +222,7 @@ public class HomeModeTest {
         assertFalse(e.prefs.getBoolean(HomeMode.K_FULL, false));
         assertFalse("an unneeded app isn't the launcher", HomeMode.launcherOff(e.prefs));
         assertTrue(s.getJSONObject("files").getString(HomeMode.STATE_FILE).contains("full=false"));
-        assertEquals("the remote's helper stays (a star button may have an app)", HomeMode.HELPER, secure(SERVICES));
+        assertEquals("the helper stays: it is part of Lehko being on", HomeMode.HELPER, secure(SERVICES));
     }
 
     @Test public void launcherBackOnStaysOnWhenTheSetupAppDoesNot() throws Exception {
@@ -254,7 +249,7 @@ public class HomeModeTest {
 
     @Test public void remoteHelperOnAndOff() throws Exception {
         Env e = new Env(keys);
-        HomeMode.enable(e, false, QUIET); // the lighter mode too: a star button may have an app
+        HomeMode.enable(e, false, QUIET); // the lighter mode too
         assertEquals(HomeMode.HELPER, secure(SERVICES));
         assertEquals("1", secure(A11Y_ON));
         assertTrue(note(), note().contains("a11y_changed=true") && note().contains("a11y_enabled=0"));
@@ -359,20 +354,15 @@ public class HomeModeTest {
         assertNull("part of Lehko being on: back without a word", e.notice);
     }
 
-    @Test public void noHelperWhereItCantDoAnything() throws Exception {
-        // Not a Google TV (no launcherx) and no star button on the remote: the helper would only cost memory.
+    @Test public void theHelperComesOnWithLehkoOnAnyTv() throws Exception {
+        // Not a Google TV (no launcherx), no star button: the sleep timer, the outage warning and the input to open
+        // when the TV comes on still need it.
         tv("pm uninstall " + LAUNCHERX);
         Env e = new Env(keys);
         HomeMode.enable(e, false, QUIET);
         assertEquals("ua.lehko.tv", state().getString("holder"));
-        HomeMode.verify(e);
-        assertNull(secure(SERVICES));
-        assertEquals("0", secure(A11Y_ON));
-        assertFalse(e.prefs.getBoolean(HomeMode.K_A11Y_CHANGED, false));
-
-        e.starKey = true; // a remote with a star button: it can open an app
-        HomeMode.verify(e);
         assertEquals(HomeMode.HELPER, secure(SERVICES));
+        assertEquals("1", secure(A11Y_ON));
         HomeMode.disable(e, QUIET);
         assertNull(secure(SERVICES));
         assertEquals("0", secure(A11Y_ON));

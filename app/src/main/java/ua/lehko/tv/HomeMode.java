@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.provider.Settings;
-import android.view.KeyCharacterMap;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -117,9 +116,6 @@ final class HomeMode {
 
         /** "USB debugging" is on in the TV's developer options. */
         boolean debuggingOn();
-
-        /** The remote has a star button (KEYCODE_MACRO_1, Android 14+), which the helper can give an app. */
-        boolean starKey();
     }
 
     static Env env(final Context c) {
@@ -147,10 +143,6 @@ final class HomeMode {
 
             @Override public boolean debuggingOn() {
                 return Settings.Global.getInt(app.getContentResolver(), Settings.Global.ADB_ENABLED, 0) == 1;
-            }
-
-            @Override public boolean starKey() {
-                return Build.VERSION.SDK_INT >= 34 && KeyCharacterMap.deviceHasKey(Keys.STAR);
             }
         };
     }
@@ -431,9 +423,9 @@ final class HomeMode {
                     throw new Refused(out.trim());
                 }
             }
-            // In both modes: it answers the remote's buttons only while the stock launcher is off, or for a star
-            // button the user gave an app.
-            helperOn(c, adb, present);
+            // In both modes, on any TV: the sleep timer and the outage warning need it, and a star button may have
+            // an app.
+            helperOn(c, adb);
 
             Set<String> ours = disabled(c);
             int i = 0, turnedOff = 0;
@@ -672,18 +664,17 @@ final class HomeMode {
         adopt(c, adb);
         if (acceptOutsideRevert(c, adb)) return fixed;
         keepDebuggingAllowed(c, adb);
-        Set<String> present = packages(adb, "");
         // The remote's helper, taken out by a TV update, a force stop of Lehko or in the TV's settings: put back
         // without a word, as part of Lehko being on (the first time after the update of Lehko that brought it, it is
         // new rather than fixed anyway).
-        helperOn(c, adb, present);
+        helperOn(c, adb);
         if (!homeHolder(adb).contains(PKG)) {
             adb.shell("cmd package set-home-activity --user 0 " + HOME);
             fixed.add(c.text(R.string.the_home_screen));
         }
         if (isFull(c)) {
+            Set<String> present = packages(adb, ""), off = packages(adb, "-d");
             if (present.isEmpty()) return fixed;
-            Set<String> off = packages(adb, "-d");
             List<String> todo = new ArrayList<>();
             for (String pkg : targets(adb, c.prefs().getString(K_HOME, ""), present)) {
                 if (!off.contains(pkg) && !isCore(pkg)) todo.add(pkg);
@@ -886,14 +877,12 @@ final class HomeMode {
 
     /**
      * Turns on {@link TvHelper} next to the accessibility services already on (the TV's accessibility_enabled is
-     * recorded first, for "Original"), on TVs where it can do something: Google TV's launcher is installed (full mode
-     * turns it off, and the helper answers its buttons then; {@code present}: the installed packages), or the remote
-     * has a star button to give an app. Elsewhere it would only cost an always-running process and a detour for every
-     * key press. A list that isn't plain component names is left as it is, without the helper: only names checked here
-     * go back to the TV's shell.
+     * recorded first, for "Original"), on every TV: the sleep timer, the outage warning and the input to open when the
+     * TV comes on need it anywhere, and on Google TV it answers the remote's buttons while the launcher is off. A list
+     * that isn't plain component names is left as it is, without the helper: only names checked here go back to the
+     * TV's shell.
      */
-    private static void helperOn(Env c, Adb adb, Set<String> present) throws IOException {
-        if (!present.contains(Keys.LAUNCHERX) && !c.starKey()) return;
+    private static void helperOn(Env c, Adb adb) throws IOException {
         List<String> services = services(adb);
         if (services == null) return;
         if (!c.prefs().getBoolean(K_A11Y_CHANGED, false)) {
