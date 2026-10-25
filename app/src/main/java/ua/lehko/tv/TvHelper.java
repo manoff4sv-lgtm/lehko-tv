@@ -13,6 +13,7 @@ import android.os.Build;
 import android.os.FileObserver;
 import android.os.PowerManager;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -55,6 +56,9 @@ public final class TvHelper extends AccessibilityService {
     @Override protected boolean onKeyEvent(KeyEvent e) {
         int key = e.getKeyCode();
         boolean press = e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0;
+        // For the input to open when the TV comes on: a press after that means someone is choosing for themselves.
+        // (The key that wakes the TV never comes here.)
+        if (press) lastPress = SystemClock.uptimeMillis();
         if (taken != KeyEvent.KEYCODE_UNKNOWN && key == taken) {
             // The rest of a press that was kept: its repeats and its release too, never half a press.
             if (!press) {
@@ -198,9 +202,28 @@ public final class TvHelper extends AccessibilityService {
             }
         };
         watcher.startWatching();
-        // Started with the system: the TV was just turned on from cold, which brings no "screen on".
-        if (screenOn && SystemClock.elapsedRealtime() < COLD_START_MS) wakeLater(COLD_TRIES);
+        // Started with the system: the TV was just turned on from cold, which brings no "screen on". Once per boot: a
+        // later start in it (Lehko turned on, an update of Lehko, the helper's process restarted) isn't the TV's.
+        if (screenOn && SystemClock.elapsedRealtime() < COLD_START_MS && firstStartThisBoot()) wakeLater(COLD_TRIES);
         arm();
+    }
+
+    /** The helper's notes: the boot (Android's count) whose cold start it handled. */
+    private static final String P_BOOT = "boot";
+
+    /** The helper's first start since the TV started; noted, so the next start in this boot isn't. */
+    private boolean firstStartThisBoot() {
+        int boot;
+        try {
+            boot = Settings.Global.getInt(getContentResolver(), Settings.Global.BOOT_COUNT, -1);
+        } catch (RuntimeException e) {
+            boot = -1;
+        }
+        // Not counted on this TV: every start near the boot counts, as before.
+        if (boot < 0) return true;
+        if (String.valueOf(boot).equals(state.get(P_BOOT))) return false;
+        note(P_BOOT, String.valueOf(boot));
+        return true;
     }
 
     @Override public void onDestroy() {
@@ -322,11 +345,19 @@ public final class TvHelper extends AccessibilityService {
     private static final long COLD_START_MS = 3 * 60_000L;
     private static final int COLD_TRIES = 10;
     private int wakeTries;
+    /** When the TV came on (or the helper started with it), and the last press of a key (uptime). */
+    private long wakeSince, lastPress;
 
     private void wakeLater(int tries) {
         App.MAIN.removeCallbacks(wake);
         wakeTries = tries;
+        wakeSince = SystemClock.uptimeMillis();
         App.MAIN.postDelayed(wake, WAKE_DELAY_MS);
+    }
+
+    /** A key was pressed since the TV came on: whatever is in front, Lehko's home screen too, was chosen. */
+    private boolean pressedSinceWake() {
+        return lastPress >= wakeSince;
     }
 
     private void wakeAgain() {
@@ -336,12 +367,15 @@ public final class TvHelper extends AccessibilityService {
     /**
      * Opens the input chosen in Lehko settings, as the home screen's buttons do, instead of Lehko's home screen: only
      * when the TV came on to that (a TV woken by casting, by a console over HDMI or by an app's button on the remote
-     * shows what was asked for, and that stays), and only if the TV still has the input.
+     * shows what was asked for, and that stays), and only if the TV still has the input. Not after a key press: back
+     * on Lehko's home screen from an app opened meanwhile, the user stays there.
      */
     private final Runnable wake = new Runnable() {
         @Override public void run() {
             String choice = settings().get(Keys.P_WAKE);
-            if (choice == null || !choice.startsWith(Keys.WAKE_INPUT) || !screenOn || !mayAct()) return;
+            if (choice == null || !choice.startsWith(Keys.WAKE_INPUT) || !screenOn || pressedSinceWake() || !mayAct()) {
+                return;
+            }
             if (!lehkoInFront()) {
                 wakeAgain();
                 return;
@@ -354,7 +388,7 @@ public final class TvHelper extends AccessibilityService {
                     final Inputs.Input in = Inputs.byId(app, id);
                     App.MAIN.post(new Runnable() {
                         @Override public void run() {
-                            if (!screenOn) return;
+                            if (!screenOn || pressedSinceWake()) return;
                             if (in == null) wakeAgain();
                             else if (lehkoInFront()) Inputs.open(app, in);
                         }
