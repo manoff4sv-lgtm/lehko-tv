@@ -1,14 +1,16 @@
 package ua.lehko.tv;
 
 import android.content.Context;
+import android.view.KeyEvent;
 
 import java.io.IOException;
 import java.util.Map;
 
 /**
  * The sleep timer: the home screen's button writes when the TV should go to sleep into helper.txt, and
- * {@link TvHelper} warns a minute before (any button keeps the TV on) and then puts it to sleep. The helper writes
- * the timer it ended, slept or kept on, into its own file, so the home screen stops showing it.
+ * {@link TvHelper} warns a minute before (any button keeps the TV on, and that press does nothing else) and then puts
+ * it to sleep. The helper writes the timer it ended, slept or kept on, into its own file, so the home screen stops
+ * showing it.
  */
 final class SleepTimer {
     private SleepTimer() {}
@@ -24,6 +26,18 @@ final class SleepTimer {
 
     /** What the helper does at a moment: nothing, wait for the card, show it, or put the TV to sleep. */
     static final int NONE = 0, WAIT = 1, CARD = 2, SLEEP = 3;
+
+    /**
+     * A key that still goes on to the app in front when it answers the warning: volume and mute change nothing on
+     * screen, and the power keys are the TV's (they don't even reach the helper). Any other press only keeps the TV on:
+     * in a player, OK would pause the video and Back leave it.
+     */
+    static boolean passes(int key) {
+        return key == KeyEvent.KEYCODE_VOLUME_UP || key == KeyEvent.KEYCODE_VOLUME_DOWN
+                || key == KeyEvent.KEYCODE_VOLUME_MUTE || key == KeyEvent.KEYCODE_MUTE
+                || key == KeyEvent.KEYCODE_POWER || key == KeyEvent.KEYCODE_TV_POWER
+                || key == KeyEvent.KEYCODE_SLEEP || key == KeyEvent.KEYCODE_WAKEUP;
+    }
 
     static int step(long at, long done, long now) {
         if (at <= 0 || at == done || now > at + LATE_MS) return NONE;

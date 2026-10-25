@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import android.view.KeyEvent;
+
 import org.junit.Test;
 
 /** The sleep timer: what the helper does when, and what the home screen shows. */
@@ -32,5 +34,14 @@ public class SleepTimerTest {
         assertFalse("ended by the helper", SleepTimer.active(AT, AT, AT - 60_000));
         assertFalse("over", SleepTimer.active(AT, 0, AT));
         assertFalse(SleepTimer.active(0, 0, AT));
+    }
+
+    @Test public void theAnswerToTheCardStaysOffThePlayer() {
+        assertFalse("OK would pause the video", SleepTimer.passes(KeyEvent.KEYCODE_DPAD_CENTER));
+        assertFalse("Back would leave it", SleepTimer.passes(KeyEvent.KEYCODE_BACK));
+        assertFalse(SleepTimer.passes(KeyEvent.KEYCODE_DPAD_LEFT));
+        assertFalse(SleepTimer.passes(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE));
+        assertTrue("changes nothing on screen", SleepTimer.passes(KeyEvent.KEYCODE_VOLUME_UP));
+        assertTrue(SleepTimer.passes(KeyEvent.KEYCODE_VOLUME_MUTE));
     }
 }

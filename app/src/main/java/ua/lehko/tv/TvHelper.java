@@ -32,12 +32,16 @@ import java.util.Map;
  * Google TV hands those buttons to its launcher, so with the launcher turned off the system took the presses and
  * nothing happened. An accessibility service's key filter sees a key before the system hands it out, so this one opens
  * what {@link Keys} says and keeps the press; every other key, and any press it can't open anything for, goes on
- * untouched. Over whatever is on screen it shows the outage warning and a changed schedule ({@link OutageWarning}),
- * and it ends the sleep timer ({@link SleepTimer}); when the TV is turned on it can open an input. It reads no screen
- * content. HomeMode turns it on with Lehko, over the debugging connection, and off with "Bring back".
+ * untouched, except the press that answers the sleep timer's card. Over whatever is on screen it shows the outage
+ * warning and a changed schedule ({@link OutageWarning}), and it ends the sleep timer ({@link SleepTimer}); when the TV
+ * is turned on it can open an input. It reads no screen content. HomeMode turns it on with Lehko, over the debugging
+ * connection, and off with "Bring back".
  */
 public final class TvHelper extends AccessibilityService {
-    /** The button whose press opened something: its repeats and its release are kept too, never half a press. */
+    /**
+     * The button whose press was kept (it opened something, or answered the sleep timer's card): its repeats and its
+     * release are kept too, never half a press.
+     */
     private int taken = KeyEvent.KEYCODE_UNKNOWN;
 
     /**
@@ -49,17 +53,28 @@ public final class TvHelper extends AccessibilityService {
     }
 
     @Override protected boolean onKeyEvent(KeyEvent e) {
-        // Any button in the sleep timer's last minute keeps the TV on; the press goes on as usual.
-        if (sleepCard != 0 && e.getAction() == KeyEvent.ACTION_DOWN) keepOn();
         int key = e.getKeyCode();
-        if (!Keys.handled(key, e.getSource())) return false;
-        if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
-            taken = open(key) ? key : KeyEvent.KEYCODE_UNKNOWN;
-            return taken == key;
+        boolean press = e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0;
+        if (taken != KeyEvent.KEYCODE_UNKNOWN && key == taken) {
+            // The rest of a press that was kept: its repeats and its release too, never half a press.
+            if (!press) {
+                if (e.getAction() == KeyEvent.ACTION_UP) taken = KeyEvent.KEYCODE_UNKNOWN;
+                return true;
+            }
+            taken = KeyEvent.KEYCODE_UNKNOWN; // a new press: the last one's release never came
         }
-        boolean ours = key == taken;
-        if (ours && e.getAction() == KeyEvent.ACTION_UP) taken = KeyEvent.KEYCODE_UNKNOWN;
-        return ours;
+        if (sleepCard != 0 && e.getAction() == KeyEvent.ACTION_DOWN) {
+            // Any button in the sleep timer's last minute keeps the TV on. The press only answers the card: in the
+            // app under it OK would pause the video and Back leave it. Volume and mute still work.
+            keepOn();
+            if (press && !SleepTimer.passes(key)) {
+                taken = key;
+                return true;
+            }
+        }
+        if (!press || !Keys.handled(key, e.getSource())) return false;
+        taken = open(key) ? key : KeyEvent.KEYCODE_UNKNOWN;
+        return taken == key;
     }
 
     /**
