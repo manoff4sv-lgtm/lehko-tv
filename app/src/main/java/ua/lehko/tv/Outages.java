@@ -255,16 +255,19 @@ final class Outages {
                 && (failed > fetched || (failed != 0 && fetched > now) || !online);
     }
 
-    /** Main thread: downloads the schedule in the background when it is old, then runs {@code done} on the main thread. */
-    static void refreshIfStale(Context c, final Runnable done) {
+    /**
+     * Main thread: downloads the schedule in the background when it is old, then runs {@code done} on the main thread.
+     * Returns whether it started a download (only then does {@code done} run).
+     */
+    static boolean refreshIfStale(Context c, final Runnable done) {
         final Context app = c.getApplicationContext();
         long now = System.currentTimeMillis();
         if (loading || !enabled(app) || !Net.stale(now, fetchedAt(app), MAX_AGE_MS) || !Net.stale(now, failedAt, RETRY_MS)) {
-            return;
+            return false;
         }
         // No network (the router down in an outage): a try would fail at once and hold off the first one after it is
         // back. Not recorded as a failure: old() counts offline as old anyway.
-        if (!Net.online(app)) return;
+        if (!Net.online(app)) return false;
         loading = true;
         App.NET.execute(new Runnable() {
             @Override public void run() {
@@ -284,6 +287,7 @@ final class Outages {
                 });
             }
         });
+        return true;
     }
 
     /** The cached schedule, or null (also when it is another group's: the weekly re-check may have moved us). */

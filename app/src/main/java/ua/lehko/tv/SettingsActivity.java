@@ -531,6 +531,8 @@ public final class SettingsActivity extends Activity {
         } catch (IOException e) {
             showStatus(getString(R.string.error_generic, e.getClass().getSimpleName()), true);
         }
+        // The downloads while an app is in front: only for the warning.
+        OutageJob.sync(this);
         buildRows();
     }
 

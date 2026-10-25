@@ -230,6 +230,7 @@ final class OutageWarning {
     /**
      * After a download (on App.NET): the outages ahead for the helper and, when what lies ahead changed since the same
      * group's last download ({@code before}; null: the first one), the change for a card and a home screen notice.
+     * The downloads while other apps are in front start here too ({@link OutageJob}).
      */
     static void update(Context c, Outages.Schedule before, Outages.Schedule after) {
         long now = System.currentTimeMillis();
@@ -242,6 +243,7 @@ final class OutageWarning {
         if (text != null) put.put(P_CHANGED, now + " " + text);
         write(c, put);
         if (text != null) Prefs.notice(c, text);
+        OutageJob.sync(c);
     }
 
     /** Another group, or no schedule any more: the old outages mustn't be warned about. */

@@ -153,6 +153,12 @@
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
 
+        <!-- The outage schedule every half hour while other apps are in front, for the helper's warning. -->
+        <service
+            android:name=".OutageJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
         <receiver
             android:name=".BootReceiver"
             android:exported="false">
