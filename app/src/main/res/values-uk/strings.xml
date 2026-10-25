@@ -242,6 +242,7 @@
     <string name="update_notice">Є нова версія Lehko %s · Налаштування Lehko → Оновлення</string>
     <string name="update_downloading">Завантаження оновлення… %d%%</string>
     <string name="update_installing">Встановлення… підтвердьте на екрані. Якщо нічого не зʼявилося, знову натисніть OK на «Оновлення».</string>
+    <string name="update_waiting">Оновлення Lehko готове · натисніть OK на «Оновлення» в налаштуваннях Lehko, щоб підтвердити його</string>
     <string name="update_allow">Дозвольте Lehko встановлювати додатки на екрані, що відкриється («Невідомі джерела»), потім поверніться і знову натисніть OK на «Оновлення».</string>
     <string name="update_bad_file">Завантажений файл не є оновленням Lehko, тому його не встановлено. Спробуйте пізніше.</string>
     <string name="update_cancelled">Оновлення скасовано.</string>

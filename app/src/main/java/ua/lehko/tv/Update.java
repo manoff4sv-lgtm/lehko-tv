@@ -360,13 +360,16 @@ final class Update {
     }
 
     /**
-     * The installer wants the user's OK (UpdateReceiver). Android lets Lehko bring its screen up only while a Lehko
-     * screen is on show; when none is, it refuses without a word, so OK on "Update" in Settings brings it up again.
-     * False when there is no such screen at all.
+     * The installer wants the user's OK (UpdateReceiver). Its screen comes up only over one of Lehko's: Android would
+     * let it come up over a video too (Lehko is the home app, and its helper an accessibility service). Otherwise it
+     * waits, the home screen says so, and OK on "Update" in Settings brings it up (confirmAgain). False when there is
+     * no such screen at all.
      */
     static boolean confirm(Context c, Intent screen) {
         confirmation = screen.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        return Apps.start(c, screen);
+        if (App.screensShown > 0) return Apps.start(c, screen);
+        report(c, c.getString(R.string.update_waiting), false);
+        return true;
     }
 
     /** Settings, in front: brings a confirmation that is still waiting up again. False when none is waiting. */
@@ -394,9 +397,9 @@ final class Update {
     }
 
     /**
-     * Why the update didn't go in, or that it was cancelled, from any thread. Settings shows it in its status card,
-     * at once when it is in sight (its prefs listener), else when it is opened within RESULT_MS. Lehko's home says it
-     * too; when Settings shows it first, the home notice goes (takeResult).
+     * Why the update didn't go in, that it was cancelled or that it waits for an OK, from any thread. Settings shows
+     * it in its status card, at once when it is in sight (its prefs listener), else when it is opened within
+     * RESULT_MS. Lehko's home says it too; when Settings shows it first, the home notice goes (takeResult).
      */
     static void report(Context c, String text, boolean error) {
         SharedPreferences.Editor edit = Prefs.of(c).edit().putString(RESULT, text).putBoolean(RESULT_ERROR, error)

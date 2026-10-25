@@ -1,7 +1,9 @@
 package ua.lehko.tv;
 
+import android.app.Activity;
 import android.app.Application;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
@@ -69,6 +71,13 @@ public final class App extends Application {
     /** This is the remote's helper process (TvHelper), not the home screen's. */
     private boolean helper;
 
+    /**
+     * How many of Lehko's screens are on show (started, not yet stopped); main thread. Android lets Lehko start screens
+     * from behind another app (it is the home app, and its helper an accessibility service), so what should come up
+     * only over Lehko asks this.
+     */
+    static int screensShown;
+
     @Override public void onCreate() {
         super.onCreate();
         // The helper needs nothing from here. Above all no crash watchdog: a crash there is no home screen crash loop,
@@ -79,6 +88,25 @@ public final class App extends Application {
             version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (Exception ignored) {}
         Watchdog.install(this);
+        registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
+            @Override public void onActivityStarted(Activity a) {
+                screensShown++;
+            }
+
+            @Override public void onActivityStopped(Activity a) {
+                screensShown = Math.max(0, screensShown - 1);
+            }
+
+            @Override public void onActivityCreated(Activity a, Bundle state) {}
+
+            @Override public void onActivityResumed(Activity a) {}
+
+            @Override public void onActivityPaused(Activity a) {}
+
+            @Override public void onActivitySaveInstanceState(Activity a, Bundle state) {}
+
+            @Override public void onActivityDestroyed(Activity a) {}
+        });
     }
 
     /**

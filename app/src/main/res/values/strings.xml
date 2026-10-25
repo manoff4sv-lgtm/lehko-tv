@@ -244,6 +244,7 @@
     <string name="update_notice">Lehko %s is out · Lehko settings → Update</string>
     <string name="update_downloading">Downloading the update… %d%%</string>
     <string name="update_installing">Installing… confirm it on the screen. If nothing comes up, press OK on “Update” again.</string>
+    <string name="update_waiting">The Lehko update is ready · press OK on “Update” in Lehko settings to confirm it</string>
     <string name="update_allow">Allow Lehko to install apps in the screen that opens (“Unknown sources”), then come back and press OK on “Update” again.</string>
     <string name="update_bad_file">The downloaded file isn’t a Lehko update, so it wasn’t installed. Try again later.</string>
     <string name="update_cancelled">The update was cancelled.</string>
