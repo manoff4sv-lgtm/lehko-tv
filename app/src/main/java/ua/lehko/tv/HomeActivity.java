@@ -266,6 +266,13 @@ public final class HomeActivity extends Activity {
                 if (ratesLong != null) ratesLine.setText(hasFocus ? ratesLong : ratesShort);
             }
         });
+        // OK on it: the outage schedule in Lehko settings (its setup, while the power lines invite to it).
+        info.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Apps.start(HomeActivity.this, new Intent(HomeActivity.this, SettingsActivity.class)
+                        .putExtra(SettingsActivity.EXTRA_OUTAGES, true));
+            }
+        });
 
         bgTop = getColor(R.color.bg_top);
         bgBottom = getColor(R.color.bg_bottom);
@@ -1075,13 +1082,20 @@ public final class HomeActivity extends Activity {
         }
     };
 
-    /** The ring, the two power lines and tomorrow's bar (details). Without outages: a plain 24-hour ring. */
+    /**
+     * The ring, the two power lines and tomorrow's bar (details). Without outages: a plain 24-hour ring, and until the
+     * schedule is set up or turned off in Lehko settings, an invitation to set it up in the power lines' place.
+     */
     private void showOutage() {
         if (!Outages.enabled(this)) {
             Calendar now = Calendar.getInstance();
             dial.set(null, now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE));
-            powerTitle.setVisibility(View.GONE);
-            powerDetail.setVisibility(View.GONE);
+            int invite = SettingsActivity.outageInvite(this) ? View.VISIBLE : View.GONE;
+            powerTitle.setText(R.string.outage_invite_title);
+            powerTitle.setVisibility(invite);
+            powerDetail.setText(R.string.outage_invite_detail);
+            powerDetail.setContentDescription(null);
+            powerDetail.setVisibility(invite);
             tomorrowBox.setVisibility(View.GONE);
             return;
         }

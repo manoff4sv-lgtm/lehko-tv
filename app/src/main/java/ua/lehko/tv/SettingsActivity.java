@@ -47,9 +47,13 @@ public final class SettingsActivity extends Activity {
     private long lastClick;
     /** On screen. Back on Android 12+ only moves Settings behind, so a result may arrive while nobody sees it. */
     private boolean visible;
+    /** Opened with {@link #EXTRA_OUTAGES}: the outage row is shown once the rows are built. */
+    private boolean toOutages;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        // Not again when the screen is only recreated (a new language, say): the intent is still the same.
+        if (state == null) toOutages = getIntent().getBooleanExtra(EXTRA_OUTAGES, false);
         setContentView(R.layout.settings);
         list = findViewById(R.id.list);
         status = findViewById(R.id.status);
@@ -74,6 +78,20 @@ public final class SettingsActivity extends Activity {
         super.onResume();
         buildRows();
         list.requestFocus();
+        if (toOutages) {
+            toOutages = false;
+            for (int i = 0; i < rows.size(); i++) if (rows.get(i)[0] == OUTAGES) list.setSelection(i);
+            // While the home screen invites to set the schedule up: straight into the setup (region, then address or
+            // group), as OK on the row goes. Not while a switch runs, which locks the list.
+            if (!busy && outageInvite(this)) outageRegion();
+        }
+    }
+
+    /** Already open (behind the home screen) and opened again: maybe from the home screen's info panel. */
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        toOutages = intent.getBooleanExtra(EXTRA_OUTAGES, false);
     }
 
     @Override protected void onStop() {
@@ -583,6 +601,16 @@ public final class SettingsActivity extends Activity {
 
     // MARK: - Outage schedule
 
+    /** OK on the home screen's info panel: the outage row, and straight into the setup while the panel invites. */
+    static final String EXTRA_OUTAGES = "ua.lehko.tv.extra.OUTAGES";
+    /** "Off" was picked in the outage dialog: the home screen doesn't invite to set the schedule up any more. */
+    static final String P_OUTAGES_DECLINED = "outages_declined";
+
+    /** The schedule isn't set up and wasn't turned off on purpose: the home screen invites to set it up. */
+    static boolean outageInvite(Context c) {
+        return !Outages.enabled(c) && !Prefs.of(c).getBoolean(P_OUTAGES_DECLINED, false);
+    }
+
     private void outageRegion() {
         final Outages.Region[] regions = Outages.REGIONS;
         CharSequence[] labels = new CharSequence[regions.length + 1];
@@ -593,6 +621,7 @@ public final class SettingsActivity extends Activity {
                 .setItems(labels, new DialogInterface.OnClickListener() {
                     @Override public void onClick(DialogInterface d, int which) {
                         if (which == 0) {
+                            Prefs.of(SettingsActivity.this).edit().putBoolean(P_OUTAGES_DECLINED, true).apply();
                             Outages.turnOff(SettingsActivity.this);
                             buildRows();
                         } else {
