@@ -156,6 +156,7 @@ s("outage_none_left", "no more outages", "більше без відключен
 s("sleep_timer", "Sleep timer", "Таймер сну", "Таймер сна")
 s("sleep_timer_at", "Sleep timer · off at %s", "Таймер сну · вимкнеться о %s", "Таймер сна · выключится в %s")
 s("sleep_card", "The TV turns off in a minute · press any button to keep it on", "Телевізор вимкнеться за хвилину · натисніть будь-яку кнопку, щоб не вимикати", "Телевизор выключится через минуту · нажмите любую кнопку, чтобы не выключать")
+s("sleep_cant", "The sleep timer can’t turn this TV off: the TV’s debugging isn’t answering. The TV stays on.", "Таймер сну не може вимкнути цей телевізор: налагодження телевізора не відповідає. Телевізор залишиться увімкненим.", "Таймер сна не может выключить этот телевизор: отладка телевизора не отвечает. Телевизор останется включённым.")
 s("wake", "When the TV turns on", "Після увімкнення телевізора", "После включения телевизора")
 s("wake_instead", "%s instead of the home screen", "%s замість головного екрана", "%s вместо главного экрана")
 

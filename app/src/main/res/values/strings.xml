@@ -144,6 +144,7 @@
     <string name="sleep_timer">Sleep timer</string>
     <string name="sleep_timer_at">Sleep timer · off at %s</string>
     <string name="sleep_card">The TV turns off in a minute · press any button to keep it on</string>
+    <string name="sleep_cant">The sleep timer can’t turn this TV off: the TV’s debugging isn’t answering. The TV stays on.</string>
     <string name="wake">When the TV turns on</string>
     <string name="wake_instead">%s instead of the home screen</string>
     <string name="outage_then_maybe">then a possible outage</string>

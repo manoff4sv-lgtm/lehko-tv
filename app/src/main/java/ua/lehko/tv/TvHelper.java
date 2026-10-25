@@ -271,9 +271,11 @@ public final class TvHelper extends AccessibilityService {
         if (step == SleepTimer.SLEEP) {
             sleep(at);
         } else if (step == SleepTimer.CARD) {
-            // Before any other card: it asks for a button press.
-            if (sleepCard != at && mayAct()) {
-                showCard(getString(R.string.sleep_card), getColor(R.color.text_primary), 0);
+            // Before any other card: it asks for a button press. Or it says the TV can't be put to sleep (Android 8).
+            if (sleepCard != at && mayAct() && sleepKnown(at)) {
+                boolean can = Build.VERSION.SDK_INT >= 28 || sleepReachable;
+                showCard(getString(can ? R.string.sleep_card : R.string.sleep_cant),
+                        getColor(can ? R.color.text_primary : R.color.error_text), 0);
                 if (card != null) sleepCard = at;
             }
             next = Math.min(next, at);
@@ -310,11 +312,40 @@ public final class TvHelper extends AccessibilityService {
         arm();
     }
 
+    /** Android 8: the timer whose way to sleep was asked about, the one answered, and the answer (see sleepKnown). */
+    private long sleepAsked, sleepChecked;
+    private boolean sleepReachable;
+
+    /**
+     * Android 8 gives an accessibility service nothing like sleep: the TV goes to sleep only through debugging, which
+     * some TVs close at every restart. Asked as the last minute starts (it never asks for permission), so the card
+     * doesn't promise what won't happen. True once the answer is in; always on Android 9+.
+     */
+    private boolean sleepKnown(final long at) {
+        if (Build.VERSION.SDK_INT >= 28 || sleepChecked == at) return true;
+        if (sleepAsked == at) return false;
+        sleepAsked = at;
+        App.ADB.execute(new Runnable() {
+            @Override public void run() {
+                final boolean reachable = HomeMode.canSleep(TvHelper.this);
+                App.MAIN.post(new Runnable() {
+                    @Override public void run() {
+                        if (!listening) return; // the helper was turned off meanwhile
+                        sleepChecked = at;
+                        sleepReachable = reachable;
+                        arm();
+                    }
+                });
+            }
+        });
+        return false;
+    }
+
     /**
      * The sleep timer's end: noted first (the home screen stops showing it), then the TV goes to sleep through the
      * debugging connection, off the main thread (it never asks for permission).
      */
-    private void sleep(long at) {
+    private void sleep(final long at) {
         note(SleepTimer.P_DONE, String.valueOf(at));
         removeCard();
         if (!mayAct()) return;
@@ -323,8 +354,17 @@ public final class TvHelper extends AccessibilityService {
                 try {
                     HomeMode.sleep(TvHelper.this);
                 } catch (IOException | RuntimeException e) {
+                    if (Build.VERSION.SDK_INT < 28) {
+                        // Nothing else on Android 8: said on a card, unless the last minute's card said it already.
+                        App.MAIN.post(new Runnable() {
+                            @Override public void run() {
+                                if (!listening || !screenOn || (sleepChecked == at && !sleepReachable)) return;
+                                showCard(getString(R.string.sleep_cant), getColor(R.color.error_text), CARD_MS);
+                            }
+                        });
+                        return;
+                    }
                     // No debugging: Android 9+ lets an accessibility service lock the screen, the nearest it has.
-                    if (Build.VERSION.SDK_INT < 28) return;
                     App.MAIN.post(new Runnable() {
                         @Override public void run() {
                             performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN);

@@ -986,6 +986,15 @@ final class HomeMode {
         }
     }
 
+    /** Whether {@link #sleep} would get through now (the helper asks on Android 8, where nothing else can). */
+    static boolean canSleep(Context c) {
+        try (Adb adb = Adb.connect(c, 0, null)) {
+            return true;
+        } catch (IOException | RuntimeException e) {
+            return false;
+        }
+    }
+
     /** Single-quoted: a class name may contain '$', which the shell would expand. The names checked hold no quote. */
     private static void putServices(Adb adb, List<String> services) throws IOException {
         adb.shell("settings put secure enabled_accessibility_services '" + String.join(":", services) + "'");

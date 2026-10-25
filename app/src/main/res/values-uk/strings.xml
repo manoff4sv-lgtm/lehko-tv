@@ -142,6 +142,7 @@
     <string name="sleep_timer">Таймер сну</string>
     <string name="sleep_timer_at">Таймер сну · вимкнеться о %s</string>
     <string name="sleep_card">Телевізор вимкнеться за хвилину · натисніть будь-яку кнопку, щоб не вимикати</string>
+    <string name="sleep_cant">Таймер сну не може вимкнути цей телевізор: налагодження телевізора не відповідає. Телевізор залишиться увімкненим.</string>
     <string name="wake">Після увімкнення телевізора</string>
     <string name="wake_instead">%s замість головного екрана</string>
     <string name="outage_then_maybe">далі можливе відключення</string>
