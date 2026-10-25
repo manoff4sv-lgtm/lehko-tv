@@ -843,19 +843,7 @@ public final class SettingsActivity extends Activity {
         if (busy) return;
         setBusy(true);
         showStatus(getString(R.string.working), false);
-        final HomeMode.Progress progress = new HomeMode.Progress() {
-            @Override public void step(final String text) {
-                App.MAIN.post(new Runnable() {
-                    @Override public void run() {
-                        showStatus(text, false);
-                    }
-                });
-            }
-
-            @Override public void approval() {
-                step(getString(R.string.adb_waiting));
-            }
-        };
+        final HomeMode.Progress progress = steps();
         App.ADB.execute(new Runnable() {
             @Override public void run() {
                 String message;
@@ -884,6 +872,23 @@ public final class SettingsActivity extends Activity {
                 });
             }
         });
+    }
+
+    /** A background job's steps in the status card (they come from a worker thread). */
+    private HomeMode.Progress steps() {
+        return new HomeMode.Progress() {
+            @Override public void step(final String text) {
+                App.MAIN.post(new Runnable() {
+                    @Override public void run() {
+                        showStatus(text, false);
+                    }
+                });
+            }
+
+            @Override public void approval() {
+                step(getString(R.string.adb_waiting));
+            }
+        };
     }
 
     private String explain(Exception e) {
