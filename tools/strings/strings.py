@@ -50,7 +50,6 @@ s("apps_on_summary", "Turned off with Lehko: %d. Turn them back on before uninst
 s("result_apps_on", "Done! Every app Lehko turned off is on again.", "Готово! Усе, що вимикав Lehko, знову ввімкнено.", "Готово! Всё, что выключал Lehko, снова включено.")
 s("adb_no_answer", "The TV’s debugging service didn’t answer. Try again in a minute.", "Служба налагодження телевізора не відповіла. Спробуйте ще раз за хвилину.", "Служба отладки телевизора не ответила. Попробуйте ещё раз через минуту.")
 
-# FIX-STRINGS-H (temporary anchor: new strings of bundle H go right below)
 s("city_dnipro", "Dnipro", "Дніпро", "Днепр")
 s("city_odesa", "Odesa", "Одеса", "Одесса")
 s("outage_invite_title", "Power schedule", "Графік світла", "График света")
@@ -145,7 +144,6 @@ s("dur_min", "%d min", "%d хв", "%d мин")
 s("dur_h", "%d h", "%d год", "%d ч")
 s("dur_h_min", "%1$d h %2$d min", "%1$d год %2$d хв", "%1$d ч %2$d мин")
 
-# FIX-STRINGS-N (temporary anchor: new strings of bundle N go right below)
 s("section_beyond", "Beyond the home screen", "Поза головним екраном", "За пределами главного экрана")
 s("outage_warning", "Outage warning", "Попередження про відключення", "Предупреждение об отключении")
 s("outage_warning_on", "15 min ahead, over any app", "За 15 хв, поверх будь-якого додатка", "За 15 мин, поверх любого приложения")
@@ -257,7 +255,6 @@ s("cleanup_hint_ambient", "Google’s screensaver", "заставка Google", "
 s("state_on", "On", "Увімкнено", "Включено")
 s("state_off", "Off", "Вимкнено", "Выключено")
 
-# FIX-STRINGS-U (temporary anchor: new strings of bundle U go right below)
 s("update", "Update", "Оновлення", "Обновление")
 s("update_available", "Version %1$s · %2$s is out", "Версія %1$s · доступна %2$s", "Версия %1$s · доступна %2$s")
 s("update_latest", "Version %s, the latest", "Версія %s, найновіша", "Версия %s, самая новая")
