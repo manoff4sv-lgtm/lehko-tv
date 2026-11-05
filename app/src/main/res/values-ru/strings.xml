@@ -130,6 +130,14 @@
     <string name="dur_min">%d мин</string>
     <string name="dur_h">%d ч</string>
     <string name="dur_h_min">%1$d ч %2$d мин</string>
+    <string name="inverter_grid">Инвертор · от сети · %d%%</string>
+    <string name="inverter_battery">Инвертор · от батареи · %d%%</string>
+    <string name="inverter_load">%d Вт</string>
+    <string name="inverter_left">хватит на %s</string>
+    <string name="inverter_charging">заряжается</string>
+    <string name="inverter_card_off">Свет пропал · инвертор работает от батареи · %d%%</string>
+    <string name="inverter_card_on">Свет дали · батарея %d%%</string>
+    <string name="inverter_card_low">Батарея инвертора %d%%</string>
     <string name="section_beyond">За пределами главного экрана</string>
     <string name="outage_warning">Предупреждение об отключении</string>
     <string name="outage_warning_on">За 15 мин, поверх любого приложения</string>
@@ -266,5 +274,5 @@
     <string name="remote_star_default">%s, пока стандартный лаунчер выключен</string>
     <string name="remote_keys_too">Кнопки YouTube и «все приложения» тоже снова работают.</string>
     <string name="helper_label">Помощник Lehko</string>
-    <string name="helper_description">Кнопки ☆, YouTube и «все приложения» на пульте работают, пока стандартный лаунчер выключен; ☆ может открывать приложение, выбранное в настройках Lehko. Поверх любого приложения предупреждает об отключениях света и выключает телевизор по таймеру сна; после включения телевизора может открыть вход, выбранный в настройках Lehko. Остальные кнопки проходят сразу, и ничего с экрана не читается.</string>
+    <string name="helper_description">Кнопки ☆, YouTube и «все приложения» на пульте работают, пока стандартный лаунчер выключен; ☆ может открывать приложение, выбранное в настройках Lehko. Поверх любого приложения предупреждает об отключениях света (а с монитором инвертора дома ещё и о том, что свет пропал или появился) и выключает телевизор по таймеру сна; после включения телевизора может открыть вход, выбранный в настройках Lehko. Остальные кнопки проходят сразу, и ничего с экрана не читается.</string>
 </resources>

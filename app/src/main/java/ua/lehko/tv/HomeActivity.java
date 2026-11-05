@@ -49,6 +49,9 @@ public final class HomeActivity extends Activity {
     private ScrollRow favoritesScroll;
     private ImageView weatherIcon;
     private TextView weatherTemp, weatherText, weatherSun, powerTitle, powerDetail, notice, focusName, ratesLine;
+    /** The inverter line, and its listener while home is in front (see Inverter). */
+    private TextView inverterLine;
+    private Inverter.Listener inverterListener;
     /** The rates line's two versions: short, and full while the details are open. */
     private CharSequence ratesShort, ratesLong;
     /** The power lines invite to set the schedule up (see showOutage). */
@@ -112,6 +115,7 @@ public final class HomeActivity extends Activity {
     private final Runnable ticker = new Runnable() {
         @Override public void run() {
             showOutage();
+            showInverter(); // goes when the phone has gone quiet
             maybeRefresh();
             long now = System.currentTimeMillis();
             updateMemoryTile();
@@ -258,6 +262,7 @@ public final class HomeActivity extends Activity {
         details = findViewById(R.id.details);
         powerTitle = findViewById(R.id.power_title);
         powerDetail = findViewById(R.id.power_detail);
+        inverterLine = findViewById(R.id.inverter);
         tomorrowBox = findViewById(R.id.tomorrow_box);
         tomorrowBar = findViewById(R.id.outage_tomorrow);
         tomorrowBar.showLabels(false);
@@ -349,6 +354,16 @@ public final class HomeActivity extends Activity {
         showWeather(Weather.cached(this));
         showRates();
         showOutage();
+        showInverter();
+        if (inverterListener == null) {
+            inverterListener = new Inverter.Listener(this, new Inverter.Listener.Sink() {
+                @Override public void got(Inverter.Status s) {
+                    Inverter.last = s;
+                    if (!isDestroyed()) showInverter();
+                }
+            });
+            inverterListener.start();
+        }
         maybeRefresh();
         App.MAIN.removeCallbacks(ticker);
         App.MAIN.postDelayed(ticker, 60_000 - System.currentTimeMillis() % 60_000 + 200);
@@ -458,6 +473,8 @@ public final class HomeActivity extends Activity {
             return;
         }
         resumed = false;
+        if (inverterListener != null) inverterListener.stop();
+        inverterListener = null;
         Prefs.of(this).unregisterOnSharedPreferenceChangeListener(noticeWatch);
         App.MAIN.removeCallbacks(reloadApps); // appsDirty stays set: onResume reloads
         App.MAIN.removeCallbacks(ticker);
@@ -1155,6 +1172,20 @@ public final class HomeActivity extends Activity {
         ratesShort = lines[0];
         ratesLong = lines[1];
         ratesLine.setText(info.hasFocus() ? ratesLong : ratesShort);
+    }
+
+    // MARK: - Inverter
+
+    /** The inverter's line under the power lines: only while a phone at home has told its state lately. */
+    private void showInverter() {
+        Inverter.Status s = Inverter.last;
+        if (s == null || !s.fresh(System.currentTimeMillis())) {
+            inverterLine.setVisibility(View.GONE);
+            return;
+        }
+        inverterLine.setText(Inverter.line(this, s));
+        inverterLine.setTextColor(getColor(s.grid ? R.color.text_secondary : R.color.ember));
+        inverterLine.setVisibility(View.VISIBLE);
     }
 
     // MARK: - Outages

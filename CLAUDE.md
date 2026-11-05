@@ -287,6 +287,15 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   Outages.turnOff and from Watchdog. A run calls `Outages.refreshIfStale` (the loading flag and back-off shared with
   home and the fireplace) and downloads nothing while the TV is in standby (`!isInteractive`). HomeMode.disable doesn't
   cancel it: its next run finds Lehko off and cancels itself (one extra wake at most).
+- `Inverter` (2026-11-05, Eugene's request): the home's own inverter, told by Eugene's phone program (monitor.py, not in
+  this repo: it reads an Anenji inverter through the SmartESS stick's local protocol and runs a Telegram bot) as a UDP
+  broadcast JSON packet to port 8897 every ~10 s (`{"lehko":"inverter","v":1,"grid","soc","load","bat_a","for_s",
+  "runtime"}`). Only validated numbers are used, inside Lehko's own strings. `Inverter.Listener` (one use: start, stop;
+  SO_REUSEADDR so home and the helper both hear it; a MulticastLock, permission CHANGE_WIFI_MULTICAST_STATE): home
+  listens while resumed and shows the `inverter` line under the power lines while `Inverter.last` is fresh (90 s), ember
+  on the battery; the helper listens while connected, `Inverter.Watch` turns packets into OFF / ON / LOW_BATTERY (30, 20,
+  10%; the first packet or one after a 5 min gap only sets the start) and the card shows before the schedule's cards,
+  within 2 min or not at all (dropped at screen off). No setting: nothing shows without packets. Not run on a device yet.
 - `SleepTimer`: `CHOICES` off/15/30/60/90 min; the home screen writes `sleep=<epoch ms>` (0 = off) into helper.txt.
   `step(at, done, now)`: NONE (unset, ended = `sleep_done`, or more than 2 min past: the TV was restarted), WAIT, CARD
   (the last 60 s), SLEEP. `at(c)` (main process) hides a timer the helper ended. `passes(key)`: volume, mute and the

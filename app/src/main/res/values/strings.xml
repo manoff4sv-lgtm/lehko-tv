@@ -132,6 +132,14 @@
     <string name="dur_min">%d min</string>
     <string name="dur_h">%d h</string>
     <string name="dur_h_min">%1$d h %2$d min</string>
+    <string name="inverter_grid">Inverter · from the grid · %d%%</string>
+    <string name="inverter_battery">Inverter · on the battery · %d%%</string>
+    <string name="inverter_load">%d W</string>
+    <string name="inverter_left">%s left</string>
+    <string name="inverter_charging">charging</string>
+    <string name="inverter_card_off">The power is out · the inverter runs on the battery · %d%%</string>
+    <string name="inverter_card_on">The power is back · battery %d%%</string>
+    <string name="inverter_card_low">Inverter battery %d%%</string>
     <string name="section_beyond">Beyond the home screen</string>
     <string name="outage_warning">Outage warning</string>
     <string name="outage_warning_on">15 min ahead, over any app</string>
@@ -268,5 +276,5 @@
     <string name="remote_star_default">%s while the stock launcher is off</string>
     <string name="remote_keys_too">The YouTube and “all apps” buttons work again too.</string>
     <string name="helper_label">Lehko helper</string>
-    <string name="helper_description">Makes the remote’s star, YouTube and “all apps” buttons work while the stock launcher is off; the star can open the app chosen in Lehko settings. Over any app it warns of power outages and turns the TV off when the sleep timer ends; when the TV is turned on it can open the input chosen in Lehko settings. Every other button goes straight on, and nothing on the screen is read.</string>
+    <string name="helper_description">Makes the remote’s star, YouTube and “all apps” buttons work while the stock launcher is off; the star can open the app chosen in Lehko settings. Over any app it warns of power outages (and, with an inverter monitor at home, when the power goes or comes back) and turns the TV off when the sleep timer ends; when the TV is turned on it can open the input chosen in Lehko settings. Every other button goes straight on, and nothing on the screen is read.</string>
 </resources>

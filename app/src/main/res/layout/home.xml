@@ -99,6 +99,18 @@
                 android:textColor="@color/text_secondary"
                 android:textSize="15sp" />
 
+            <!-- The home's own inverter (Inverter): only while a phone at home tells its state. -->
+            <TextView
+                android:id="@+id/inverter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/text_secondary"
+                android:textSize="15sp"
+                android:visibility="gone" />
+
             <LinearLayout
                 android:id="@+id/weather"
                 android:layout_width="wrap_content"

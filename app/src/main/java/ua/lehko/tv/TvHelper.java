@@ -152,6 +152,14 @@ public final class TvHelper extends AccessibilityService {
     private TextView card;
     /** The sleep timer (its moment) whose last minute the card shows, or 0. */
     private long sleepCard;
+    /** The home's inverter (see Inverter): its packets, what they mean, and a card waiting for its turn. */
+    private Inverter.Listener inverter;
+    private final Inverter.Watch inverterWatch = new Inverter.Watch();
+    private String inverterCard;
+    private int inverterColor;
+    private long inverterAt;
+    /** An inverter card that couldn't be shown within this is old news. */
+    private static final long INVERTER_CARD_FOR_MS = 2 * 60_000L;
 
     private final BroadcastReceiver screen = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) {
@@ -204,6 +212,17 @@ public final class TvHelper extends AccessibilityService {
             }
         };
         watcher.startWatching();
+        inverter = new Inverter.Listener(this, new Inverter.Listener.Sink() {
+            @Override public void got(Inverter.Status st) {
+                int event = inverterWatch.next(st);
+                if (event == Inverter.NONE) return;
+                inverterCard = Inverter.card(TvHelper.this, event, st);
+                inverterColor = getColor(event == Inverter.ON ? R.color.text_primary : R.color.ember);
+                inverterAt = st.at;
+                arm();
+            }
+        });
+        inverter.start();
         // Started with the system: the TV was just turned on from cold, which brings no "screen on". Once per boot: a
         // later start in it (Lehko turned on, an update of Lehko, the helper's process restarted) isn't the TV's.
         if (screenOn && SystemClock.elapsedRealtime() < COLD_START_MS && firstStartThisBoot()) wakeLater(COLD_TRIES);
@@ -253,6 +272,8 @@ public final class TvHelper extends AccessibilityService {
         if (listening) unregisterReceiver(screen);
         listening = false;
         if (watcher != null) watcher.stopWatching();
+        if (inverter != null) inverter.stop();
+        inverter = null;
         App.MAIN.removeCallbacks(reread);
         App.MAIN.removeCallbacks(tick);
         App.MAIN.removeCallbacks(wake);
@@ -261,6 +282,7 @@ public final class TvHelper extends AccessibilityService {
     }
 
     private void screenOff() {
+        inverterCard = null; // nobody saw it; the next change gets its own
         App.MAIN.removeCallbacks(tick);
         App.MAIN.removeCallbacks(wake);
         removeCard();
@@ -304,6 +326,16 @@ public final class TvHelper extends AccessibilityService {
             next = Math.min(next, at);
         } else if (step == SleepTimer.WAIT) {
             next = Math.min(next, at - SleepTimer.CARD_MS);
+        }
+        // The power really went or came back (the home's inverter): before the schedule's cards.
+        if (inverterCard != null && card == null) {
+            if (now - inverterAt > INVERTER_CARD_FOR_MS) {
+                inverterCard = null;
+            } else if (mayAct()) {
+                String t = inverterCard;
+                inverterCard = null;
+                showCard(t, inverterColor, CARD_MS);
+            }
         }
         // One card at a time: the next one is looked for when this one has gone.
         if (OutageWarning.on(s) && card == null) {

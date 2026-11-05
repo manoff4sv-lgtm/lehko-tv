@@ -144,6 +144,15 @@ s("dur_min", "%d min", "%d хв", "%d мин")
 s("dur_h", "%d h", "%d год", "%d ч")
 s("dur_h_min", "%1$d h %2$d min", "%1$d год %2$d хв", "%1$d ч %2$d мин")
 
+s("inverter_grid", "Inverter · from the grid · %d%%", "Інвертор · від мережі · %d%%", "Инвертор · от сети · %d%%")
+s("inverter_battery", "Inverter · on the battery · %d%%", "Інвертор · від батареї · %d%%", "Инвертор · от батареи · %d%%")
+s("inverter_load", "%d W", "%d Вт", "%d Вт")
+s("inverter_left", "%s left", "вистачить на %s", "хватит на %s")
+s("inverter_charging", "charging", "заряджається", "заряжается")
+s("inverter_card_off", "The power is out · the inverter runs on the battery · %d%%", "Світло зникло · інвертор працює від батареї · %d%%", "Свет пропал · инвертор работает от батареи · %d%%")
+s("inverter_card_on", "The power is back · battery %d%%", "Світло дали · батарея %d%%", "Свет дали · батарея %d%%")
+s("inverter_card_low", "Inverter battery %d%%", "Батарея інвертора %d%%", "Батарея инвертора %d%%")
+
 s("section_beyond", "Beyond the home screen", "Поза головним екраном", "За пределами главного экрана")
 s("outage_warning", "Outage warning", "Попередження про відключення", "Предупреждение об отключении")
 s("outage_warning_on", "15 min ahead, over any app", "За 15 хв, поверх будь-якого додатка", "За 15 мин, поверх любого приложения")
@@ -291,7 +300,7 @@ s("remote_star_tv", "As the TV does", "Як у телевізора", "Как у
 s("remote_star_default", "%s while the stock launcher is off", "%s, поки стандартний лаунчер вимкнений", "%s, пока стандартный лаунчер выключен")
 s("remote_keys_too", "The YouTube and “all apps” buttons work again too.", "Кнопки YouTube і «усі додатки» теж знову працюють.", "Кнопки YouTube и «все приложения» тоже снова работают.")
 s("helper_label", "Lehko helper", "Помічник Lehko", "Помощник Lehko")
-s("helper_description", "Makes the remote’s star, YouTube and “all apps” buttons work while the stock launcher is off; the star can open the app chosen in Lehko settings. Over any app it warns of power outages and turns the TV off when the sleep timer ends; when the TV is turned on it can open the input chosen in Lehko settings. Every other button goes straight on, and nothing on the screen is read.", "Кнопки ☆, YouTube і «усі додатки» на пульті працюють, поки стандартний лаунчер вимкнений; ☆ може відкривати додаток, вибраний у налаштуваннях Lehko. Поверх будь-якого додатка попереджає про відключення світла і вимикає телевізор за таймером сну; після увімкнення телевізора може відкрити вхід, вибраний у налаштуваннях Lehko. Інші кнопки проходять одразу, і нічого з екрана не читається.", "Кнопки ☆, YouTube и «все приложения» на пульте работают, пока стандартный лаунчер выключен; ☆ может открывать приложение, выбранное в настройках Lehko. Поверх любого приложения предупреждает об отключениях света и выключает телевизор по таймеру сна; после включения телевизора может открыть вход, выбранный в настройках Lehko. Остальные кнопки проходят сразу, и ничего с экрана не читается.")
+s("helper_description", "Makes the remote’s star, YouTube and “all apps” buttons work while the stock launcher is off; the star can open the app chosen in Lehko settings. Over any app it warns of power outages (and, with an inverter monitor at home, when the power goes or comes back) and turns the TV off when the sleep timer ends; when the TV is turned on it can open the input chosen in Lehko settings. Every other button goes straight on, and nothing on the screen is read.", "Кнопки ☆, YouTube і «усі додатки» на пульті працюють, поки стандартний лаунчер вимкнений; ☆ може відкривати додаток, вибраний у налаштуваннях Lehko. Поверх будь-якого додатка попереджає про відключення світла (а з монітором інвертора вдома ще й про те, що світло зникло чи зʼявилося) і вимикає телевізор за таймером сну; після увімкнення телевізора може відкрити вхід, вибраний у налаштуваннях Lehko. Інші кнопки проходять одразу, і нічого з екрана не читається.", "Кнопки ☆, YouTube и «все приложения» на пульте работают, пока стандартный лаунчер выключен; ☆ может открывать приложение, выбранное в настройках Lehko. Поверх любого приложения предупреждает об отключениях света (а с монитором инвертора дома ещё и о том, что свет пропал или появился) и выключает телевизор по таймеру сна; после включения телевизора может открыть вход, выбранный в настройках Lehko. Остальные кнопки проходят сразу, и ничего с экрана не читается.")
 
 
 res = sys.argv[1]
