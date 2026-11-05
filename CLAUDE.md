@@ -287,8 +287,8 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   Outages.turnOff and from Watchdog. A run calls `Outages.refreshIfStale` (the loading flag and back-off shared with
   home and the fireplace) and downloads nothing while the TV is in standby (`!isInteractive`). HomeMode.disable doesn't
   cancel it: its next run finds Lehko off and cancels itself (one extra wake at most).
-- `Inverter` (2026-11-05, Eugene's request): the home's own inverter, told by Eugene's phone program (monitor.py, not in
-  this repo: it reads an Anenji inverter through the SmartESS stick's local protocol and runs a Telegram bot) as a UDP
+- `Inverter` (2026-11-05, Eugene's request): the home's own inverter, told by a phone program on the same home network (not in
+  this repo, kept private: it reads the inverter through its SmartESS stick and runs a Telegram bot) as a UDP
   broadcast JSON packet to port 8897 every ~10 s (`{"lehko":"inverter","v":1,"grid","soc","load","bat_a","for_s",
   "runtime"}`). Only validated numbers are used, inside Lehko's own strings. `Inverter.Listener` (one use: start, stop;
   SO_REUSEADDR so home and the helper both hear it; a MulticastLock, permission CHANGE_WIFI_MULTICAST_STATE): home
