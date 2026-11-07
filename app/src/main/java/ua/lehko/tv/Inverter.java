@@ -87,7 +87,9 @@ final class Inverter {
 
     /**
      * What a new status means against the one before: the power went (OFF), came back (ON), the battery passed a
-     * {@link #LOW} level while on it, or nothing. The first status, or one after a long gap, only sets the start.
+     * {@link #LOW} level while on it, or nothing. The first status, or one after a long gap, only sets the start. A level
+     * counts only on its second packet in a row: one reading in a load spike (LiFePO4 voltage sags under a kettle) must
+     * not use up the 30 and 20 percent cards.
      */
     static final class Watch {
         private Status before;
@@ -111,7 +113,7 @@ final class Inverter {
             }
             if (!s.grid) {
                 int p = passed(s);
-                if (p < told) {
+                if (p < told && passed(b) <= p) {
                     told = p;
                     return LOW_BATTERY;
                 }

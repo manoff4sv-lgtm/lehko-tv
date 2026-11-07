@@ -49,7 +49,10 @@ public final class HomeActivity extends Activity {
     private ScrollRow favoritesScroll;
     private ImageView weatherIcon;
     private TextView weatherTemp, weatherText, weatherSun, powerTitle, powerDetail, notice, focusName, ratesLine;
-    /** The inverter line, and its listener while home is in front (see Inverter). */
+    /**
+     * The inverter line, and its listener: from the first onResume to onDestroy, so the line is current the moment home
+     * comes back (it doesn't pop in a few seconds later and move the dial). See Inverter.
+     */
     private TextView inverterLine;
     private Inverter.Listener inverterListener;
     /** The rates line's two versions: short, and full while the details are open. */
@@ -336,6 +339,8 @@ public final class HomeActivity extends Activity {
             App.MAIN.removeCallbacks(hideNotice);
             App.MAIN.removeCallbacks(ticker);
             App.MAIN.removeCallbacks(idle);
+            if (inverterListener != null) inverterListener.stop();
+            inverterListener = null;
             if (menu != null) menu.dismiss();
             ambientFade.cancel();
             getWindow().getDecorView().getViewTreeObserver().removeOnGlobalFocusChangeListener(focusWatch);
@@ -473,8 +478,6 @@ public final class HomeActivity extends Activity {
             return;
         }
         resumed = false;
-        if (inverterListener != null) inverterListener.stop();
-        inverterListener = null;
         Prefs.of(this).unregisterOnSharedPreferenceChangeListener(noticeWatch);
         App.MAIN.removeCallbacks(reloadApps); // appsDirty stays set: onResume reloads
         App.MAIN.removeCallbacks(ticker);
@@ -1180,13 +1183,35 @@ public final class HomeActivity extends Activity {
     private void showInverter() {
         Inverter.Status s = Inverter.last;
         if (s == null || !s.fresh(System.currentTimeMillis())) {
-            inverterLine.setVisibility(View.GONE);
+            setInverterVisibility(View.GONE);
             return;
         }
         inverterLine.setText(Inverter.line(this, s));
         inverterLine.setTextColor(getColor(s.grid ? R.color.text_secondary : R.color.ember));
-        inverterLine.setVisibility(View.VISIBLE);
+        setInverterVisibility(View.VISIBLE);
     }
+
+    /** The line makes the header taller: a notice on screen is fitted again once the new layout is known. */
+    private void setInverterVisibility(int v) {
+        if (inverterLine.getVisibility() == v) return;
+        inverterLine.setVisibility(v);
+        if (notice.getVisibility() != View.VISIBLE) return;
+        ViewTreeObserver o = notice.getViewTreeObserver();
+        o.removeOnPreDrawListener(refitNotice);
+        o.addOnPreDrawListener(refitNotice);
+    }
+
+    /** After the inverter line came or went under a notice: the name line stays only while the notice still fits. */
+    private final ViewTreeObserver.OnPreDrawListener refitNotice = new ViewTreeObserver.OnPreDrawListener() {
+        @Override public boolean onPreDraw() {
+            notice.getViewTreeObserver().removeOnPreDrawListener(this);
+            if (notice.getVisibility() != View.VISIBLE) return true;
+            int want = noticeFits() ? View.VISIBLE : View.GONE;
+            if (focusName.getVisibility() == want) return true;
+            focusName.setVisibility(want);
+            return false; // laid out again before anything is drawn
+        }
+    };
 
     // MARK: - Outages
 

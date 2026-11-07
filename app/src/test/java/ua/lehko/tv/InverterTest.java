@@ -56,7 +56,8 @@ public class InverterTest {
         // Already on the battery at 15% when the TV starts listening: no card for that, nor for 20 or 30.
         assertEquals(Inverter.NONE, w.next(at(false, 15, 0)));
         assertEquals(Inverter.NONE, w.next(at(false, 14, 10_000)));
-        assertEquals(Inverter.LOW_BATTERY, w.next(at(false, 10, 20_000)));
+        assertEquals(Inverter.NONE, w.next(at(false, 10, 20_000)));
+        assertEquals(Inverter.LOW_BATTERY, w.next(at(false, 10, 30_000)));
     }
 
     @Test public void powerGoesAndComesBack() {
@@ -66,16 +67,34 @@ public class InverterTest {
         assertEquals(Inverter.NONE, w.next(at(true, 99, t += 10_000)));
         assertEquals(Inverter.OFF, w.next(at(false, 99, t += 10_000)));
         assertEquals(Inverter.NONE, w.next(at(false, 31, t += 10_000)));
-        assertEquals(Inverter.LOW_BATTERY, w.next(at(false, 30, t += 10_000)));
-        assertEquals(Inverter.NONE, w.next(at(false, 29, t += 10_000)));
+        // A level counts on its second packet in a row.
+        assertEquals(Inverter.NONE, w.next(at(false, 30, t += 10_000)));
+        assertEquals(Inverter.LOW_BATTERY, w.next(at(false, 29, t += 10_000)));
+        assertEquals(Inverter.NONE, w.next(at(false, 28, t += 10_000)));
         // Two levels at once: one card, at the lower one.
-        assertEquals(Inverter.LOW_BATTERY, w.next(at(false, 9, t += 10_000)));
+        assertEquals(Inverter.NONE, w.next(at(false, 9, t += 10_000)));
+        assertEquals(Inverter.LOW_BATTERY, w.next(at(false, 8, t += 10_000)));
         assertEquals(Inverter.NONE, w.next(at(false, 8, t += 10_000)));
         assertEquals(Inverter.ON, w.next(at(true, 8, t += 10_000)));
         // The next outage counts from the start again.
         assertEquals(Inverter.OFF, w.next(at(false, 25, t += 10_000)));
         assertEquals(Inverter.NONE, w.next(at(false, 21, t += 10_000)));
-        assertEquals(Inverter.LOW_BATTERY, w.next(at(false, 20, t += 10_000)));
+        assertEquals(Inverter.NONE, w.next(at(false, 20, t += 10_000)));
+        assertEquals(Inverter.LOW_BATTERY, w.next(at(false, 19, t += 10_000)));
+    }
+
+    @Test public void oneLowReadingInALoadSpikeUsesNothingUp() {
+        Inverter.Watch w = new Inverter.Watch();
+        long t = 0;
+        assertEquals(Inverter.NONE, w.next(at(true, 70, t += 10_000)));
+        assertEquals(Inverter.OFF, w.next(at(false, 62, t += 10_000)));
+        assertEquals(Inverter.NONE, w.next(at(false, 18, t += 10_000))); // the kettle: one sagging reading
+        assertEquals(Inverter.NONE, w.next(at(false, 58, t += 10_000)));
+        assertEquals(Inverter.NONE, w.next(at(false, 31, t += 10_000)));
+        assertEquals(Inverter.NONE, w.next(at(false, 30, t += 10_000)));
+        assertEquals(Inverter.LOW_BATTERY, w.next(at(false, 30, t += 10_000))); // 30 is still told
+        assertEquals(Inverter.NONE, w.next(at(false, 20, t += 10_000)));
+        assertEquals(Inverter.LOW_BATTERY, w.next(at(false, 20, t += 10_000))); // and 20
     }
 
     @Test public void offAtLowBatteryIsOneCard() {

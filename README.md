@@ -48,8 +48,10 @@
   завтра змінюється, так само один раз зʼявляється «Графік змінився: ...». Для цього, поки відкритий інший додаток,
   Lehko оновлює графік раз на пів години (у режимі очікування нічого не завантажує). Вимикається в налаштуваннях
   Lehko: «Попередження про відключення».
-- **Інвертор удома.** Якщо вдома є інвертор і невелика програма-монітор на телефоні в тій самій мережі (вона читає
-  інвертор через його Wi-Fi стик SmartEss), Lehko сам ловить її повідомлення, нічого налаштовувати не треба. Під
+- **Інвертор удома.** Якщо в домашній мережі є програма, що стежить за інвертором і раз на кілька секунд розсилає
+  його стан (UDP broadcast на порт 8897, JSON `{"lehko":"inverter","v":1,"grid":true,"soc":99,"load":272,"runtime":960}`;
+  готової програми Lehko не постачає, її можна написати під свій інвертор), Lehko сам ловить ці повідомлення, нічого
+  налаштовувати не треба. Під
   рядками про світло зʼявляється «Інвертор · від мережі · 99% · 272 Вт», а без світла «від батареї · вистачить на 5 год».
   Поверх будь-якого додатка виринає картка «Світло зникло», «Світло дали» або «Батарея інвертора 20%».
 - **Таймер сну.** Кругла кнопка з місяцем: 15, 30, 60 або 90 хвилин. Поки таймер іде, назва кнопки каже, коли
@@ -310,8 +312,10 @@ exchange rates, favorite apps and HDMI inputs. No ads and no heavy effects: Lehk
   how many minutes are actually left. When today's or tomorrow's schedule changes, "The schedule changed: ..." shows
   once the same way. For this, Lehko updates the schedule every half hour while another app is in front (nothing in
   standby). Turn it off in Lehko settings: "Outage warning".
-- **Your inverter at home.** With an inverter and a small monitor program on a phone on the same network (it reads
-  the inverter through its SmartESS Wi-Fi stick), Lehko picks up its messages by itself, nothing to set up. Under the
+- **Your inverter at home.** If a program on your home network watches the inverter and broadcasts its state every few
+  seconds (UDP broadcast to port 8897, JSON `{"lehko":"inverter","v":1,"grid":true,"soc":99,"load":272,"runtime":960}`;
+  Lehko doesn't ship such a program, you write one for your inverter), Lehko picks the messages up by itself, nothing
+  to set up. Under the
   power lines it shows "Inverter · from the grid · 99% · 272 W", or "on the battery · 5 h left" during an outage. Over
   any app a card says "The power is out", "The power is back" or "Inverter battery 20%".
 - **Sleep timer.** A round moon button: 15, 30, 60 or 90 minutes. While it runs, the button's name says when the TV

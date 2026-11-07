@@ -292,9 +292,13 @@ meant for anyone to install. Owner: Eugene (GitHub manoff4sv-lgtm), Kyiv. He tal
   broadcast JSON packet to port 8897 every ~10 s (`{"lehko":"inverter","v":1,"grid","soc","load","bat_a","for_s",
   "runtime"}`). Only validated numbers are used, inside Lehko's own strings. `Inverter.Listener` (one use: start, stop;
   SO_REUSEADDR so home and the helper both hear it; a MulticastLock, permission CHANGE_WIFI_MULTICAST_STATE): home
-  listens while resumed and shows the `inverter` line under the power lines while `Inverter.last` is fresh (90 s), ember
-  on the battery; the helper listens while connected, `Inverter.Watch` turns packets into OFF / ON / LOW_BATTERY (30, 20,
-  10%; the first packet or one after a 5 min gap only sets the start) and the card shows before the schedule's cards,
+  listens from its first onResume to onDestroy (not only while resumed: the line is current the moment home comes back
+  instead of popping in and moving the dial) and shows the `inverter` line under the power lines while `Inverter.last`
+  is fresh (90 s), ember on the battery; when the line comes or goes under a notice, `refitNotice` decides the name line
+  again after the new layout. The line makes the info panel about 24dp taller than the dial. The helper listens while
+  connected, `Inverter.Watch` turns packets into OFF / ON / LOW_BATTERY (30, 20, 10%, each only on its second packet in
+  a row at or under the level, so one sagging reading doesn't use the levels up; the first packet or one after a 5 min
+  gap only sets the start) and the card shows before the schedule's cards,
   within 2 min or not at all (dropped at screen off). No setting: nothing shows without packets. Not run on a device yet.
 - `SleepTimer`: `CHOICES` off/15/30/60/90 min; the home screen writes `sleep=<epoch ms>` (0 = off) into helper.txt.
   `step(at, done, now)`: NONE (unset, ended = `sleep_done`, or more than 2 min past: the TV was restarted), WAIT, CARD
