@@ -13,13 +13,13 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 
 /**
- * The home's own inverter, as a small program on a phone at home sees it (Eugene's monitor.py: it reads the inverter
- * through its SmartESS Wi-Fi stick and talks to Telegram). That program also broadcasts a short JSON packet on the
- * home network every ten seconds or so; Lehko only listens, so there is nothing to set up: no address, no account.
+ * The home's own inverter, as told by any program on the home network that watches it and broadcasts a short JSON
+ * packet every ten seconds or so. Lehko only listens, so there is nothing to set up: no address, no account.
  *
  * <p>Packet (UDP broadcast to {@link #PORT}): {@code {"lehko":"inverter","v":1,"grid":true,"soc":99,"load":272,
  * "bat_a":0.7,"for_s":3600,"runtime":960}}. {@code for_s}: seconds in the present grid state (a duration, so the
- * phone's clock doesn't matter); {@code runtime}: minutes the battery lasts at this load, -1 when not known.
+ * sender's clock doesn't matter; -1 when not known); {@code runtime}: minutes the battery lasts at this load, -1 when
+ * not known.
  *
  * <p>Nothing that comes in is shown as text: only numbers in sane ranges, put into Lehko's own sentences. The home
  * screen listens while it is in front; the helper listens all the time and shows a card when the power goes or comes

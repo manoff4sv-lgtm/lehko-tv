@@ -130,12 +130,12 @@
     <string name="dur_min">%d мин</string>
     <string name="dur_h">%d ч</string>
     <string name="dur_h_min">%1$d ч %2$d мин</string>
-    <string name="inverter_grid">Инвертор · от сети · %d%%</string>
-    <string name="inverter_battery">Инвертор · от батареи · %d%%</string>
-    <string name="inverter_load">%d Вт</string>
-    <string name="inverter_left">хватит на %s</string>
+    <string name="inverter_grid">Дома: свет есть · батарея %d%%</string>
+    <string name="inverter_battery">Дома: света нет · батарея %d%%</string>
+    <string name="inverter_load">расход %d Вт</string>
+    <string name="inverter_left">хватит примерно на %s</string>
     <string name="inverter_charging">заряжается</string>
-    <string name="inverter_card_off">Свет пропал · инвертор работает от батареи · %d%%</string>
+    <string name="inverter_card_off">Свет пропал · батарея %d%%</string>
     <string name="inverter_card_on">Свет дали · батарея %d%%</string>
     <string name="inverter_card_low">Батарея инвертора %d%%</string>
     <string name="section_beyond">За пределами главного экрана</string>

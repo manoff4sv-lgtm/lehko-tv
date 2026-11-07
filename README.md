@@ -51,9 +51,9 @@
 - **Інвертор удома.** Якщо в домашній мережі є програма, що стежить за інвертором і раз на кілька секунд розсилає
   його стан (UDP broadcast на порт 8897, JSON `{"lehko":"inverter","v":1,"grid":true,"soc":99,"load":272,"runtime":960}`;
   готової програми Lehko не постачає, її можна написати під свій інвертор), Lehko сам ловить ці повідомлення, нічого
-  налаштовувати не треба. Під
-  рядками про світло зʼявляється «Інвертор · від мережі · 99% · 272 Вт», а без світла «від батареї · вистачить на 5 год».
-  Поверх будь-якого додатка виринає картка «Світло зникло», «Світло дали» або «Батарея інвертора 20%».
+  налаштовувати не треба. Під рядками про світло зʼявляється «Вдома: світло є · батарея 99% · споживання 272 Вт», а
+  без світла «Вдома: світла немає · батарея 87% · вистачить приблизно на 5 год». Поверх будь-якого додатка виринає
+  картка «Світло зникло», «Світло дали» або «Батарея інвертора 20%».
 - **Таймер сну.** Кругла кнопка з місяцем: 15, 30, 60 або 90 хвилин. Поки таймер іде, назва кнопки каже, коли
   телевізор вимкнеться («Таймер сну · вимкнеться о 23:40»). За хвилину до кінця поверх будь-якого додатка
   зʼявляється картка: будь-яка кнопка залишає телевізор увімкненим і більше нічого не робить, тож відео не стане на
@@ -315,9 +315,9 @@ exchange rates, favorite apps and HDMI inputs. No ads and no heavy effects: Lehk
 - **Your inverter at home.** If a program on your home network watches the inverter and broadcasts its state every few
   seconds (UDP broadcast to port 8897, JSON `{"lehko":"inverter","v":1,"grid":true,"soc":99,"load":272,"runtime":960}`;
   Lehko doesn't ship such a program, you write one for your inverter), Lehko picks the messages up by itself, nothing
-  to set up. Under the
-  power lines it shows "Inverter · from the grid · 99% · 272 W", or "on the battery · 5 h left" during an outage. Over
-  any app a card says "The power is out", "The power is back" or "Inverter battery 20%".
+  to set up. Under the power lines it shows "At home: power on · battery 99% · using 272 W", or "At home: no power ·
+  battery 87% · about 5 h left" during an outage. Over any app a card says "The power is out", "The power is back" or
+  "Inverter battery 20%".
 - **Sleep timer.** A round moon button: 15, 30, 60 or 90 minutes. While it runs, the button's name says when the TV
   turns off ("Sleep timer · off at 23:40"). A minute before the end a card comes up over any app: any button keeps
   the TV on and does nothing else, so the video doesn't pause (volume works as usual). If nothing is pressed, the TV

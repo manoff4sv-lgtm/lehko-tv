@@ -132,12 +132,12 @@
     <string name="dur_min">%d min</string>
     <string name="dur_h">%d h</string>
     <string name="dur_h_min">%1$d h %2$d min</string>
-    <string name="inverter_grid">Inverter · from the grid · %d%%</string>
-    <string name="inverter_battery">Inverter · on the battery · %d%%</string>
-    <string name="inverter_load">%d W</string>
-    <string name="inverter_left">%s left</string>
+    <string name="inverter_grid">At home: power on · battery %d%%</string>
+    <string name="inverter_battery">At home: no power · battery %d%%</string>
+    <string name="inverter_load">using %d W</string>
+    <string name="inverter_left">about %s left</string>
     <string name="inverter_charging">charging</string>
-    <string name="inverter_card_off">The power is out · the inverter runs on the battery · %d%%</string>
+    <string name="inverter_card_off">The power is out · battery %d%%</string>
     <string name="inverter_card_on">The power is back · battery %d%%</string>
     <string name="inverter_card_low">Inverter battery %d%%</string>
     <string name="section_beyond">Beyond the home screen</string>
